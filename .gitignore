@@ -1,0 +1,25 @@
+# Environments
+.env
+.env.*
+.venv
+node_modules/
+
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+*.egg-info/
+
+# Frontend
+frontend/dist/
+frontend/node_modules/
+.vite/
+
+# Gemini
+.gemini/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
