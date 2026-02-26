@@ -105,6 +105,14 @@ async def gemini_live_ws(websocket: WebSocket):
                     await text_input_queue.put(text)
         except WebSocketDisconnect:
             logger.info("WebSocket disconnected from client side")
+        except RuntimeError as e:
+            # Handle "Cannot call 'receive' once a disconnect message has been received"
+            if "disconnect" in str(e).lower():
+                logger.info("WebSocket receive after disconnect (normal cleanup)")
+            else:
+                logger.error(f"RuntimeError in receive_from_client: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
         except Exception as e:
             logger.error(f"Error receiving from client: {e}")
             import traceback
@@ -138,6 +146,14 @@ async def gemini_live_ws(websocket: WebSocket):
                         })
                     elif event.get("type") == "text":
                         await websocket.send_json(event)
+                    elif event.get("type") == "tool_call":
+                        # Forward tool call events to frontend
+                        await websocket.send_json({
+                            "type": "tool_call",
+                            "name": event.get("name"),
+                            "args": event.get("args"),
+                            "result": event.get("result")
+                        })
                     else:
                         await websocket.send_json(event)
             logger.info("Gemini session ended normally")

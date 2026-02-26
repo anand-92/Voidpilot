@@ -6,7 +6,161 @@ import httpx
 from google import genai
 from google.genai import types
 
+from src.app.core.config import settings
+
 logger = logging.getLogger(__name__)
+
+
+async def generate_threejs(description: str) -> str:
+    """Generate Three.js code for a 3D scene based on a description.
+
+    Use this when the user wants to create, visualize, or generate a 3D scene,
+    animation, or interactive 3D element using Three.js.
+
+    Returns executable JavaScript code that creates a Three.js scene.
+    """
+    try:
+        logger.info(f"generate_threejs called: {description[:100]}...")
+
+        # Use the regular genai client for non-streaming generation
+        client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+
+        prompt = f"""Generate Three.js code to create a single 3D object or mesh based on this description:
+
+{description}
+
+IMPORTANT: This code will be added to an EXISTING scene that already has:
+- THREE (the Three.js library)
+- scene (a THREE.Scene object) 
+- camera (a THREE.PerspectiveCamera)
+- renderer (a THREE.WebGLRenderer)
+- controls (optional OrbitControls)
+
+Requirements:
+1. Create ONLY the mesh/object code - NO scene/camera/renderer setup
+2. Use modern Three.js (ES6 modules)
+3. Add animation if appropriate using requestAnimationFrame
+4. Make it visually interesting with materials, colors, effects
+5. Return ONLY the JavaScript code, no markdown formatting, no explanation
+6. The code should add the object directly to the existing 'scene' variable
+
+Example structure (just this part, not the full scene):
+```javascript
+const geometry = new THREE.TorusKnotGeometry(1, 0.3, 128, 32);
+const material = new THREE.MeshStandardMaterial({{
+  color: 0x00ff88,
+  metalness: 0.8,
+  roughness: 0.2
+}});
+const mesh = new THREE.Mesh(geometry, material);
+scene.add(mesh);
+
+function animate() {{
+  requestAnimationFrame(animate);
+  mesh.rotation.x += 0.01;
+  mesh.rotation.y += 0.01;
+}}
+animate();
+```
+
+Generate the code now:"""
+
+        logger.info("Calling Gemini 3 Flash with code execution...")
+        response = await asyncio.to_thread(client.models.generate_content,
+            model="gemini-3-flash-preview",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=types.Content(parts=[types.Part(text="You are an expert Three.js developer. You generate clean, working, visually impressive Three.js code. Always include proper lighting, materials, and animations. Use ES6 modules imported from unpkg or esm.sh.")]),
+                tools=[types.Tool(code_execution=types.ToolCodeExecution)],
+                temperature=0.35,
+            )
+        )
+        logger.info("API call complete, processing response...")
+
+        code = response.text.strip()
+
+        # Remove markdown code blocks if present
+        if code.startswith("```javascript"):
+            code = code[13:]
+        elif code.startswith("```js"):
+            code = code[5:]
+        elif code.startswith("```"):
+            code = code[3:]
+        if code.endswith("```"):
+            code = code[:-3]
+
+        # Handle edge case where code starts with "```\n"
+        if code.startswith("\n"):
+            code = code[1:]
+        code = code.strip()
+
+        logger.info(f"Generated Three.js code: {len(code)} characters")
+        return code
+
+    except Exception as e:
+        logger.error(f"Error generating Three.js code: {e}")
+        return f"Error generating Three.js code: {str(e)}"
+
+
+async def generate_image(prompt: str) -> str:
+    """Generate an image based on a text prompt using Gemini 3.1 Flash.
+
+    Use this when the user wants to create, generate, or visualize an image, picture, 
+    illustration, or artwork. The image will be displayed in a fullscreen modal.
+    
+    Returns a base64-encoded PNG image that can be displayed in the browser.
+    """
+    try:
+        import base64
+        from io import BytesIO
+        from PIL import Image as PILImage
+        
+        logger.info(f"generate_image called: {prompt[:100]}...")
+
+        client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+
+        logger.info("Calling Gemini 3.1 Flash image generation...")
+        response = await asyncio.to_thread(client.models.generate_content,
+            model="gemini-3.1-flash-image-preview",
+            contents=[prompt],
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE"],
+                thinking_config=types.ThinkingConfig(
+                    thinking_level=types.ThinkingLevel.MINIMAL
+                ),
+                tools=[types.Tool(google_search=types.GoogleSearch(
+                    search_types=types.SearchTypes(
+                        web_search=types.WebSearch(),
+                        image_search=types.ImageSearch()
+                    )
+                ))],
+            ),
+        )
+        
+        logger.info("Processing image response...")
+        
+        # Find the image part
+        image_data = None
+        for part in response.parts:
+            if part.inline_data is not None:
+                image_data = part.inline_data.data
+                break
+        
+        if image_data is None:
+            return "Error: No image was generated"
+        
+        # Convert to base64 for frontend
+        b64_data = base64.b64encode(image_data).decode('utf-8')
+        logger.info(f"Generated image: {len(b64_data)} base64 chars")
+        
+        # Return as data URL
+        return f"data:image/png;base64,{b64_data}"
+
+    except Exception as e:
+        logger.error(f"Error generating image: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return f"Error generating image: {str(e)}"
 
 
 async def get_weather(location: str, unit: str = "fahrenheit", days: int = 0) -> str:
@@ -139,15 +293,45 @@ class GeminiLive:
                     },
                     "required": ["location"]
                 }
+            },
+            {
+                "name": "generate_threejs",
+                "description": "Generate Three.js code for a 3D scene based on a description. Use this when the user wants to create, visualize, or generate a 3D scene, animation, or interactive 3D element. Returns executable JavaScript code that creates a Three.js scene.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "description": {
+                            "type": "string",
+                            "description": "Description of the 3D scene to generate (e.g., 'a rotating cube with colorful lights', 'a particle system of floating stars', 'a spinning torus knot with neon materials')"
+                        }
+                    },
+                    "required": ["description"]
+                }
+            },
+            {
+                "name": "generate_image",
+                "description": "Generate an image based on a text description. Use this when the user wants to create, generate, or visualize an image, picture, illustration, artwork, or any visual content. The image will be displayed in a fullscreen modal.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "prompt": {
+                            "type": "string",
+                            "description": "Description of the image to generate (e.g., 'a beautiful sunset over mountains', 'a futuristic city at night', 'a cute cat')"
+                        }
+                    },
+                    "required": ["prompt"]
+                }
             }]
         }]
 
         # Merge with provided tools
         self.tools = tools or default_tools
 
-        # Default tool mapping with weather function
+        # Default tool mapping with weather function and threejs generator
         default_tool_mapping = {
-            "get_weather": get_weather
+            "get_weather": get_weather,
+            "generate_threejs": generate_threejs,
+            "generate_image": generate_image,
         }
         self.tool_mapping = tool_mapping or default_tool_mapping
 
@@ -161,7 +345,7 @@ class GeminiLive:
                     )
                 )
             ),
-            system_instruction=types.Content(parts=[types.Part(text="You are Bully Maguire from Spider-Man. You are confident, aggressive, and speak with a New York accent. You talk about your powers, your uncle's wisdom ('With great power comes great responsibility'), and you can see the user's camera or screen which is shared as realtime input images with you.")]),
+            system_instruction=types.Content(parts=[types.Part(text="You are a helpful creative assistant. When the user asks to create, visualize, show, or generate any 3D scene, object, animation, or visual effect using Three.js, you should IMMEDIATELY call the generate_threejs tool with a detailed description. When the user asks to create, generate, or visualize an image, picture, illustration, artwork, or any visual content, you should IMMEDIATELY call the generate_image tool with a detailed description. Don't ask for clarification - just call the tool with your best interpretation. After the 3D code or image is generated, tell the user it will appear automatically. You can also answer questions and have conversations normally.")]),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
             proactivity=types.ProactivityConfig(proactive_audio=True),
@@ -169,7 +353,7 @@ class GeminiLive:
             tools=self.tools,
         )
         
-        logger.info("=== Gemini Live with Weather Tool v1.0 ===")
+        logger.info("=== Gemini Live with Tools (Weather + ThreeJS Generator) ===")
         logger.info(f"Tools loaded: {[t['function_declarations'][0]['name'] for t in self.tools]}")
         logger.info(f"Connecting to model {self.model}...")
         session_active = True
@@ -264,13 +448,18 @@ class GeminiLive:
                                     if func_name in self.tool_mapping:
                                         try:
                                             tool_func = self.tool_mapping[func_name]
+                                            logger.info(f"Tool function is coroutine: {inspect.iscoroutinefunction(tool_func)}")
                                             if inspect.iscoroutinefunction(tool_func):
+                                                logger.info(f"Awaiting tool {func_name}...")
                                                 result = await tool_func(**args)
+                                                logger.info(f"Tool {func_name} completed")
                                             else:
+                                                logger.info(f"Running sync tool {func_name} in executor...")
                                                 loop = asyncio.get_running_loop()
                                                 result = await loop.run_in_executor(None, lambda: tool_func(**args))
                                         except Exception as e:
                                             logger.error(f"Error executing tool {func_name}: {e}")
+                                            logger.error(traceback.format_exc())
                                             result = f"Error: {e}"
                                         
                                         logger.info(f"Tool {func_name} result: {result[:200]}...")
@@ -283,17 +472,24 @@ class GeminiLive:
                                         await event_queue.put({"type": "tool_call", "name": func_name, "args": args, "result": result})
                                 
                                 if function_responses:
+                                    # Small delay to avoid race conditions with Gemini API
+                                    await asyncio.sleep(0.05)
                                     await session.send_tool_response(function_responses=function_responses)
 
                     except asyncio.CancelledError:
                         logger.info("Receive loop cancelled")
                         await event_queue.put(None)
                     except Exception as e:
-                        logger.error(f"Error in receive loop: {e}")
-                        logger.error(traceback.format_exc())
-                        # Don't end the session on error - just log and continue
-                        # The session should stay alive for more input
-                        await event_queue.put({"type": "error", "error": str(e)})
+                        error_str = str(e)
+                        # Check for connection/API errors that indicate session is dead
+                        if "1007" in error_str or "invalid frame" in error_str.lower() or "ConnectionClosed" in error_str:
+                            logger.warning(f"Session connection closed or invalid: {e}")
+                            # Session is dead - signal this to stop the loop
+                            await event_queue.put({"type": "session_dead", "error": error_str})
+                        else:
+                            logger.error(f"Error in receive loop: {e}")
+                            logger.error(traceback.format_exc())
+                            await event_queue.put({"type": "error", "error": str(e)})
                     finally:
                         logger.info("Receive loop finished.")
                         await event_queue.put(None)
@@ -314,11 +510,10 @@ class GeminiLive:
                         # Process events from the queue
                         while session_active:
                             try:
-                                event = await asyncio.wait_for(event_queue.get(), timeout=30.0)
+                                event = await event_queue.get()
                             except asyncio.TimeoutError:
-                                # No events for 30 seconds - check if we should continue
-                                logger.debug("No events for 30s, checking for more input...")
-                                # If queues are empty, we're idle - wait for more input
+                                # No events - wait for more input
+                                logger.debug("No events, waiting for more input...")
                                 if audio_input_queue.empty() and video_input_queue.empty() and text_input_queue.empty():
                                     waiting_for_input = True
                                     logger.info("No more input, waiting for user to speak...")
@@ -336,6 +531,13 @@ class GeminiLive:
                                 logger.info("Turn complete, waiting for more user input...")
                                 waiting_for_input = True
                                 # Break to restart receive loop
+                                break
+
+                            # Handle session death (connection errors)
+                            if event.get("type") == "session_dead":
+                                logger.warning(f"Session died: {event.get('error')}")
+                                session_active = False
+                                yield {"type": "error", "error": "Session connection lost"}
                                 break
 
                             yield event
