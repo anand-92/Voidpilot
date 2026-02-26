@@ -189,8 +189,13 @@ export function useGeminiLive() {
           // Resample to 16kHz
           const resampledData = resampleAudio(inputData, sourceRate, targetRate)
           const pcmData = float32ToPcm16(resampledData)
-          // Convert to base64 and send with correct mime type format
-          const base64Audio = btoa(String.fromCharCode(...pcmData))
+          // Convert Int16Array to base64 using Uint8Array view (proper binary conversion)
+          const uint8Array = new Uint8Array(pcmData.buffer)
+          let binary = ''
+          for (let i = 0; i < uint8Array.length; i++) {
+            binary += String.fromCharCode(uint8Array[i])
+          }
+          const base64Audio = btoa(binary)
           sessionRef.current.sendRealtimeInput({
             audio: {
               data: base64Audio,
