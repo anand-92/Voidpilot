@@ -1,6 +1,6 @@
 import { memo, useRef, useState, type MutableRefObject } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Float, Sphere, MeshReflectorMaterial } from '@react-three/drei'
+import { Float, Sphere } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
@@ -14,7 +14,18 @@ console.warn = (...args: unknown[]) => {
 
 interface SceneProps {
   intensityRef: MutableRefObject<number>
+  isConnected?: boolean
+  start?: () => void
+  stop?: () => void
+  messages?: Message[]
+  inputText?: string
+  setInputText?: (text: string) => void
+  handleSend?: () => void
 }
+
+import { type Message } from '../hooks/useGeminiLive'
+import { StartButton3D } from './StartButton3D'
+import { ChatModal3D } from './ChatModal3D'
 
 
 function isWebGLAvailable(): boolean {
@@ -181,7 +192,7 @@ void main() {
 
 const _targetScale = new THREE.Vector3()
 
-function EntityOrb({ intensityRef }: SceneProps) {
+const EntityOrb = memo(function EntityOrb({ intensityRef }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null!)
   const materialRef = useRef<THREE.ShaderMaterial>(null!)
 
@@ -230,7 +241,7 @@ function EntityOrb({ intensityRef }: SceneProps) {
       />
     </Float>
   )
-}
+})
 
 function BloomEffect() {
   return (
@@ -245,43 +256,33 @@ function BloomEffect() {
   )
 }
 
-function ReflectiveFloor() {
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-      <planeGeometry args={[100, 100]} />
-      {/* Perfect, smooth, dark mirror */}
-      <MeshReflectorMaterial
-        blur={[0, 0]}
-        resolution={1024}
-        mixBlur={0}
-        mixStrength={100}
-        roughness={0.0} // perfectly smooth
-        depthScale={1}
-        minDepthThreshold={0.9}
-        maxDepthThreshold={1}
-        color="#000000" // base color black
-        metalness={1.0}
-        mirror={1.0}
-      />
-    </mesh>
-  )
-}
 
-function CameraRig({ intensityRef }: SceneProps) {
+
+function CameraRig({ intensityRef, isConnected }: SceneProps) {
+  const lookAtTarget = useRef(new THREE.Vector3(0, 2.5, 0))
   useFrame((state) => {
     const time = state.clock.getElapsedTime()
-    // Subtle camera sway - user is small, looking up
-    state.camera.position.x = Math.sin(time * 0.05) * 0.5
-    state.camera.position.y = 1.0 + Math.cos(time * 0.08) * 0.2
 
-    // Look at the orb (which is at x=0)
-    state.camera.lookAt(0, 2.5, 0)
+    const targetX = isConnected ? 3.5 : (Math.sin(time * 0.05) * 0.5)
+    // Zoom out slightly when connected, but keep base zoom further back
+    const targetZ = isConnected ? 12 : 11
+
+    state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.02)
+    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.02)
+
+    state.camera.position.y = 1.0 + Math.cos(time * 0.08) * 0.2
 
     // Use the intensity so TypeScript doesn't complain about unused variables
     const currentIntensity = intensityRef.current
     if (currentIntensity > 0) {
       state.camera.position.y += currentIntensity * 0.05
     }
+
+    const targetLookAtX = isConnected ? 3.5 : 0
+    const targetLookAtY = isConnected ? 2.5 : 1.5 // Look down a bit to see the button when disconnected
+    lookAtTarget.current.x = THREE.MathUtils.lerp(lookAtTarget.current.x, targetLookAtX, 0.02)
+    lookAtTarget.current.y = THREE.MathUtils.lerp(lookAtTarget.current.y, targetLookAtY, 0.02)
+    state.camera.lookAt(lookAtTarget.current)
   })
   return null
 }
@@ -303,7 +304,8 @@ function FallbackVisualizer({ intensityRef }: SceneProps) {
   )
 }
 
-export default memo(function Visualizer({ intensityRef }: SceneProps) {
+export default memo(function Visualizer(props: SceneProps) {
+  const { intensityRef, isConnected, start, stop, messages, inputText, setInputText, handleSend } = props
   const [hasWebGL] = useState(isWebGLAvailable)
 
   if (!hasWebGL) {
@@ -323,13 +325,44 @@ export default memo(function Visualizer({ intensityRef }: SceneProps) {
       >
         <color attach="background" args={['#000000']} />
         <fog attach="fog" args={['#000000', 8, 30]} />
+        <ambientLight intensity={0.5} />
+
+        {/* 3D UI Overlay */}
+        {!isConnected && start && (
+          <StartButton3D onClick={start} />
+        )}
+
+        {isConnected && messages && setInputText && handleSend && stop && (
+          <ChatModal3D
+            messages={messages}
+            inputText={inputText || ''}
+            setInputText={setInputText}
+            handleSend={handleSend}
+            stop={stop}
+          />
+        )}
 
         <EntityOrb intensityRef={intensityRef} />
-        <ReflectiveFloor />
-        <CameraRig intensityRef={intensityRef} />
+
+        <CameraRig intensityRef={intensityRef} isConnected={isConnected} />
 
         <BloomEffect />
       </Canvas>
+
+      {/* 2D Header overlay */}
+      {!isConnected && (
+        <div className="absolute top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10 w-full">
+          <h1 className="text-5xl md:text-6xl font-black tracking-tight bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-2xl">
+            Gemini Live
+          </h1>
+          <div className="flex items-center gap-2 mt-4 px-4 py-1.5 rounded-full bg-slate-900/50 border border-slate-800 backdrop-blur-xl">
+            <div className="w-2 h-2 rounded-full bg-rose-500 transition-shadow duration-500" />
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              Disconnected
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   )
 })
