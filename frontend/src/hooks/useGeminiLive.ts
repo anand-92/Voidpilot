@@ -105,7 +105,11 @@ export function useGeminiLive() {
       processorRef.current = audioContextRef.current.createScriptProcessor(AUDIO_BUFFER_SIZE, 1, 1)
 
       // Step 3: Connect to Gemini Live API directly
-      aiRef.current = new GoogleGenAI({ apiKey: token })
+      // Ephemeral tokens only work with v1alpha API version
+      aiRef.current = new GoogleGenAI({
+        apiKey: token,
+        httpOptions: { apiVersion: 'v1alpha' }
+      })
 
       const session = await aiRef.current.live.connect({
         model: MODEL,
