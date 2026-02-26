@@ -1,4 +1,4 @@
-import { memo, useRef, useState, type MutableRefObject } from 'react'
+import { memo, useRef, useState, useEffect, type MutableRefObject } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Float, Sphere } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
@@ -21,6 +21,8 @@ interface SceneProps {
   inputText?: string
   setInputText?: (text: string) => void
   handleSend?: () => void
+  threeJsCode?: string | null
+  clearThreeJsCode?: () => void
 }
 
 import { type Message } from '../hooks/useGeminiLive'
@@ -35,6 +37,96 @@ function isWebGLAvailable(): boolean {
   } catch {
     return false
   }
+}
+
+// Dynamic mesh component that renders in the main scene
+function GeneratedMesh({ code, onClose }: { code: string; onClose?: () => void }) {
+  const groupRef = useRef<THREE.Group>(null!)
+  const [meshObj, setMeshObj] = useState<THREE.Object3D | null>(null)
+  
+  useEffect(() => {
+    async function createMesh() {
+      try {
+        // Create a temporary scene to execute the code
+        const tempScene = new THREE.Scene()
+        
+        // Create a scope with THREE and scene
+        const scope = {
+          THREE,
+          scene: tempScene,
+          console,
+          Math,
+          requestAnimationFrame: (fn: FrameRequestCallback) => setTimeout(fn, 16),
+          setTimeout,
+          setInterval,
+        }
+        
+        // Extract just the code that adds to scene (skip imports and lighting)
+        let execCode = code
+        
+        // Remove import statements
+        execCode = execCode.replace(/import\s+.*?;/g, '')
+        
+        // Remove light/ambient additions (we have our own lighting)
+        execCode = execCode.replace(/scene\.add\(.*?Light.*?\);/gi, '')
+        
+        // Execute the code
+        const keys = Object.keys(scope)
+        const values = Object.values(scope)
+        const fn = new Function(...keys, execCode)
+        fn(...values)
+        
+        // Find what was added to the scene
+        const meshes: THREE.Object3D[] = []
+        tempScene.traverse((child) => {
+          if ((child as THREE.Object3D).type === 'Mesh' || (child as THREE.Object3D).type === 'Group') {
+            meshes.push(child as THREE.Object3D)
+          }
+        })
+        
+        const mainObject = meshes[0]
+        
+        if (mainObject) {
+          setMeshObj(mainObject.clone())
+        }
+      } catch (e) {
+        console.error('Failed to create mesh:', e)
+      }
+    }
+    
+    createMesh()
+  }, [code])
+  
+  // Animate the mesh
+  useEffect(() => {
+    if (!groupRef.current) return
+    
+    let animationId: number
+    const animate = () => {
+      if (groupRef.current) {
+        groupRef.current.rotation.y += 0.01
+        groupRef.current.position.y = Math.sin(Date.now() * 0.002) * 0.2
+      }
+      animationId = requestAnimationFrame(animate)
+    }
+    animate()
+    
+    return () => cancelAnimationFrame(animationId)
+  }, [meshObj])
+  
+  return (
+    <group ref={groupRef} position={[0, 2.5, 5]}>
+      {meshObj && <primitive object={meshObj} />}
+      {onClose && (
+        <Float speed={2} floatIntensity={0.5}>
+          <mesh position={[0, -1.5, 0]} onClick={onClose}>
+            <sphereGeometry args={[0.3, 16, 16]} />
+            <meshStandardMaterial color="#ff2222" emissive="#ff0000" emissiveIntensity={2} toneMapped={false} />
+          </mesh>
+        </Float>
+      )}
+    </group>
+  )
 }
 
 // SIMPLEX NOISE 3D (classic implementation for WebGL)
@@ -305,7 +397,7 @@ function FallbackVisualizer({ intensityRef }: SceneProps) {
 }
 
 export default memo(function Visualizer(props: SceneProps) {
-  const { intensityRef, isConnected, start, stop, messages, inputText, setInputText, handleSend } = props
+  const { intensityRef, isConnected, start, stop, messages, inputText, setInputText, handleSend, threeJsCode, clearThreeJsCode } = props
   const [hasWebGL] = useState(isWebGLAvailable)
 
   if (!hasWebGL) {
@@ -343,6 +435,13 @@ export default memo(function Visualizer(props: SceneProps) {
         )}
 
         <EntityOrb intensityRef={intensityRef} />
+
+        {threeJsCode && clearThreeJsCode && (
+          <GeneratedMesh 
+            code={threeJsCode} 
+            onClose={() => clearThreeJsCode()} 
+          />
+        )}
 
         <CameraRig intensityRef={intensityRef} isConnected={isConnected} />
 

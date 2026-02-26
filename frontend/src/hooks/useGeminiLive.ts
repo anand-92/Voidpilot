@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 
 export type MessageRole = 'user' | 'gemini' | 'system' | 'thought' | 'user_voice' | 'gemini_voice'
 export interface Message { role: MessageRole; content: string }
@@ -50,11 +50,14 @@ function resampleAudio(inputData: Float32Array, sourceRate: number, targetRate: 
 export function useGeminiLive() {
   const [isConnected, setIsConnected] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
+  const [threeJsCode, setThreeJsCode] = useState<string | null>(null)
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const intensityRef = useRef(0)
 
   const wsRef = useRef<WebSocket | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const nextPlayTimeRef = useRef<number>(0)
 
   const addMessage = useCallback((content: string, role: MessageRole) => {
@@ -73,19 +76,42 @@ export function useGeminiLive() {
     })
   }, [])
 
+  const clearThreeJsCode = useCallback(() => {
+    setThreeJsCode(null)
+  }, [])
+
+  const clearGeneratedImage = useCallback(() => {
+    setGeneratedImage(null)
+  }, [])
+
   const stop = useCallback(() => {
+    // Close WebSocket
     if (wsRef.current) {
       wsRef.current.close()
       wsRef.current = null
     }
+    // Stop all media stream tracks
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    // Disconnect and close audio nodes
     processorRef.current?.disconnect()
+    processorRef.current = null
     audioContextRef.current?.close()
+    audioContextRef.current = null
+    // Reset state
     setIsConnected(false)
     intensityRef.current = 0
+    nextPlayTimeRef.current = 0
   }, [])
 
   const start = useCallback(async () => {
     try {
+      // Cleanup existing connection if any
+      if (wsRef.current || streamRef.current) {
+        stop()
+      }
       // Connect to backend WebSocket
       const ws = new WebSocket(`${API_BASE_URL}/api/v1/live/live`)
 
@@ -103,10 +129,24 @@ export function useGeminiLive() {
           const role = data.role === 'user' ? 'user' : 'gemini'
           addMessage(data.content, role)
         }
+        // Handle tool call responses
+        else if (data.type === 'tool_call') {
+          console.log('Tool call received:', data.name, data.args)
+          if (data.name === 'generate_threejs' && data.result) {
+            setThreeJsCode(data.result)
+            addMessage('[Three.js code generated - click to view]', 'system')
+          }
+          if (data.name === 'generate_image' && data.result) {
+            setGeneratedImage(data.result)
+            addMessage('[Image generated]', 'system')
+          }
+        }
         // Handle hex-encoded audio data from backend
         else if (data.type === 'audio') {
           // Backend sends hex-encoded PCM bytes - decode and play
-          const bytes = new Uint8Array(data.content.match(/.{1,2}/g)!.map((byte: string) => parseInt(byte, 16)))
+          const hexMatch = data.content.match(/.{1,2}/g)
+          if (!hexMatch) return
+          const bytes = new Uint8Array(hexMatch.map((byte: string) => parseInt(byte, 16)))
           const pcmData = new Int16Array(bytes.buffer)
 
           if (pcmData.length > 0 && audioContextRef.current) {
@@ -154,11 +194,11 @@ export function useGeminiLive() {
 
       // Set up audio capture
       audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-      const stream = await navigator.mediaDevices.getUserMedia({
+      streamRef.current = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
       })
 
-      const source = audioContextRef.current.createMediaStreamSource(stream)
+      const source = audioContextRef.current.createMediaStreamSource(streamRef.current)
       processorRef.current = audioContextRef.current.createScriptProcessor(AUDIO_BUFFER_SIZE, 1, 1)
 
       // Send audio to backend
@@ -192,7 +232,12 @@ export function useGeminiLive() {
       wsRef.current.send(JSON.stringify({ type: 'text', content: text }))
       addMessage(text, 'user')
     }
-  }, [addMessage])
+  }, [addMessage, stop])
 
-  return { isConnected, messages, intensityRef, start, stop, sendText }
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { stop() }
+  }, [stop])
+
+  return { isConnected, messages, intensityRef, start, stop, sendText, threeJsCode, clearThreeJsCode, generatedImage, clearGeneratedImage }
 }
