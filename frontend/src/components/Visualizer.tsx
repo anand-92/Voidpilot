@@ -1,4 +1,4 @@
-import { useRef, useState, type MutableRefObject } from 'react'
+import { memo, useRef, useState, type MutableRefObject } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Float, Sphere, MeshReflectorMaterial } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
@@ -149,25 +149,33 @@ varying vec3 vPosition;
 varying float vNoise;
 
 void main() {
-  // Base color: Cold blue
-  vec3 colorA = vec3(0.0, 0.2, 0.6); // Deep blue
-  vec3 colorB = vec3(0.0, 0.8, 1.0); // Bright cyan/blue
+  // Layered dark palette
+  vec3 colorDeep   = vec3(0.01, 0.04, 0.14); // dark navy
+  vec3 colorMid    = vec3(0.05, 0.12, 0.35); // indigo
+  vec3 colorBright = vec3(0.1, 0.22, 0.55);  // slate-blue
   
-  // Mix color based on noise height (peaks are brighter)
-  // Also globally brighten based on audio intensity
-  float mixVal = smoothstep(-0.5, 0.5, vNoise);
-  vec3 baseColor = mix(colorA, colorB, mixVal);
+  // Layer 1: base gradient from deep valleys to mid-tone peaks
+  float layer1 = smoothstep(-0.6, 0.3, vNoise);
+  vec3 baseColor = mix(colorDeep, colorMid, layer1);
   
-  // Add an emissive glow that flares heavily with intensity
-  vec3 flareColor = vec3(0.5, 0.9, 1.0);
-  float flareMask = smoothstep(0.0, 0.5, vNoise * uIntensity);
+  // Layer 2: brighter ridges on the highest peaks only
+  float layer2 = smoothstep(0.2, 0.7, vNoise);
+  baseColor = mix(baseColor, colorBright, layer2 * 0.65);
   
-  vec3 finalColor = baseColor + (flareColor * flareMask * 2.0);
+  // Layer 3: subtle cool highlight on extreme peaks
+  vec3 highlightColor = vec3(0.15, 0.28, 0.6);
+  float layer3 = smoothstep(0.5, 1.0, vNoise);
+  baseColor += highlightColor * layer3 * 0.35;
   
-  // Ambient glow boost
-  finalColor += colorB * (0.2 + uIntensity);
+  // Subtle intensity-reactive glow (cool violet-blue tint)
+  vec3 flareColor = vec3(0.12, 0.1, 0.35);
+  float flareMask = smoothstep(0.0, 0.6, vNoise * uIntensity);
+  baseColor += flareColor * flareMask;
   
-  gl_FragColor = vec4(finalColor, 1.0);
+  // Faint ambient
+  baseColor += colorMid * (0.08 + uIntensity * 0.2);
+  
+  gl_FragColor = vec4(baseColor, 1.0);
 }
 `
 
@@ -215,9 +223,9 @@ function EntityOrb({ intensityRef }: SceneProps) {
       {/* Light emanating from the orb itself */}
       <pointLight
         position={[0, 2.5, 0]}
-        intensity={2}
-        color="#00aaff"
-        distance={30}
+        intensity={1.5}
+        color="#1e3a8a"
+        distance={24}
         decay={2}
       />
     </Float>
@@ -228,10 +236,10 @@ function BloomEffect() {
   return (
     <EffectComposer>
       <Bloom
-        luminanceThreshold={0.1}
+        luminanceThreshold={0.12}
         luminanceSmoothing={0.9}
-        intensity={2.5}
-        radius={0.9}
+        intensity={1.6}
+        radius={0.85}
       />
     </EffectComposer>
   )
@@ -295,7 +303,7 @@ function FallbackVisualizer({ intensityRef }: SceneProps) {
   )
 }
 
-export default function Visualizer({ intensityRef }: SceneProps) {
+export default memo(function Visualizer({ intensityRef }: SceneProps) {
   const [hasWebGL] = useState(isWebGLAvailable)
 
   if (!hasWebGL) {
@@ -306,12 +314,10 @@ export default function Visualizer({ intensityRef }: SceneProps) {
     )
   }
 
-  // Read intensity from ref for Bloom (no re-renders)
-  // Bloom intensity is static baseline; the ref is read inside useFrame for the orb
   return (
     <div className="fixed inset-0 z-0 bg-black">
       <Canvas
-        camera={{ position: [0, 1.0, 8], fov: 60 }} // Camera lower, looking slightly up
+        camera={{ position: [0, 1.0, 8], fov: 60 }}
         gl={{ antialias: true, failIfMajorPerformanceCaveat: true, toneMapping: THREE.ACESFilmicToneMapping }}
         dpr={[1, 2]}
       >
@@ -326,4 +332,4 @@ export default function Visualizer({ intensityRef }: SceneProps) {
       </Canvas>
     </div>
   )
-}
+})
