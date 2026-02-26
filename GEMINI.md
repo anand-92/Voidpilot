@@ -14,13 +14,25 @@ Real-time multimodal (audio/text) bridge between a React + Three.js frontend and
 
 ## Architecture
 
+### Authentication: Ephemeral Tokens
+
+This project uses **ephemeral tokens** for direct client-to-Gemini connections:
+
+1. Frontend requests an ephemeral token from backend: `POST /api/v1/live/token`
+2. Backend generates a short-lived token (30 min for messages, 1 min for new sessions)
+3. Frontend connects directly to Gemini Live API using the token
+4. This reduces latency by eliminating the backend proxy for audio streaming
+
+The token is locked to the model `gemini-2.5-flash-native-audio-preview-12-2025` for security.
+
 ### Backend (`src/app/`)
 
 | Path | Purpose |
 |------|---------|
 | `main.py` | FastAPI entry point — CORS, routers |
-| `api/v1/live.py` | WebSocket endpoint (`/ws`) for the Gemini Live bridge |
-| `services/gemini_live.py` | Core `google-genai` async session and bidirectional streaming |
+| `api/v1/endpoints/live.py` | REST endpoint (`/token`) for ephemeral tokens, WebSocket endpoint (`/ws`) for fallback |
+| `services/ephemeral_token.py` | Ephemeral token creation using Google GenAI SDK |
+| `services/gemini_live.py` | Core `google-genai` async session and bidirectional streaming (for proxy mode) |
 | `core/config.py` | Settings via `pydantic-settings` |
 | `schemas/` | Pydantic request/response models |
 
@@ -30,7 +42,7 @@ Real-time multimodal (audio/text) bridge between a React + Three.js frontend and
 |------|---------|
 | `App.tsx` | Root component |
 | `components/` | Three.js visualizer and UI components |
-| `hooks/` | Custom hooks (e.g., `useGeminiLive`) |
+| `hooks/useGeminiLive.ts` | Gemini Live connection with ephemeral token support |
 
 ## Commands
 
@@ -75,3 +87,4 @@ docker compose up --build
 | `dev.sh` | Unified dev launcher (backend + frontend) |
 | `Dockerfile` / `docker-compose.yml` | Containerization |
 | `tests/test_gemini_live.py` | WebSocket bridge integration test |
+| `GEMINI.md` | This file - project documentation |
