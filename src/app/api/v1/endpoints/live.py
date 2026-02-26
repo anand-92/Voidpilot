@@ -1,17 +1,19 @@
 import asyncio
+import base64
 import json
 import logging
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from src.app.core.config import settings
-from src.app.services.ephemeral_token import create_ephemeral_token
-from src.app.services.gemini_audio import GeminiAudioBridge
+from src.app.services.gemini_audio import GeminiLive
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Model from example
+MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 
 def validate_api_key() -> str:
     """Validate that GOOGLE_API_KEY is configured."""
@@ -21,58 +23,148 @@ def validate_api_key() -> str:
     return api_key
 
 
-@router.post("/token")
-async def create_token() -> dict:
-    """
-    Generate an ephemeral token for direct Gemini Live API connection.
-
-    Returns:
-        A dict containing the token name.
-    """
-    try:
-        api_key = validate_api_key()
-        token_name = create_ephemeral_token(api_key)
-        return {"token": token_name}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to create ephemeral token: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create token: {str(e)}")
-
-
 @router.websocket("/live")
 async def gemini_live_ws(websocket: WebSocket):
-    """WebSocket endpoint for Gemini Live audio connection."""
+    """WebSocket endpoint for Gemini Live connection."""
     logger.info("New Gemini Live WebSocket connection request received")
     await websocket.accept()
 
-    bridge = GeminiAudioBridge(websocket)
+    api_key = settings.GOOGLE_API_KEY
+    if not api_key:
+        logger.error("GOOGLE_API_KEY not configured")
+        await websocket.close(code=1011)
+        return
 
-    # Start bridge in background and handle messages from client
-    async def client_messages():
+    audio_input_queue = asyncio.Queue()
+    video_input_queue = asyncio.Queue()
+    text_input_queue = asyncio.Queue()
+
+    # Clear any pending items in queues
+    while not audio_input_queue.empty():
+        try:
+            audio_input_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+    while not video_input_queue.empty():
+        try:
+            video_input_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+    while not text_input_queue.empty():
+        try:
+            text_input_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
+    async def audio_output_callback(data):
+        try:
+            await websocket.send_json({
+                "type": "audio",
+                "content": data.hex()
+            })
+        except Exception as e:
+            logger.error(f"Error sending audio to client: {e}")
+
+    async def audio_interrupt_callback():
+        try:
+            await websocket.send_json({"type": "interrupted"})
+        except Exception as e:
+            logger.error(f"Error sending interrupted to client: {e}")
+
+    gemini_client = GeminiLive(
+        api_key=api_key, 
+        model=MODEL, 
+        input_sample_rate=16000
+    )
+
+    async def receive_from_client():
         try:
             while True:
                 message = await websocket.receive()
-                if "text" in message:
-                    data = json.loads(message["text"])
-                    if data.get("type") == "text":
-                        await bridge.send_text(data.get("content", ""))
-                elif "bytes" in message:
-                    await bridge.send_audio(message["bytes"])
+                if "bytes" in message:
+                    await audio_input_queue.put(message["bytes"])
+                elif "text" in message:
+                    text = message["text"]
+                    try:
+                        payload = json.loads(text)
+                        if isinstance(payload, dict):
+                            if payload.get("type") == "image":
+                                logger.info(f"Received image chunk from client: {len(payload['data'])} base64 chars")
+                                image_data = base64.b64decode(payload["data"])
+                                await video_input_queue.put(image_data)
+                                continue
+                            elif payload.get("type") == "text":
+                                logger.info(f"Received text from client: {payload.get('content', '')}")
+                                await text_input_queue.put(payload.get("content", ""))
+                                continue
+                    except json.JSONDecodeError:
+                        pass
+                    
+                    # Fallback for raw text if not JSON or doesn't match expected types
+                    logger.info(f"Received raw text from client: {text}")
+                    await text_input_queue.put(text)
         except WebSocketDisconnect:
-            pass
+            logger.info("WebSocket disconnected from client side")
         except Exception as e:
-            logger.error(f"Client message error: {e}")
+            logger.error(f"Error receiving from client: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
+    receive_task = asyncio.create_task(receive_from_client())
+    max_retries = 3
+    retry_count = 0
+
+    async def run_session():
+        nonlocal retry_count
+        try:
+            logger.info("Starting Gemini session...")
+            async for event in gemini_client.start_session(
+                audio_input_queue=audio_input_queue,
+                video_input_queue=video_input_queue,
+                text_input_queue=text_input_queue,
+                audio_output_callback=audio_output_callback,
+                audio_interrupt_callback=audio_interrupt_callback,
+            ):
+                if event:
+                    logger.debug(f"Event from Gemini: {event['type']}")
+                    # Reset retry count on successful events
+                    retry_count = 0
+                    if event.get("type") in ["user", "gemini"]:
+                        content = event.get("text", event.get("content", ""))
+                        await websocket.send_json({
+                            "type": "text",
+                            "role": event["type"],
+                            "content": content
+                        })
+                    elif event.get("type") == "text":
+                        await websocket.send_json(event)
+                    else:
+                        await websocket.send_json(event)
+            logger.info("Gemini session ended normally")
+        except Exception as e:
+            logger.error(f"Error in Gemini session: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            try:
+                await websocket.send_json({"type": "error", "content": str(e)})
+            except:
+                pass
 
     try:
-        # Run both the bridge and client message handler
-        await asyncio.gather(
-            bridge.run(),
-            client_messages()
-        )
-    except Exception as e:
-        logger.error(f"Gemini Live WebSocket error: {e}")
-        await websocket.close(code=1011)
+        while retry_count < max_retries:
+            await run_session()
+            retry_count += 1
+            if retry_count < max_retries:
+                logger.info(f"Session ended, retrying ({retry_count}/{max_retries})...")
+                # Wait before retrying
+                await asyncio.sleep(1)
+    finally:
+        logger.info("Cleaning up WebSocket connection...")
+        receive_task.cancel()
+        try:
+            await websocket.close()
+        except:
+            pass
 
 
 @router.websocket("/ping")

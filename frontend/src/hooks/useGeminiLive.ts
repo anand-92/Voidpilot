@@ -3,7 +3,7 @@ import { useState, useRef, useCallback } from 'react'
 export type MessageRole = 'user' | 'gemini' | 'system' | 'thought' | 'user_voice' | 'gemini_voice'
 export interface Message { role: MessageRole; content: string }
 
-const API_BASE_URL = 'ws://127.0.0.1:8001'
+const API_BASE_URL = 'ws://127.0.0.1:8000'
 const SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 512
 
@@ -56,7 +56,19 @@ export function useGeminiLive() {
   const nextPlayTimeRef = useRef<number>(0)
 
   const addMessage = useCallback((content: string, role: MessageRole) => {
-    setMessages(prev => [...prev, { role, content }])
+    setMessages(prev => {
+      // If the last message has the same role, append to it (for streaming text)
+      const lastMsg = prev[prev.length - 1]
+      if (lastMsg && lastMsg.role === role) {
+        const updated = [...prev]
+        updated[updated.length - 1] = {
+          ...lastMsg,
+          content: lastMsg.content + content
+        }
+        return updated
+      }
+      return [...prev, { role, content }]
+    })
   }, [])
 
   const stop = useCallback(() => {
@@ -85,7 +97,9 @@ export function useGeminiLive() {
         const data = JSON.parse(event.data)
 
         if (data.type === 'text') {
-          addMessage(data.content, 'gemini')
+          // Use role from message if present, otherwise default to gemini
+          const role = data.role === 'user' ? 'user' : 'gemini'
+          addMessage(data.content, role)
         }
         // Handle hex-encoded audio data from backend
         else if (data.type === 'audio') {
@@ -128,7 +142,11 @@ export function useGeminiLive() {
         if (ws.readyState === WebSocket.OPEN) {
           resolve()
         } else {
-          ws.onopen = () => resolve()
+          const originalOnOpen = ws.onopen
+          ws.onopen = (event) => {
+            if (originalOnOpen) originalOnOpen.call(ws, event)
+            resolve()
+          }
         }
       })
 
