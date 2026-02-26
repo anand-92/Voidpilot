@@ -45,6 +45,18 @@ function calculateIntensityFromFloat(data: Float32Array): number {
   return maxVal
 }
 
+// Resample audio from source rate to target rate (simple decimation/interpolation)
+function resampleAudio(inputData: Float32Array, sourceRate: number, targetRate: number): Float32Array {
+  if (sourceRate === targetRate) return inputData
+  const ratio = sourceRate / targetRate
+  const outputLength = Math.round(inputData.length / ratio)
+  const output = new Float32Array(outputLength)
+  for (let i = 0; i < outputLength; i++) {
+    output[i] = inputData[Math.round(i * ratio)]
+  }
+  return output
+}
+
 export function useGeminiLive() {
   const [isConnected, setIsConnected] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -166,14 +178,25 @@ export function useGeminiLive() {
       addMessage('Connected to Gemini Live (direct)', 'system')
 
       // Step 4: Send audio from microphone to Gemini
+      // Resample from AudioContext rate (typically 48kHz) to 16kHz as required by API
+      const sourceRate = audioContextRef.current.sampleRate
+      const targetRate = 16000
       processorRef.current.onaudioprocess = (e) => {
         if (sessionRef.current && !sessionRef.current.closed) {
           const inputData = e.inputBuffer.getChannelData(0)
           setIntensity(calculateIntensityFromFloat(inputData))
 
-          const pcmData = float32ToPcm16(inputData)
-          const blob = new Blob([pcmData], { type: 'audio/pcm' })
-          sessionRef.current.sendRealtimeInput({ audio: blob })
+          // Resample to 16kHz
+          const resampledData = resampleAudio(inputData, sourceRate, targetRate)
+          const pcmData = float32ToPcm16(resampledData)
+          // Convert to base64 and send with correct mime type format
+          const base64Audio = btoa(String.fromCharCode(...pcmData))
+          sessionRef.current.sendRealtimeInput({
+            audio: {
+              data: base64Audio,
+              mimeType: 'audio/pcm;rate=16000'
+            }
+          })
         }
       }
 
