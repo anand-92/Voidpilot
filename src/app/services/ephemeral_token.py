@@ -15,7 +15,7 @@ def create_ephemeral_token(api_key: str) -> str:
     """
     client = genai.Client(
         api_key=api_key,
-        http_options={"api_version": "v1alpha"}
+        http_options={"api_version": "v1beta"}
     )
 
     now = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -32,7 +32,7 @@ def create_ephemeral_token(api_key: str) -> str:
                     "response_modalities": ["AUDIO"],
                 }
             },
-            "http_options": {"api_version": "v1alpha"},
+            "http_options": {"api_version": "v1beta"},
         }
     )
 

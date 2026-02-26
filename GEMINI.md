@@ -30,9 +30,8 @@ The token is locked to the model `gemini-2.5-flash-native-audio-preview-12-2025`
 | Path | Purpose |
 |------|---------|
 | `main.py` | FastAPI entry point — CORS, routers |
-| `api/v1/endpoints/live.py` | REST endpoint (`/token`) for ephemeral tokens, WebSocket endpoint (`/ws`) for fallback |
+| `api/v1/endpoints/live.py` | REST endpoint (`/token`) for ephemeral tokens and `/ping` for WebSocket testing |
 | `services/ephemeral_token.py` | Ephemeral token creation using Google GenAI SDK |
-| `services/gemini_live.py` | Core `google-genai` async session and bidirectional streaming (for proxy mode) |
 | `core/config.py` | Settings via `pydantic-settings` |
 | `schemas/` | Pydantic request/response models |
 
@@ -59,7 +58,6 @@ cd frontend && npm install && npm run dev
 
 # Tests
 PYTHONPATH=. uv run pytest                    # all tests
-uv run python tests/test_gemini_live.py       # live integration test
 
 # Lint / Format
 uv run ruff check .
@@ -86,5 +84,4 @@ docker compose up --build
 | `pyproject.toml` | Python dependencies and tool config |
 | `dev.sh` | Unified dev launcher (backend + frontend) |
 | `Dockerfile` / `docker-compose.yml` | Containerization |
-| `tests/test_gemini_live.py` | WebSocket bridge integration test |
 | `GEMINI.md` | This file - project documentation |

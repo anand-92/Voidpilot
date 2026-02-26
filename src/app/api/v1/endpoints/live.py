@@ -1,10 +1,12 @@
+import asyncio
+import json
 import logging
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from src.app.core.config import settings
 from src.app.services.ephemeral_token import create_ephemeral_token
-from src.app.services.gemini_live import GeminiLiveService
+from src.app.services.gemini_audio import GeminiAudioBridge
 
 logger = logging.getLogger(__name__)
 
@@ -38,28 +40,39 @@ async def create_token() -> dict:
         raise HTTPException(status_code=500, detail=f"Failed to create token: {str(e)}")
 
 
-@router.websocket("/ws")
+@router.websocket("/live")
 async def gemini_live_ws(websocket: WebSocket):
-    logger.info("New WebSocket connection request received")
+    """WebSocket endpoint for Gemini Live audio connection."""
+    logger.info("New Gemini Live WebSocket connection request received")
     await websocket.accept()
 
+    bridge = GeminiAudioBridge(websocket)
+
+    # Start bridge in background and handle messages from client
+    async def client_messages():
+        try:
+            while True:
+                message = await websocket.receive()
+                if "text" in message:
+                    data = json.loads(message["text"])
+                    if data.get("type") == "text":
+                        await bridge.send_text(data.get("content", ""))
+                elif "bytes" in message:
+                    await bridge.send_audio(message["bytes"])
+        except WebSocketDisconnect:
+            pass
+        except Exception as e:
+            logger.error(f"Client message error: {e}")
+
     try:
-        api_key = validate_api_key()
-    except HTTPException as e:
-        await websocket.send_json(
-            {"type": "error", "message": e.detail}
+        # Run both the bridge and client message handler
+        await asyncio.gather(
+            bridge.run(),
+            client_messages()
         )
-        await websocket.close(code=1008)
-        return
-
-    service = GeminiLiveService(api_key=api_key)
-
-    try:
-        await service.connect_and_stream(websocket)
-    except WebSocketDisconnect:
-        pass
     except Exception as e:
-        await websocket.send_json({"type": "error", "message": str(e)})
+        logger.error(f"Gemini Live WebSocket error: {e}")
+        await websocket.close(code=1011)
 
 
 @router.websocket("/ping")
