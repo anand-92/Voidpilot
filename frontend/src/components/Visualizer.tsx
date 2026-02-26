@@ -3,6 +3,13 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { Float, MeshDistortMaterial, Sphere, Points, PointMaterial } from '@react-three/drei'
 import * as THREE from 'three'
 
+// Suppress THREE.Clock deprecation warning (cosmetic only)
+const originalWarn = console.warn
+console.warn = (...args: unknown[]) => {
+  if (args[0]?.toString?.().includes('THREE.Clock')) return
+  originalWarn.apply(console, args)
+}
+
 interface SceneProps {
   intensity: number
 }
