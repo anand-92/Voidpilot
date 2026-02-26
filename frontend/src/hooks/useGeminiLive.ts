@@ -38,13 +38,13 @@ export function useGeminiLive() {
 
   const start = useCallback(async () => {
     try {
-      audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)({ sampleRate: 16000 })
+      audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 16000 }
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
       })
 
       const source = audioContextRef.current.createMediaStreamSource(stream)
-      processorRef.current = audioContextRef.current.createScriptProcessor(2048, 1, 1)
+      processorRef.current = audioContextRef.current.createScriptProcessor(512, 1, 1)
 
       socketRef.current = new WebSocket('ws://127.0.0.1:8000/api/v1/live/ws')
 
