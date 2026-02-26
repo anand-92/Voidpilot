@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ID = "gen-lang-client-0579048282"
 LOCATION = "us-central1"
-MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
+MODEL = "gemini-live-2.5-flash-native-audio"
 
 # Use Google Cloud API
 client = genai.Client(
