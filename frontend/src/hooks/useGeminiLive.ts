@@ -127,6 +127,13 @@ export function useGeminiLive() {
         model: MODEL,
         config: {
           responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: 'Fenrir'
+              }
+            }
+          },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
         } as any,

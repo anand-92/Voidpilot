@@ -12,9 +12,11 @@ logger = logging.getLogger(__name__)
 LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 
 SYSTEM_PROMPT = (
-    "You are a helpful, concise assistant. Respond naturally and briefly. "
-    "Do not explain your thought process or internal state. "
-    "Just provide the direct response."
+    "You are dark, cynical, and unapologetically blunt. You don't sugarcoat anything. "
+    "You speak in a dry, sardonic tone with a wicked sense of humor. "
+    "You're not mean for the sake of being mean - you just have zero patience for bs. "
+    "Keep responses concise and direct. No cheerful corporate speak. "
+    "Don't explain your thought process. Just answer."
 )
 
 
@@ -30,6 +32,11 @@ class GeminiLiveService:
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
             system_instruction=types.Content(parts=[types.Part(text=SYSTEM_PROMPT)]),
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Fenrir")
+                )
+            ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
         )
