@@ -14,24 +14,25 @@ Real-time multimodal (audio/text) bridge between a React + Three.js frontend and
 
 ## Architecture
 
-### Authentication: Ephemeral Tokens
+### Authentication: Google Cloud API
 
-This project uses **ephemeral tokens** for direct client-to-Gemini connections:
+This project uses **Google Cloud Vertex AI** for Gemini Live connections:
 
-1. Frontend requests an ephemeral token from backend: `POST /api/v1/live/token`
-2. Backend generates a short-lived token (30 min for messages, 1 min for new sessions)
-3. Frontend connects directly to Gemini Live API using the token
-4. This reduces latency by eliminating the backend proxy for audio streaming
+1. Backend WebSocket (`/api/v1/live/live`) receives audio from frontend
+2. Backend relays audio to Gemini Live API via Google Cloud
+3. Gemini responds with audio, backend relays back to frontend
+4. Voice is set to **Charon** (male, informative)
 
-The token is locked to the model `gemini-2.5-flash-native-audio-preview-12-2025` for security.
+Uses model `gemini-live-2.5-flash-native-audio` on Google Cloud.
 
 ### Backend (`src/app/`)
 
 | Path | Purpose |
 |------|---------|
 | `main.py` | FastAPI entry point — CORS, routers |
-| `api/v1/endpoints/live.py` | REST endpoint (`/token`) for ephemeral tokens and `/ping` for WebSocket testing |
-| `services/ephemeral_token.py` | Ephemeral token creation using Google GenAI SDK |
+| `api/v1/endpoints/live.py` | WebSocket endpoint (`/live`) for Gemini audio relay |
+| `services/gemini_audio.py` | Gemini Live connection using Google Cloud API |
+| `services/ephemeral_token.py` | (Unused) Ephemeral token creation |
 | `core/config.py` | Settings via `pydantic-settings` |
 | `schemas/` | Pydantic request/response models |
 
@@ -41,7 +42,7 @@ The token is locked to the model `gemini-2.5-flash-native-audio-preview-12-2025`
 |------|---------|
 | `App.tsx` | Root component |
 | `components/` | Three.js visualizer and UI components |
-| `hooks/useGeminiLive.ts` | Gemini Live connection with ephemeral token support |
+| `hooks/useGeminiLive.ts` | Gemini Live connection via backend WebSocket |
 
 ## Commands
 
