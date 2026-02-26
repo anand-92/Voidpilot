@@ -1,6 +1,10 @@
 import logging
+import os
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.app.api.v1.router import api_router
 from src.app.core.config import settings
@@ -31,3 +35,8 @@ async def health_check():
 
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Serve React frontend in production
+frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="static")

@@ -70,6 +70,52 @@ uv run ruff format .
 docker compose up --build
 ```
 
+## Deployment
+
+Deploy to **Google Cloud Run** - serves both React frontend and Python backend in a single container.
+
+### Prerequisites
+
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed
+- A Google Cloud project with Cloud Run API enabled
+- `GOOGLE_API_KEY` in your `.env` file
+
+### Deploy
+
+```bash
+# 1. Build and push Docker image to GCR
+gcloud builds submit --tag gcr.io/PROJECT_ID/gemini-live-3d-bridge .
+
+# 2. Deploy to Cloud Run (replace PROJECT_ID and API_KEY)
+gcloud run deploy gemini-live-3d-bridge \
+  --image gcr.io/PROJECT_ID/gemini-live-3d-bridge \
+  --platform managed \
+  --region us-east1 \
+  --allow-unauthenticated \
+  --set-env-vars GOOGLE_API_KEY=your-api-key-here
+```
+
+### Update Deployment
+
+After code changes, rebuild and redeploy:
+
+```bash
+gcloud builds submit --tag gcr.io/PROJECT_ID/gemini-live-3d-bridge .
+
+gcloud run deploy gemini-live-3d-bridge \
+  --image gcr.io/PROJECT_ID/gemini-live-3d-bridge \
+  --platform managed \
+  --region us-east1 \
+  --allow-unauthenticated \
+  --set-env-vars GOOGLE_API_KEY=your-api-key-here
+```
+
+### Notes
+
+- The frontend WebSocket connection dynamically uses `wss://` in production
+- Single container serves both `/` (React app) and `/api/v1/*` (FastAPI)
+- Deployed to `us-east1` region by default
+
 ## Conventions
 
 - **Async-first**: `async/await` for all I/O (API calls, WebSockets).

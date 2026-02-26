@@ -3,7 +3,9 @@ import { useState, useRef, useCallback } from 'react'
 export type MessageRole = 'user' | 'gemini' | 'system' | 'thought' | 'user_voice' | 'gemini_voice'
 export interface Message { role: MessageRole; content: string }
 
-const API_BASE_URL = 'ws://127.0.0.1:8000'
+// Use current host with WebSocket protocol (ws:// or wss:// based on HTTP/HTTPS)
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+const API_BASE_URL = `${wsProtocol}//${window.location.host}`
 const SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 512
 
