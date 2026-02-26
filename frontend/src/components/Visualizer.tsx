@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Float, MeshDistortMaterial, Sphere, Points, PointMaterial } from '@react-three/drei'
+import { Float, MeshDistortMaterial, Sphere, MeshReflectorMaterial, Environment } from '@react-three/drei'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 // Suppress THREE.Clock deprecation warning (cosmetic only)
@@ -23,88 +24,123 @@ function isWebGLAvailable(): boolean {
   }
 }
 
-function generateParticlePositions(count: number, spread: number): Float32Array {
-  const p = new Float32Array(count * 3)
-  for (let i = 0; i < count; i++) {
-    p[i * 3] = (Math.random() - 0.5) * spread
-    p[i * 3 + 1] = (Math.random() - 0.5) * spread
-    p[i * 3 + 2] = (Math.random() - 0.5) * spread
-  }
-  return p
-}
-
-const PARTICLE_POSITIONS = generateParticlePositions(2000, 15)
-
 const _targetScale = new THREE.Vector3()
+const _glowColor = new THREE.Color()
 
-function OrganicOrb({ intensity }: SceneProps) {
+function EntityOrb({ intensity }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null!)
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null!)
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime()
-    meshRef.current.rotation.x = time * 0.2
-    meshRef.current.rotation.y = time * 0.3
 
-    const scale = 1.5 + intensity * 2
-    _targetScale.set(scale, scale, scale)
-    meshRef.current.scale.lerp(_targetScale, 0.1)
+    // Slow, ominous rotation
+    meshRef.current.rotation.x = time * 0.1
+    meshRef.current.rotation.y = time * 0.15
+
+    // Scale based on audio intensity - more dramatic
+    const targetScale = 1.8 + intensity * 3
+    _targetScale.set(targetScale, targetScale, targetScale)
+    meshRef.current.scale.lerp(_targetScale, 0.08)
+
+    // Color shift based on intensity - from deep blue to bright cyan/white
+    _glowColor.setHSL(0.58 - intensity * 0.1, 0.9, 0.3 + intensity * 0.5)
+    if (materialRef.current) {
+      materialRef.current.emissive = _glowColor
+      materialRef.current.emissiveIntensity = 0.5 + intensity * 2
+    }
   })
 
   return (
-    <Float speed={2} rotationIntensity={1} floatIntensity={1}>
-      <Sphere ref={meshRef} args={[1, 64, 64]}>
+    <Float speed={1.5} rotationIntensity={0.5} floatIntensity={0.5}>
+      <Sphere ref={meshRef} args={[1, 128, 128]} position={[0, 2, 0]}>
         <MeshDistortMaterial
-          color="#38bdf8"
-          speed={3}
-          distort={0.4 + intensity}
+          ref={materialRef}
+          color="#0c4a6e"
+          speed={2}
+          distort={0.3 + intensity * 0.3}
           radius={1}
-          metalness={0.2}
+          metalness={0.9}
           roughness={0.1}
-          transmission={0.8}
-          thickness={2}
+          emissive="#0ea5e9"
+          emissiveIntensity={0.5}
         />
       </Sphere>
     </Float>
   )
 }
 
-function BackgroundParticles() {
-
-  const ref = useRef<THREE.Points>(null!)
-  useFrame((state) => {
-    ref.current.rotation.y = state.clock.getElapsedTime() * 0.05
-  })
-
+function ReflectiveFloor() {
   return (
-    <Points ref={ref} positions={PARTICLE_POSITIONS} stride={3} frustumCulled={false}>
-      <PointMaterial
-        transparent
-        color="#818cf8"
-        size={0.02}
-        sizeAttenuation={true}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]}>
+      <planeGeometry args={[50, 50]} />
+      <MeshReflectorMaterial
+        blur={[300, 100]}
+        resolution={1024}
+        mixBlur={1}
+        mixStrength={60}
+        roughness={0.5}
+        depthScale={1.2}
+        minDepthThreshold={0.4}
+        maxDepthThreshold={1.4}
+        color="#020617"
+        metalness={0.8}
+        mirror={0.8}
       />
-    </Points>
+    </mesh>
   )
+}
+
+function Lighting({ intensity }: SceneProps) {
+  return (
+    <>
+      <ambientLight intensity={0.05} />
+      <pointLight
+        position={[0, 3, 2]}
+        intensity={2 + intensity * 5}
+        color="#38bdf8"
+        distance={20}
+        decay={2}
+      />
+      <pointLight
+        position={[-3, 1, -2]}
+        intensity={0.5 + intensity * 2}
+        color="#818cf8"
+        distance={15}
+        decay={2}
+      />
+      <spotLight
+        position={[0, 10, 0]}
+        angle={0.3}
+        penumbra={1}
+        intensity={0.3}
+        color="#ffffff"
+        castShadow
+      />
+    </>
+  )
+}
+
+function CameraRig({ intensity }: SceneProps) {
+  useFrame((state) => {
+    const time = state.clock.getElapsedTime()
+    // Subtle camera sway - like you're in awe
+    state.camera.position.x = Math.sin(time * 0.1) * 0.3
+    state.camera.position.y = 2 + Math.cos(time * 0.15) * 0.1
+    state.camera.lookAt(0, 1.5, 0)
+  })
+  return null
 }
 
 function FallbackVisualizer({ intensity }: SceneProps) {
   return (
     <div className="flex items-center justify-center w-full h-full bg-[#020617]">
-      <div 
-        className="rounded-full bg-sky-500/20 blur-3xl transition-all duration-300"
-        style={{ 
-          width: `${200 + intensity * 400}px`, 
+      <div
+        className="rounded-full blur-3xl transition-all duration-500"
+        style={{
+          width: `${200 + intensity * 400}px`,
           height: `${200 + intensity * 400}px`,
-          opacity: 0.1 + intensity * 0.5
-        }}
-      />
-      <div 
-        className="absolute rounded-full border border-sky-500/30 transition-all duration-300"
-        style={{ 
-          width: `${150 + intensity * 200}px`, 
-          height: `${150 + intensity * 200}px`,
+          background: `radial-gradient(circle, rgba(56, 189, 248, ${0.1 + intensity * 0.4}) 0%, transparent 70%)`,
         }}
       />
     </div>
@@ -124,12 +160,29 @@ export default function Visualizer({ intensity }: SceneProps) {
 
   return (
     <div className="fixed inset-0 z-0">
-      <Canvas camera={{ position: [0, 0, 6], fov: 75 }} gl={{ antialias: true, failIfMajorPerformanceCaveat: true }}>
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} intensity={1.5} color="#38bdf8" />
-        <pointLight position={[-10, -10, -10]} intensity={1} color="#818cf8" />
-        <OrganicOrb intensity={intensity} />
-        <BackgroundParticles />
+      <Canvas
+        camera={{ position: [0, 2, 6], fov: 60 }}
+        gl={{ antialias: true, failIfMajorPerformanceCaveat: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        dpr={[1, 2]}
+      >
+        <color attach="background" args={['#020617']} />
+        <fog attach="fog" args={['#020617', 5, 25]} />
+
+        <Lighting intensity={intensity} />
+        <EntityOrb intensity={intensity} />
+        <ReflectiveFloor />
+        <CameraRig intensity={intensity} />
+
+        <Environment preset="night" />
+
+        <EffectComposer>
+          <Bloom
+            luminanceThreshold={0.2}
+            luminanceSmoothing={0.9}
+            intensity={1.5 + intensity * 2}
+            radius={0.8}
+          />
+        </EffectComposer>
       </Canvas>
     </div>
   )

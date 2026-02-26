@@ -129,35 +129,39 @@ export function useGeminiLive() {
           responseModalities: [Modality.AUDIO],
         },
         callbacks: {
-          onMessage(message: LiveServerMessage) {
-            // Handle text responses
+          onopen() {
+            console.log('Connected to Gemini Live')
+          },
+          onmessage(message: LiveServerMessage) {
+            // Handle text and audio responses from parts
             if (message.serverContent?.modelTurn?.parts) {
               for (const part of message.serverContent.modelTurn.parts) {
+                // Handle text
                 if (part.text) {
                   addMessage(part.text, 'gemini', true)
                 }
-              }
-            }
+                // Handle audio from inlineData
+                if (part.inlineData?.data && part.inlineData?.mimeType?.startsWith('audio/')) {
+                  console.log('Audio data received, length:', part.inlineData.data.length)
+                  const bytes = decodeBase64Audio(part.inlineData.data)
+                  const pcmData = new Int16Array(bytes.buffer)
 
-            // Handle audio responses
-            if (message.serverContent?.media?.data) {
-              const bytes = decodeBase64Audio(message.serverContent.media.data)
-              const pcmData = new Int16Array(bytes.buffer)
+                  if (pcmData.length > 0 && audioContextRef.current) {
+                    const floatData = pcm16ToFloat32(pcmData)
+                    setIntensity(calculateIntensityFromFloat(floatData))
 
-              if (pcmData.length > 0 && audioContextRef.current) {
-                const floatData = pcm16ToFloat32(pcmData)
-                setIntensity(calculateIntensityFromFloat(floatData))
+                    const audioBuffer = audioContextRef.current.createBuffer(1, floatData.length, SAMPLE_RATE)
+                    audioBuffer.getChannelData(0).set(floatData)
+                    const bufferSource = audioContextRef.current.createBufferSource()
+                    bufferSource.buffer = audioBuffer
+                    bufferSource.connect(audioContextRef.current.destination)
 
-                const audioBuffer = audioContextRef.current.createBuffer(1, floatData.length, SAMPLE_RATE)
-                audioBuffer.getChannelData(0).set(floatData)
-                const bufferSource = audioContextRef.current.createBufferSource()
-                bufferSource.buffer = audioBuffer
-                bufferSource.connect(audioContextRef.current.destination)
-
-                const now = audioContextRef.current.currentTime
-                if (nextPlayTimeRef.current < now) nextPlayTimeRef.current = now + 0.05
-                bufferSource.start(nextPlayTimeRef.current)
-                nextPlayTimeRef.current += audioBuffer.duration
+                    const now = audioContextRef.current.currentTime
+                    if (nextPlayTimeRef.current < now) nextPlayTimeRef.current = now + 0.05
+                    bufferSource.start(nextPlayTimeRef.current)
+                    nextPlayTimeRef.current += audioBuffer.duration
+                  }
+                }
               }
             }
 
@@ -166,9 +170,13 @@ export function useGeminiLive() {
               isStreamingRef.current = false
             }
           },
-          onError(error: ErrorEvent) {
+          onerror(error: ErrorEvent) {
             console.error('Gemini Live error:', error)
             addMessage(`Error: ${error}`, 'system')
+          },
+          onclose(event: CloseEvent) {
+            console.log('Gemini Live closed:', event.reason)
+            setIsConnected(false)
           }
         }
       })
