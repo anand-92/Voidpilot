@@ -1,69 +1,77 @@
-# Gemini Project Context: gemini-hackathon
+# Gemini Live 3D Bridge
 
-This project is a modern, production-ready Python backend designed to integrate with the **Google Gemini Multimodal Live API**. It serves as a real-time bridge for bidirectional audio and text communication between a client and Gemini's live models.
+Real-time multimodal (audio/text) bridge between a React + Three.js frontend and the Google Gemini Multimodal Live API.
 
-## Project Overview
+## Tech Stack
 
-- **Purpose**: Real-time multimodal (audio/text) interaction bridge using Gemini 2.0.
-- **Main Technologies**:
-  - **Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Async)
-  - **AI SDK**: [google-genai](https://pypi.org/project/google-genai/) (latest 1.64.0+)
-  - **Package Manager**: [uv](https://github.com/astral-sh/uv)
-  - **Tooling**: [Ruff](https://github.com/astral-sh/ruff) (Linting/Formatting), [Pytest](https://docs.pytest.org/) (Testing)
-  - **Frontend**: Simple Glassmorphism UI (Vanilla CSS/JS) served via FastAPI.
+| Layer | Technology |
+|-------|-----------|
+| Backend | [FastAPI](https://fastapi.tiangolo.com/) (async) |
+| AI SDK | [google-genai](https://pypi.org/project/google-genai/) 1.64.0+ |
+| Frontend | React 19 + Three.js + [TailwindCSS v4](https://tailwindcss.com/) (Vite) |
+| Package Mgmt | [uv](https://github.com/astral-sh/uv) (backend), npm (frontend) |
+| Tooling | [Ruff](https://github.com/astral-sh/ruff) (lint/format), [Pytest](https://docs.pytest.org/) |
 
 ## Architecture
 
-- **`src/app/main.py`**: Entry point, configures FastAPI, CORS, static file serving, and includes routers.
-- **`src/app/api/v1/`**: Versioned API endpoints.
-  - **`live.py`**: WebSocket endpoint (`/ws`) for the Gemini Live bridge.
-- **`src/app/services/gemini_live.py`**: Core logic for managing the `google-genai` async session and bidirectional streaming.
-- **`src/app/core/config.py`**: Settings management via `pydantic-settings`.
-- **`src/app/schemas/`**: Pydantic schemas for data validation and serialization.
-- **`src/app/static/`**: Frontend assets (e.g., `index.html`).
+### Backend (`src/app/`)
 
-## Building and Running
+| Path | Purpose |
+|------|---------|
+| `main.py` | FastAPI entry point — CORS, routers |
+| `api/v1/live.py` | WebSocket endpoint (`/ws`) for the Gemini Live bridge |
+| `services/gemini_live.py` | Core `google-genai` async session and bidirectional streaming |
+| `core/config.py` | Settings via `pydantic-settings` |
+| `schemas/` | Pydantic request/response models |
 
-### Commands
+### Frontend (`frontend/src/`)
 
-- **Initialize/Sync Dependencies**:
-  ```bash
-  uv sync
-  ```
-- **Start Development Server**:
-  ```bash
-  uv run uvicorn src.app.main:app --reload
-  ```
-- **Run Tests**:
-  ```bash
-  PYTHONPATH=. uv run pytest
-  ```
-- **Run Specific Live Test**:
-  ```bash
-  uv run python tests/test_gemini_live.py
-  ```
-- **Linting/Formatting**:
-  ```bash
-  uv run ruff check .
-  uv run ruff format .
-  ```
-- **Docker**:
-  ```bash
-  docker compose up --build
-  ```
+| Path | Purpose |
+|------|---------|
+| `App.tsx` | Root component |
+| `components/` | Three.js visualizer and UI components |
+| `hooks/` | Custom hooks (e.g., `useGeminiLive`) |
 
-## Development Conventions
+## Commands
 
-- **Async First**: Use `async/await` for all I/O operations (API calls, WebSockets).
-- **Type Safety**: Leverage Python type hints and Pydantic models for all data structures.
-- **Surgical Updates**: When modifying code, maintain the established modular structure.
-- **Testing**: Add tests for new features in the `tests/` directory using `pytest-asyncio`.
-- **Linting**: Follow the Ruff configuration defined in `ruff.toml` (Standard line length 88, target Python 3.12).
-- **Env Vars**: Keep secrets like `GOOGLE_API_KEY` in `.env` (managed via `Settings` class).
+```bash
+# Full dev environment (backend :8000 + frontend :5173)
+./dev.sh
+
+# Backend only
+uv sync                                      # install deps
+uv run uvicorn src.app.main:app --reload      # start server
+
+# Frontend only
+cd frontend && npm install && npm run dev
+
+# Tests
+PYTHONPATH=. uv run pytest                    # all tests
+uv run python tests/test_gemini_live.py       # live integration test
+
+# Lint / Format
+uv run ruff check .
+uv run ruff format .
+
+# Docker
+docker compose up --build
+```
+
+## Conventions
+
+- **Async-first**: `async/await` for all I/O (API calls, WebSockets).
+- **Type-safe**: Python type hints + Pydantic models everywhere.
+- **Modular**: Maintain the established directory structure when adding features.
+- **Testing**: `pytest-asyncio` in `tests/`.
+- **Linting**: Ruff config in `ruff.toml` (line length 88, Python 3.12).
+- **Secrets**: `GOOGLE_API_KEY` and other secrets in `.env` (loaded via `Settings`).
 
 ## Key Files
 
-- **`.env`**: Local environment variables (API keys).
-- **`pyproject.toml`**: Dependency management and tool configuration.
-- **`Dockerfile` / `docker-compose.yml`**: Containerization setup.
-- **`tests/test_gemini_live.py`**: Integration test for verifying the WebSocket bridge.
+| File | Purpose |
+|------|---------|
+| `.env` | Local environment variables (API keys) |
+| `pyproject.toml` | Python dependencies and tool config |
+| `dev.sh` | Unified dev launcher (backend + frontend) |
+| `Dockerfile` / `docker-compose.yml` | Containerization |
+| `tests/test_gemini_live.py` | WebSocket bridge integration test |

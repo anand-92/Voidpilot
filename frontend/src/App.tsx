@@ -1,12 +1,30 @@
 import { useState, useRef, useEffect } from 'react'
-import { Mic, MicOff, Send, LogOut, Terminal } from 'lucide-react'
+import { Mic, Send, LogOut, Terminal } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { useGeminiLive } from './hooks/useGeminiLive'
+import { useGeminiLive, type MessageRole } from './hooks/useGeminiLive'
 import Visualizer from './components/Visualizer'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+function messageLayoutClass(role: MessageRole): string {
+  switch (role) {
+    case 'user': return "ml-auto items-end max-w-[85%]"
+    case 'system': return "mx-auto w-full items-center max-w-[85%]"
+    case 'thought': return "mr-auto items-start max-w-[75%]"
+    default: return "mr-auto items-start max-w-[85%]"
+  }
+}
+
+function messageBubbleClass(role: MessageRole): string {
+  switch (role) {
+    case 'user': return "bg-indigo-500/20 text-indigo-300 border-r-4 border-indigo-500"
+    case 'system': return "bg-slate-800/30 text-slate-500 text-xs italic font-mono"
+    case 'thought': return "bg-slate-800/20 text-slate-500 text-xs italic border-l-2 border-slate-700/50 opacity-60"
+    default: return "bg-sky-500/10 text-sky-300 border-l-4 border-sky-500 shadow-[0_0_30px_rgba(56,189,248,0.05)]"
+  }
 }
 
 export default function App() {
@@ -70,15 +88,16 @@ export default function App() {
                 <div
                   key={i}
                   className={cn(
-                    "flex flex-col max-w-[85%] animate-in slide-in-from-bottom-2 duration-300",
-                    msg.role === 'user' ? "ml-auto items-end" : msg.role === 'system' ? "mx-auto w-full items-center" : "mr-auto items-start"
+                    "flex flex-col animate-in slide-in-from-bottom-2 duration-300",
+                    messageLayoutClass(msg.role)
                   )}
                 >
+                  {msg.role === 'thought' && (
+                    <span className="text-[10px] uppercase tracking-widest text-slate-600 mb-1 ml-2 font-mono">thinking</span>
+                  )}
                   <div className={cn(
                     "px-5 py-3 rounded-2xl text-sm leading-relaxed",
-                    msg.role === 'user' ? "bg-indigo-500/20 text-indigo-300 border-r-4 border-indigo-500" :
-                    msg.role === 'system' ? "bg-slate-800/30 text-slate-500 text-xs italic font-mono" :
-                    "bg-sky-500/10 text-sky-300 border-l-4 border-sky-500 shadow-[0_0_30px_rgba(56,189,248,0.05)]"
+                    messageBubbleClass(msg.role)
                   )}>
                     {msg.content}
                   </div>
@@ -93,7 +112,7 @@ export default function App() {
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Type a message..."
                   className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:border-sky-500/50 transition-colors"
                 />
