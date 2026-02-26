@@ -14,6 +14,8 @@ function messageLayoutClass(role: MessageRole): string {
     case 'user': return "ml-auto items-end max-w-[85%]"
     case 'system': return "mx-auto w-full items-center max-w-[85%]"
     case 'thought': return "mr-auto items-start max-w-[75%]"
+    case 'user_voice': return "ml-auto items-end max-w-[85%]"
+    case 'gemini_voice': return "mr-auto items-start max-w-[85%]"
     default: return "mr-auto items-start max-w-[85%]"
   }
 }
@@ -23,12 +25,14 @@ function messageBubbleClass(role: MessageRole): string {
     case 'user': return "bg-indigo-500/20 text-indigo-300 border-r-4 border-indigo-500"
     case 'system': return "bg-slate-800/30 text-slate-500 text-xs italic font-mono"
     case 'thought': return "bg-slate-800/20 text-slate-500 text-xs italic border-l-2 border-slate-700/50 opacity-60"
+    case 'user_voice': return "bg-emerald-500/20 text-emerald-300 border-r-4 border-emerald-500"
+    case 'gemini_voice': return "bg-amber-500/20 text-amber-300 border-l-4 border-amber-500"
     default: return "bg-sky-500/10 text-sky-300 border-l-4 border-sky-500 shadow-[0_0_30px_rgba(56,189,248,0.05)]"
   }
 }
 
 export default function App() {
-  const { isConnected, messages, intensity, start, stop, sendText } = useGeminiLive()
+  const { isConnected, messages, intensityRef, start, stop, sendText } = useGeminiLive()
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -47,24 +51,26 @@ export default function App() {
 
   return (
     <main className="relative w-full h-screen flex flex-col items-center justify-center p-4 md:p-8 bg-[#020617] text-slate-100 overflow-hidden">
-      <Visualizer intensity={intensity} />
+      <Visualizer intensityRef={intensityRef} />
 
       <div className={cn(
-        "z-10 w-full max-w-2xl flex flex-col transition-all duration-700 ease-in-out",
-        isConnected ? "h-[85vh]" : "h-auto"
+        "z-10 w-full flex transition-all duration-700 ease-in-out",
+        isConnected ? "h-screen flex-row justify-end p-8" : "h-screen flex-col items-center justify-center max-w-2xl"
       )}>
-        {/* Header */}
-        <div className="flex flex-col items-center mb-8">
-          <h1 className="text-5xl md:text-6xl font-black tracking-tight bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-2xl">
-            Gemini Live
-          </h1>
-          <div className="flex items-center gap-2 mt-4 px-4 py-1.5 rounded-full bg-slate-900/50 border border-slate-800 backdrop-blur-xl">
-            <div className={cn("w-2 h-2 rounded-full transition-shadow duration-500", isConnected ? "bg-emerald-500 shadow-[0_0_12px_#10b981]" : "bg-rose-500")} />
-            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              {isConnected ? "Live Session Active" : "Disconnected"}
-            </span>
+        {/* Header - Only show when disconnected or move to top right */}
+        {!isConnected && (
+          <div className="flex flex-col items-center mb-8">
+            <h1 className="text-5xl md:text-6xl font-black tracking-tight bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-2xl">
+              Gemini Live
+            </h1>
+            <div className="flex items-center gap-2 mt-4 px-4 py-1.5 rounded-full bg-slate-900/50 border border-slate-800 backdrop-blur-xl">
+              <div className="w-2 h-2 rounded-full bg-rose-500 transition-shadow duration-500" />
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                Disconnected
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {!isConnected ? (
           <button
@@ -75,7 +81,16 @@ export default function App() {
             <span className="text-lg">START CONVERSATION</span>
           </button>
         ) : (
-          <div className="flex-1 flex flex-col min-h-0 bg-slate-950/40 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-500">
+          <div className="w-full md:w-[30%] h-full flex flex-col bg-slate-950/40 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-8 duration-700">
+            {/* Active Header indicator */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/5">
+              <span className="font-bold tracking-tight bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">Gemini Live</span>
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Active</span>
+              </div>
+            </div>
+
             {/* Transcript Area */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 scroll-smooth">
               {messages.length === 0 && (
@@ -94,6 +109,12 @@ export default function App() {
                 >
                   {msg.role === 'thought' && (
                     <span className="text-[10px] uppercase tracking-widest text-slate-600 mb-1 ml-2 font-mono">thinking</span>
+                  )}
+                  {msg.role === 'user_voice' && (
+                    <span className="text-[10px] uppercase tracking-widest text-emerald-600 mb-1 ml-2 font-mono">you (voice)</span>
+                  )}
+                  {msg.role === 'gemini_voice' && (
+                    <span className="text-[10px] uppercase tracking-widest text-amber-600 mb-1 mr-2 font-mono text-right w-full">gemini (voice)</span>
                   )}
                   <div className={cn(
                     "px-5 py-3 rounded-2xl text-sm leading-relaxed",

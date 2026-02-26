@@ -1,6 +1,13 @@
 #!/bin/bash
 
-# --- Gemini Live Unified Dev Script ---
+# --- Gemini Live Unified Dev Kill any existing processes Script ---
+
+# on our ports
+echo "[System] Killing any existing processes on ports 8000 and 5173..."
+lsof -ti:8000 -ti:5173 2>/dev/null | xargs kill -9 2>/dev/null
+pkill -f "uvicorn.*8000" 2>/dev/null
+pkill -f "vite.*5173" 2>/dev/null
+sleep 1
 
 # Function to kill all background processes on exit
 cleanup() {

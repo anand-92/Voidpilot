@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai'
 
-export type MessageRole = 'user' | 'gemini' | 'system' | 'thought'
+export type MessageRole = 'user' | 'gemini' | 'system' | 'thought' | 'user_voice' | 'gemini_voice'
 export interface Message { role: MessageRole; content: string }
 
 const MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025'
@@ -60,7 +60,7 @@ function resampleAudio(inputData: Float32Array, sourceRate: number, targetRate: 
 export function useGeminiLive() {
   const [isConnected, setIsConnected] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
-  const [intensity, setIntensity] = useState(0)
+  const intensityRef = useRef(0)
 
   const aiRef = useRef<GoogleGenAI | null>(null)
   const sessionRef = useRef<Awaited<ReturnType<GoogleGenAI['live']['connect']>> | null>(null)
@@ -92,7 +92,7 @@ export function useGeminiLive() {
     processorRef.current?.disconnect()
     audioContextRef.current?.close()
     setIsConnected(false)
-    setIntensity(0)
+    intensityRef.current = 0
     isStreamingRef.current = false
   }, [])
 
@@ -127,17 +127,39 @@ export function useGeminiLive() {
         model: MODEL,
         config: {
           responseModalities: [Modality.AUDIO],
-        },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
+        } as any,
         callbacks: {
           onopen() {
             console.log('Connected to Gemini Live')
           },
           onmessage(message: LiveServerMessage) {
+            // Handle input transcription (user's voice)
+            if ((message as { inputTranscription?: { text?: string } }).inputTranscription?.text) {
+              const text = (message as { inputTranscription?: { text?: string } }).inputTranscription?.text
+              if (text) {
+                addMessage(text, 'user_voice', false)
+              }
+            }
+
+            // Handle output transcription (Gemini's voice)
+            if ((message as { outputTranscription?: { text?: string } }).outputTranscription?.text) {
+              const text = (message as { outputTranscription?: { text?: string } }).outputTranscription?.text
+              if (text) {
+                addMessage(text, 'gemini_voice', true)
+              }
+            }
+
             // Handle text and audio responses from parts
             if (message.serverContent?.modelTurn?.parts) {
               for (const part of message.serverContent.modelTurn.parts) {
-                // Handle text
-                if (part.text) {
+                // Handle thought trace
+                if ((part as { thought?: boolean }).thought && part.text) {
+                  addMessage(part.text, 'thought', true)
+                }
+                // Handle regular text
+                else if (part.text) {
                   addMessage(part.text, 'gemini', true)
                 }
                 // Handle audio from inlineData
@@ -148,7 +170,7 @@ export function useGeminiLive() {
 
                   if (pcmData.length > 0 && audioContextRef.current) {
                     const floatData = pcm16ToFloat32(pcmData)
-                    setIntensity(calculateIntensityFromFloat(floatData))
+                    intensityRef.current = calculateIntensityFromFloat(floatData)
 
                     const audioBuffer = audioContextRef.current.createBuffer(1, floatData.length, SAMPLE_RATE)
                     audioBuffer.getChannelData(0).set(floatData)
@@ -190,9 +212,9 @@ export function useGeminiLive() {
       const sourceRate = audioContextRef.current.sampleRate
       const targetRate = 16000
       processorRef.current.onaudioprocess = (e) => {
-        if (sessionRef.current && !sessionRef.current.closed) {
+        if (sessionRef.current) {
           const inputData = e.inputBuffer.getChannelData(0)
-          setIntensity(calculateIntensityFromFloat(inputData))
+          intensityRef.current = calculateIntensityFromFloat(inputData)
 
           // Resample to 16kHz
           const resampledData = resampleAudio(inputData, sourceRate, targetRate)
@@ -223,11 +245,11 @@ export function useGeminiLive() {
   }, [addMessage])
 
   const sendText = useCallback(async (text: string) => {
-    if (sessionRef.current && !sessionRef.current.closed) {
+    if (sessionRef.current) {
       sessionRef.current.sendClientContent({ turns: [{ role: 'user', parts: [{ text }] }] })
       addMessage(text, 'user')
     }
   }, [addMessage])
 
-  return { isConnected, messages, intensity, start, stop, sendText }
+  return { isConnected, messages, intensityRef, start, stop, sendText }
 }
