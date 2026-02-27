@@ -29,6 +29,24 @@ import { type Message } from '../hooks/useGeminiLive'
 import { StartButton3D } from './StartButton3D'
 import { ChatModal3D } from './ChatModal3D'
 
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mediaQuery = window.matchMedia('(max-width: 768px), (pointer: coarse)')
+    const onChange = () => setIsMobile(mediaQuery.matches)
+    onChange()
+    mediaQuery.addEventListener('change', onChange)
+    return () => mediaQuery.removeEventListener('change', onChange)
+  }, [])
+
+  return isMobile
+}
+
 
 function isWebGLAvailable(): boolean {
   try {
@@ -284,7 +302,7 @@ void main() {
 
 const _targetScale = new THREE.Vector3()
 
-const EntityOrb = memo(function EntityOrb({ intensityRef }: SceneProps) {
+const EntityOrb = memo(function EntityOrb({ intensityRef, isMobile = false }: SceneProps & { isMobile?: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null!)
   const materialRef = useRef<THREE.ShaderMaterial>(null!)
 
@@ -309,8 +327,7 @@ const EntityOrb = memo(function EntityOrb({ intensityRef }: SceneProps) {
 
   return (
     <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.2}>
-      {/* Increased segments for smoother noise displacement */}
-      <Sphere ref={meshRef} args={[1.5, 256, 256]} position={[0, 2.5, 0]}>
+      <Sphere ref={meshRef} args={[1.5, isMobile ? 128 : 256, isMobile ? 128 : 256]} position={[0, 2.5, 0]}>
         <shaderMaterial
           ref={materialRef}
           vertexShader={orbVertexShader}
@@ -335,14 +352,14 @@ const EntityOrb = memo(function EntityOrb({ intensityRef }: SceneProps) {
   )
 })
 
-function BloomEffect() {
+function BloomEffect({ isMobile = false }: { isMobile?: boolean }) {
   return (
     <EffectComposer>
       <Bloom
         luminanceThreshold={0.12}
         luminanceSmoothing={0.9}
-        intensity={1.6}
-        radius={0.85}
+        intensity={isMobile ? 1.05 : 1.6}
+        radius={isMobile ? 0.65 : 0.85}
       />
     </EffectComposer>
   )
@@ -350,19 +367,18 @@ function BloomEffect() {
 
 
 
-function CameraRig({ intensityRef, isConnected }: SceneProps) {
+function CameraRig({ intensityRef, isConnected, isMobile = false }: SceneProps & { isMobile?: boolean }) {
   const lookAtTarget = useRef(new THREE.Vector3(0, 2.5, 0))
   useFrame((state) => {
     const time = state.clock.getElapsedTime()
 
-    const targetX = isConnected ? 3.5 : (Math.sin(time * 0.05) * 0.5)
-    // Zoom out slightly when connected, but keep base zoom further back
-    const targetZ = isConnected ? 12 : 11
+    const targetX = isMobile ? 0 : (isConnected ? 3.5 : (Math.sin(time * 0.05) * 0.5))
+    const targetZ = isMobile ? 9.5 : (isConnected ? 12 : 11)
 
     state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.02)
     state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.02)
 
-    state.camera.position.y = 1.0 + Math.cos(time * 0.08) * 0.2
+    state.camera.position.y = (isMobile ? 1.4 : 1.0) + Math.cos(time * 0.08) * 0.2
 
     // Use the intensity so TypeScript doesn't complain about unused variables
     const currentIntensity = intensityRef.current
@@ -370,13 +386,106 @@ function CameraRig({ intensityRef, isConnected }: SceneProps) {
       state.camera.position.y += currentIntensity * 0.05
     }
 
-    const targetLookAtX = isConnected ? 3.5 : 0
-    const targetLookAtY = isConnected ? 2.5 : 1.5 // Look down a bit to see the button when disconnected
+    const targetLookAtX = isMobile ? 0 : (isConnected ? 3.5 : 0)
+    const targetLookAtY = isMobile ? 2.6 : (isConnected ? 2.5 : 1.5)
     lookAtTarget.current.x = THREE.MathUtils.lerp(lookAtTarget.current.x, targetLookAtX, 0.02)
     lookAtTarget.current.y = THREE.MathUtils.lerp(lookAtTarget.current.y, targetLookAtY, 0.02)
     state.camera.lookAt(lookAtTarget.current)
   })
   return null
+}
+
+interface MobileOverlayProps {
+  isConnected?: boolean
+  start?: () => void
+  stop?: () => void
+  messages?: Message[]
+  inputText?: string
+  setInputText?: (text: string) => void
+  handleSend?: () => void
+}
+
+function MobileOverlay({
+  isConnected,
+  start,
+  stop,
+  messages,
+  inputText,
+  setInputText,
+  handleSend,
+}: MobileOverlayProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!scrollRef.current) return
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+  }, [messages])
+
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col justify-between p-4 sm:p-5 text-slate-100 pointer-events-none">
+      <div className="pointer-events-none">
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">
+          Gemini Live
+        </h1>
+        <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/60 border border-slate-700/60 backdrop-blur">
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </span>
+        </div>
+      </div>
+
+      {isConnected ? (
+        <div className="pointer-events-auto w-full rounded-2xl border border-slate-700/60 bg-slate-950/65 backdrop-blur-xl shadow-2xl overflow-hidden">
+          <div ref={scrollRef} className="h-[42vh] overflow-y-auto p-3 space-y-3">
+            {(messages ?? []).length === 0 ? (
+              <p className="text-xs text-slate-400 uppercase tracking-wider">Awaiting input...</p>
+            ) : (
+              (messages ?? []).map((msg, i) => (
+                <div key={i} className={`text-sm leading-relaxed ${msg.role === 'user' || msg.role === 'user_voice' ? 'text-right' : 'text-left'}`}>
+                  <span className={`inline-block max-w-[90%] rounded-xl px-3 py-2 ${msg.role === 'user' || msg.role === 'user_voice' ? 'bg-indigo-500/25 text-indigo-200' : 'bg-slate-800/70 text-slate-200'}`}>
+                    {msg.content}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="p-3 border-t border-slate-700/60 space-y-2">
+            <input
+              type="text"
+              value={inputText || ''}
+              onChange={(e) => setInputText?.(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend?.()}
+              placeholder="Type a message..."
+              className="w-full min-h-12 rounded-xl bg-slate-900/80 border border-slate-700 px-4 py-3 text-base outline-none focus:border-sky-500/60"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleSend?.()}
+                className="min-h-12 rounded-xl bg-indigo-500 text-white font-semibold active:scale-[0.98]"
+              >
+                Send
+              </button>
+              <button
+                onClick={() => stop?.()}
+                className="min-h-12 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold active:scale-[0.98]"
+              >
+                End session
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => start?.()}
+          className="pointer-events-auto w-full min-h-14 rounded-2xl bg-sky-500 text-white text-lg font-bold shadow-lg active:scale-[0.98]"
+        >
+          Start conversation
+        </button>
+      )}
+    </div>
+  )
 }
 
 function FallbackVisualizer({ intensityRef }: SceneProps) {
@@ -399,6 +508,7 @@ function FallbackVisualizer({ intensityRef }: SceneProps) {
 export default memo(function Visualizer(props: SceneProps) {
   const { intensityRef, isConnected, start, stop, messages, inputText, setInputText, handleSend, threeJsCode, clearThreeJsCode } = props
   const [hasWebGL] = useState(isWebGLAvailable)
+  const isMobile = useIsMobile()
 
   if (!hasWebGL) {
     return (
@@ -412,19 +522,19 @@ export default memo(function Visualizer(props: SceneProps) {
     <div className="fixed inset-0 z-0 bg-black">
       <Canvas
         camera={{ position: [0, 1.0, 8], fov: 60 }}
-        gl={{ antialias: true, failIfMajorPerformanceCaveat: true, toneMapping: THREE.ACESFilmicToneMapping }}
-        dpr={[1, 2]}
+        gl={{ antialias: !isMobile, failIfMajorPerformanceCaveat: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        dpr={isMobile ? [1, 1.5] : [1, 2]}
       >
         <color attach="background" args={['#000000']} />
         <fog attach="fog" args={['#000000', 8, 30]} />
         <ambientLight intensity={0.5} />
 
         {/* 3D UI Overlay */}
-        {!isConnected && start && (
+        {!isMobile && !isConnected && start && (
           <StartButton3D onClick={start} />
         )}
 
-        {isConnected && messages && setInputText && handleSend && stop && (
+        {!isMobile && isConnected && messages && setInputText && handleSend && stop && (
           <ChatModal3D
             messages={messages}
             inputText={inputText || ''}
@@ -434,22 +544,34 @@ export default memo(function Visualizer(props: SceneProps) {
           />
         )}
 
-        <EntityOrb intensityRef={intensityRef} />
+        <EntityOrb intensityRef={intensityRef} isMobile={isMobile} />
 
-        {threeJsCode && clearThreeJsCode && (
+        {!isMobile && threeJsCode && clearThreeJsCode && (
           <GeneratedMesh 
             code={threeJsCode} 
             onClose={() => clearThreeJsCode()} 
           />
         )}
 
-        <CameraRig intensityRef={intensityRef} isConnected={isConnected} />
+        <CameraRig intensityRef={intensityRef} isConnected={isConnected} isMobile={isMobile} />
 
-        <BloomEffect />
+        <BloomEffect isMobile={isMobile} />
       </Canvas>
 
+      {isMobile && (
+        <MobileOverlay
+          isConnected={isConnected}
+          start={start}
+          stop={stop}
+          messages={messages}
+          inputText={inputText}
+          setInputText={setInputText}
+          handleSend={handleSend}
+        />
+      )}
+
       {/* 2D Header overlay */}
-      {!isConnected && (
+      {!isMobile && !isConnected && (
         <div className="absolute top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10 w-full">
           <h1 className="text-5xl md:text-6xl font-black tracking-tight bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent drop-shadow-2xl">
             Gemini Live
