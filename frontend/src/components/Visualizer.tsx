@@ -489,8 +489,19 @@ function MobileOverlay({
 }
 
 function FallbackVisualizer({ intensityRef }: SceneProps) {
-  // For fallback, we read the ref in a simple way
-  const intensity = intensityRef.current
+  const [intensity, setIntensity] = useState(0)
+
+  useEffect(() => {
+    let rafId = 0
+    const syncIntensity = () => {
+      setIntensity(intensityRef.current)
+      rafId = requestAnimationFrame(syncIntensity)
+    }
+
+    rafId = requestAnimationFrame(syncIntensity)
+    return () => cancelAnimationFrame(rafId)
+  }, [intensityRef])
+
   return (
     <div className="flex items-center justify-center w-full h-full bg-[#000000]">
       <div
