@@ -324,16 +324,20 @@ class GeminiLive:
             }]
         }]
 
-        # Merge with provided tools
-        self.tools = tools or default_tools
+        # Merge provided tools into defaults (combine declarations or append groups)
+        self.tools = default_tools
+        if tools:
+            if isinstance(tools, list) and "function_declarations" in tools[0]:
+                self.tools[0]["function_declarations"].extend(tools[0]["function_declarations"])
+            else:
+                self.tools.extend(tools)
 
-        # Default tool mapping with weather function and threejs generator
         default_tool_mapping = {
             "get_weather": get_weather,
             "generate_threejs": generate_threejs,
             "generate_image": generate_image,
         }
-        self.tool_mapping = tool_mapping or default_tool_mapping
+        self.tool_mapping = default_tool_mapping | (tool_mapping or {})
 
     async def start_session(self, audio_input_queue, video_input_queue, text_input_queue, audio_output_callback, audio_interrupt_callback=None):
         config = types.LiveConnectConfig(
