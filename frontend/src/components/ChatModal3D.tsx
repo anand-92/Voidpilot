@@ -109,6 +109,7 @@ export function ChatModal3D({ messages, inputText, setInputText, handleSend, sto
                     <div className="flex gap-3">
                         <input
                             type="text"
+                            aria-label="Message"
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
@@ -117,12 +118,16 @@ export function ChatModal3D({ messages, inputText, setInputText, handleSend, sto
                         />
                         <button
                             onClick={handleSend}
+                            aria-label="Send message"
+                            title="Send message"
                             className="p-4 bg-indigo-500 hover:bg-indigo-400 text-white rounded-2xl transition-all active:scale-95 cursor-pointer"
                         >
                             <Send className="w-6 h-6" />
                         </button>
                         <button
                             onClick={stop}
+                            aria-label="End session"
+                            title="End session"
                             className="p-4 bg-rose-500/20 hover:bg-rose-500/30 text-rose-500 rounded-2xl transition-all active:scale-95 cursor-pointer"
                         >
                             <LogOut className="w-6 h-6" />
