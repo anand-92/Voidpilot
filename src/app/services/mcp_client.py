@@ -25,6 +25,26 @@ async def get_mcp_session(server_url: str):
             logger.info("MCP session initialized")
             yield mcp_session
 
+def _create_mcp_tool_caller(mcp_session: ClientSession, tool_name: str):
+    async def make_mcp_tool_call(**kwargs):
+        logger.info(f"Calling MCP tool: {tool_name} with args: {kwargs}")
+        try:
+            result = await mcp_session.call_tool(tool_name, kwargs)
+            # Extract the text content from the MCP result
+            # MCP results typically contain a list of content blocks
+            content_parts = []
+            for content in result.content:
+                if content.type == "text":
+                    content_parts.append(content.text)
+            
+            return "\n".join(content_parts)
+        except Exception as e:
+            logger.error(f"Error executing MCP tool {tool_name}: {e}")
+            logger.error(traceback.format_exc())
+            return f"Error executing {tool_name}: {str(e)}"
+    
+    return make_mcp_tool_call
+
 async def fetch_mcp_tools(mcp_session: ClientSession) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     Fetches tools from the initialized MCP session and returns
@@ -44,26 +64,8 @@ async def fetch_mcp_tools(mcp_session: ClientSession) -> Tuple[List[Dict[str, An
                 "parameters": tool.inputSchema,
             })
             
-            # Create a wrapper function that calls the tool on the MCP server
-            async def make_mcp_tool_call(name=tool.name, **kwargs):
-                logger.info(f"Calling MCP tool: {name} with args: {kwargs}")
-                try:
-                    result = await mcp_session.call_tool(name, kwargs)
-                    # Extract the text content from the MCP result
-                    # MCP results typically contain a list of content blocks
-                    content_parts = []
-                    for content in result.content:
-                        if content.type == "text":
-                            content_parts.append(content.text)
-                    
-                    return "\n".join(content_parts) if content_parts else str(result.content)
-                except Exception as e:
-                    logger.error(f"Error executing MCP tool {name}: {e}")
-                    logger.error(traceback.format_exc())
-                    return f"Error executing {name}: {str(e)}"
-            
             # Register in tool mapping
-            tool_mapping[tool.name] = make_mcp_tool_call
+            tool_mapping[tool.name] = _create_mcp_tool_caller(mcp_session, tool.name)
 
         gemini_tools = [{"function_declarations": declarations}] if declarations else []
         return gemini_tools, tool_mapping

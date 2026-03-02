@@ -2,12 +2,18 @@ import os
 import subprocess
 from mcp.server.fastmcp import FastMCP
 
+COMMAND_TIMEOUT = 120
+
 # Create the MCP server
 mcp = FastMCP("bash-server")
 
 @mcp.tool()
 def execute_command(command: str) -> str:
     """Executes a bash/shell command and returns the output.
+    
+    WARNING: This tool allows execution of arbitrary shell commands. It is vulnerable to 
+    Command Injection. Ensure this server is only accessible by highly trusted clients and 
+    that strong authentication and authorization are in place.
     
     Args:
         command: The shell command to execute.
@@ -18,7 +24,7 @@ def execute_command(command: str) -> str:
             ["bash", "-c", command],
             capture_output=True,
             text=True,
-            timeout=120
+            timeout=COMMAND_TIMEOUT
         )
         output = []
         if result.stdout:
@@ -30,7 +36,7 @@ def execute_command(command: str) -> str:
         
         return "\n\n".join(output)
     except subprocess.TimeoutExpired:
-        return f"Error: Command timed out after 120 seconds."
+        return f"Error: Command timed out after {COMMAND_TIMEOUT} seconds."
     except Exception as e:
         return f"Error executing command: {e}"
 
