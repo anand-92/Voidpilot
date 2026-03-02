@@ -454,6 +454,7 @@ function MobileOverlay({
           <div className="p-3 border-t border-slate-700/60 space-y-2">
             <input
               type="text"
+              aria-label="Message"
               value={inputText || ''}
               onChange={(e) => setInputText?.(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend?.()}
