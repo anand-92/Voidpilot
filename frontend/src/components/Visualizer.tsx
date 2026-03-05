@@ -457,20 +457,23 @@ function MobileOverlay({
               aria-label="Message"
               value={inputText || ''}
               onChange={(e) => setInputText?.(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend?.()}
+              onKeyDown={(e) => e.key === 'Enter' && inputText?.trim() && handleSend?.()}
               placeholder="Type a message..."
-              className="w-full min-h-12 rounded-xl bg-slate-900/80 border border-slate-700 px-4 py-3 text-base outline-none focus:border-sky-500/60"
+              className="w-full min-h-12 rounded-xl bg-slate-900/80 border border-slate-700 px-4 py-3 text-base outline-none focus:border-sky-500/60 focus:ring-1 focus:ring-sky-500/60 transition-all placeholder:text-slate-500"
             />
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleSend?.()}
-                className="min-h-12 rounded-xl bg-indigo-500 text-white font-semibold active:scale-[0.98]"
+                disabled={!inputText?.trim()}
+                title={!inputText?.trim() ? "Type a message to send" : "Send message"}
+                className="min-h-12 rounded-xl bg-indigo-500 text-white font-semibold active:scale-[0.98] disabled:active:scale-100 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-all"
               >
                 Send
               </button>
               <button
                 onClick={() => stop?.()}
-                className="min-h-12 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold active:scale-[0.98]"
+                aria-label="End session"
+                className="min-h-12 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-semibold active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-all"
               >
                 End session
               </button>
