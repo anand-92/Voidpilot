@@ -62,6 +62,7 @@ export function useGeminiLive() {
   const videoElementRef = useRef<HTMLVideoElement | null>(null)
   const frameIntervalRef = useRef<number | null>(null)
   const nextPlayTimeRef = useRef<number>(0)
+  const lastImageDataRef = useRef<ImageData | null>(null)
 
   const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages(prev => {
@@ -107,6 +108,8 @@ export function useGeminiLive() {
       clearInterval(frameIntervalRef.current);
       frameIntervalRef.current = null;
     }
+    // Clear last frame data
+    lastImageDataRef.current = null;
     // Disconnect and close audio nodes
     processorRef.current?.disconnect()
     processorRef.current = null
@@ -285,12 +288,47 @@ export function useGeminiLive() {
                 const ctx = canvas.getContext('2d')
                 if (ctx) {
                   ctx.drawImage(videoElement, 0, 0, dw, dh)
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
                   
-                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                    console.log('Frame extracted and sent at 1 fps')
-                    const base64Data = dataUrl.split(',')[1]
-                    wsRef.current.send(JSON.stringify({ type: 'image', content: base64Data, mime_type: 'image/jpeg' }))
+                  // Delta-Vision logic
+                  const currentImageData = ctx.getImageData(0, 0, dw, dh)
+                  let significantChange = true
+
+                  if (lastImageDataRef.current && lastImageDataRef.current.width === dw && lastImageDataRef.current.height === dh) {
+                    const prevData = lastImageDataRef.current.data
+                    const currData = currentImageData.data
+                    let diffCount = 0
+                    const totalPixels = dw * dh
+                    const threshold = 30 // Pixel difference threshold (0-255)
+                    // Check every 4th pixel to save CPU (i += 16 because of RGBA)
+                    const totalPixelsChecked = Math.floor(totalPixels / 4)
+                    const skipThreshold = totalPixelsChecked * 0.01 // 1% of checked pixels must change
+
+                    for (let i = 0; i < currData.length; i += 16) {
+                      const rDiff = Math.abs(currData[i] - prevData[i])
+                      const gDiff = Math.abs(currData[i+1] - prevData[i+1])
+                      const bDiff = Math.abs(currData[i+2] - prevData[i+2])
+                      
+                      if (rDiff > threshold || gDiff > threshold || bDiff > threshold) {
+                        diffCount++
+                      }
+                    }
+
+                    if (diffCount < skipThreshold) {
+                      significantChange = false
+                    }
+                  }
+
+                  if (!significantChange) {
+                    console.log('Frame skipped due to low delta')
+                  } else {
+                    lastImageDataRef.current = currentImageData
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
+                    
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                      console.log('Frame extracted and sent at 1 fps')
+                      const base64Data = dataUrl.split(',')[1]
+                      wsRef.current.send(JSON.stringify({ type: 'image', content: base64Data, mime_type: 'image/jpeg' }))
+                    }
                   }
                 }
               }
