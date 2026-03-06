@@ -4,10 +4,12 @@ export type MessageRole = 'user' | 'gemini' | 'system' | 'thought' | 'user_voice
 export interface Message { role: MessageRole; content: string }
 
 // Use current host with WebSocket protocol (ws:// or wss:// based on HTTP/HTTPS)
-const isElectronPackaged = window.location.protocol === 'file:'
-const wsProtocol = isElectronPackaged ? 'wss:' : (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
-// When running locally in Electron, it connects to the local backend. In production (packaged), it connects to the Cloud Run backend.
-const wsHost = isElectronPackaged ? 'gemini-live-3d-bridge-bcz5ilsa6q-ue.a.run.app' : window.location.host
+// In electron, window.location.protocol is 'file:', and window.electronAPI is defined.
+const isElectron = window.electronAPI !== undefined;
+const wsProtocol = isElectron ? 'wss:' : (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
+// When running locally in Electron (dev mode) vs Packaged. We'll force the cloud URL if it's electron.
+// If you want dev electron to use local, you'd need an environment variable. For this release, force cloud.
+const wsHost = isElectron ? 'gemini-live-3d-bridge-bcz5ilsa6q-ue.a.run.app' : window.location.host
 const API_BASE_URL = `${wsProtocol}//${wsHost}`
 const SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 512
