@@ -1,21 +1,21 @@
 commands:
   install_backend: uv sync
-  install_frontend: cd frontend && npm install
+  install_frontend: cd frontend && npm install --legacy-peer-deps
   typecheck: cd frontend && npm run build
   test_backend: uv run pytest tests/
   lint: uv run ruff check .
 
 services:
   backend:
-    start: PORT=8000 uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000
+    start: $env:PORT=8000; uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000
     stop: Get-Process | Where-Object { $_.ProcessName -match "python" } | Stop-Process -Force
-    healthcheck: curl -sf http://127.0.0.1:8000/api/v1/health || exit 0
+    healthcheck: curl.exe -sf http://127.0.0.1:8000/api/v1/health || exit 0
     port: 8000
     depends_on: []
 
   frontend:
     start: cd frontend && npm run dev -- --host 127.0.0.1 --port 5173
     stop: Get-Process | Where-Object { $_.ProcessName -match "node" } | Stop-Process -Force
-    healthcheck: curl -sf http://127.0.0.1:5173 || exit 0
+    healthcheck: curl.exe -sf http://127.0.0.1:5173 || exit 0
     port: 5173
     depends_on: [backend]
