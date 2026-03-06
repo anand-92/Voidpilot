@@ -293,34 +293,6 @@ class GeminiLive:
                     },
                     "required": ["location"]
                 }
-            },
-            {
-                "name": "generate_threejs",
-                "description": "Generate Three.js code for a 3D scene based on a description. Use this when the user wants to create, visualize, or generate a 3D scene, animation, or interactive 3D element. Returns executable JavaScript code that creates a Three.js scene.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "description": {
-                            "type": "string",
-                            "description": "Description of the 3D scene to generate (e.g., 'a rotating cube with colorful lights', 'a particle system of floating stars', 'a spinning torus knot with neon materials')"
-                        }
-                    },
-                    "required": ["description"]
-                }
-            },
-            {
-                "name": "generate_image",
-                "description": "Generate an image based on a text description. Use this when the user wants to create, generate, or visualize an image, picture, illustration, artwork, or any visual content. The image will be displayed in a fullscreen modal.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "prompt": {
-                            "type": "string",
-                            "description": "Description of the image to generate (e.g., 'a beautiful sunset over mountains', 'a futuristic city at night', 'a cute cat')"
-                        }
-                    },
-                    "required": ["prompt"]
-                }
             }]
         }]
 
@@ -334,8 +306,6 @@ class GeminiLive:
 
         default_tool_mapping = {
             "get_weather": get_weather,
-            "generate_threejs": generate_threejs,
-            "generate_image": generate_image,
         }
         self.tool_mapping = default_tool_mapping | (tool_mapping or {})
 
@@ -349,7 +319,7 @@ class GeminiLive:
                     )
                 )
             ),
-            system_instruction=types.Content(parts=[types.Part(text="You are a helpful creative assistant. When the user asks to create, visualize, show, or generate any 3D scene, object, animation, or visual effect using Three.js, you should IMMEDIATELY call the generate_threejs tool with a detailed description. When the user asks to create, generate, or visualize an image, picture, illustration, artwork, or any visual content, you should IMMEDIATELY call the generate_image tool with a detailed description. Don't ask for clarification - just call the tool with your best interpretation. After the 3D code or image is generated, tell the user it will appear automatically. You can also answer questions and have conversations normally.")]),
+            system_instruction=types.Content(parts=[types.Part(text="You are a helpful desktop assistant.")]),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
             proactivity=types.ProactivityConfig(proactive_audio=True),

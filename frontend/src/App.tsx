@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useGeminiLive } from './hooks/useGeminiLive'
-import Visualizer from './components/Visualizer'
 
 export default function App() {
-  const { isConnected, messages, intensityRef, start, stop, sendText, threeJsCode, clearThreeJsCode, generatedImage, clearGeneratedImage } = useGeminiLive()
+  const { isConnected, messages, start, stop, sendText } = useGeminiLive()
   const [inputText, setInputText] = useState('')
 
   const handleSend = () => {
@@ -15,37 +14,60 @@ export default function App() {
 
   return (
     <main className="relative w-full h-screen flex flex-col items-center justify-center bg-[#020617] text-slate-100 overflow-hidden">
-      <Visualizer
-        intensityRef={intensityRef}
-        isConnected={isConnected}
-        start={start}
-        stop={stop}
-        messages={messages}
-        inputText={inputText}
-        setInputText={setInputText}
-        handleSend={handleSend}
-        threeJsCode={threeJsCode}
-        clearThreeJsCode={clearThreeJsCode}
-      />
-
-      {/* Fullscreen Image Modal - outside Visualizer/Canvas */}
-      {generatedImage && clearGeneratedImage && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/95 backdrop-blur-sm">
-          <div className="relative max-w-[90vw] max-h-[90vh]">
-            <img 
-              src={generatedImage} 
-              alt="Generated" 
-              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-            />
+      <div className="z-10 flex flex-col items-center gap-4 bg-slate-900/80 p-6 rounded-2xl shadow-2xl backdrop-blur-md">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+          Desktop Assistant
+        </h1>
+        <div className="flex gap-4 mb-4">
+          {!isConnected ? (
             <button
-              onClick={clearGeneratedImage}
-              className="absolute top-4 right-4 px-6 py-3 bg-slate-800/90 hover:bg-slate-700 text-white text-lg font-medium rounded-lg backdrop-blur-sm transition-colors"
+              onClick={start}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 transition-colors rounded-lg font-medium shadow-lg"
             >
-              Close
+              Start Live Session
             </button>
-          </div>
+          ) : (
+            <button
+              onClick={stop}
+              className="px-6 py-3 bg-red-600 hover:bg-red-500 transition-colors rounded-lg font-medium shadow-lg"
+            >
+              Stop Live Session
+            </button>
+          )}
         </div>
-      )}
+        
+        <div className="w-full max-w-2xl bg-slate-800/50 rounded-lg p-4 h-64 overflow-y-auto mb-4 border border-slate-700/50">
+          {messages.length === 0 ? (
+            <p className="text-slate-400 text-center italic mt-24">No messages yet. Start speaking or type a message!</p>
+          ) : (
+            messages.map((msg, idx) => (
+              <div key={idx} className={`mb-3 ${msg.role === 'user' ? 'text-blue-300' : msg.role === 'system' ? 'text-slate-500 italic' : 'text-slate-200'}`}>
+                <span className="font-semibold">{msg.role === 'user' ? 'You: ' : msg.role === 'system' ? 'System: ' : 'Gemini: '}</span>
+                <span>{msg.content}</span>
+              </div>
+            ))
+          )}
+        </div>
+        
+        <div className="w-full flex gap-2">
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="Type a message..."
+            disabled={!isConnected}
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!isConnected || !inputText.trim()}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:hover:bg-slate-700 transition-colors rounded-lg"
+          >
+            Send
+          </button>
+        </div>
+      </div>
     </main>
   )
 }

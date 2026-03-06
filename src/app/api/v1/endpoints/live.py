@@ -9,7 +9,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.app.core.config import settings
 from src.app.services.gemini_audio import GeminiLive
-from src.app.services.mcp_client import fetch_mcp_tools, get_mcp_session
 
 logger = logging.getLogger(__name__)
 
@@ -49,15 +48,6 @@ async def gemini_live_ws(websocket: WebSocket):
     async with AsyncExitStack() as stack:
         mcp_tools = None
         mcp_tool_mapping = None
-
-        if settings.MCP_SERVER_URL:
-            try:
-                mcp_session = await stack.enter_async_context(
-                    get_mcp_session(settings.MCP_SERVER_URL)
-                )
-                mcp_tools, mcp_tool_mapping = await fetch_mcp_tools(mcp_session)
-            except Exception as e:
-                logger.error(f"Failed to initialize MCP session: {e}")
 
         gemini_client = GeminiLive(
             api_key=api_key,

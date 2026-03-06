@@ -50,8 +50,6 @@ function resampleAudio(inputData: Float32Array, sourceRate: number, targetRate: 
 export function useGeminiLive() {
   const [isConnected, setIsConnected] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
-  const [threeJsCode, setThreeJsCode] = useState<string | null>(null)
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const intensityRef = useRef(0)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -76,13 +74,7 @@ export function useGeminiLive() {
     })
   }, [])
 
-  const clearThreeJsCode = useCallback(() => {
-    setThreeJsCode(null)
-  }, [])
 
-  const clearGeneratedImage = useCallback(() => {
-    setGeneratedImage(null)
-  }, [])
 
   const stop = useCallback(() => {
     // Close WebSocket
@@ -132,14 +124,6 @@ export function useGeminiLive() {
         // Handle tool call responses
         else if (data.type === 'tool_call') {
           console.log('Tool call received:', data.name, data.args)
-          if (data.name === 'generate_threejs' && data.result) {
-            setThreeJsCode(data.result)
-            addMessage('[Three.js code generated - click to view]', 'system')
-          }
-          if (data.name === 'generate_image' && data.result) {
-            setGeneratedImage(data.result)
-            addMessage('[Image generated]', 'system')
-          }
         }
         // Handle hex-encoded audio data from backend
         else if (data.type === 'audio') {
@@ -239,5 +223,5 @@ export function useGeminiLive() {
     return () => { stop() }
   }, [stop])
 
-  return { isConnected, messages, intensityRef, start, stop, sendText, threeJsCode, clearThreeJsCode, generatedImage, clearGeneratedImage }
+  return { isConnected, messages, intensityRef, start, stop, sendText }
 }
