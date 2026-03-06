@@ -218,7 +218,7 @@ export function useGeminiLive() {
       wsRef.current.send(JSON.stringify({ type: 'text', content: text }))
       addMessage(text, 'user')
     }
-  }, [addMessage, stop])
+  }, [addMessage])
 
   // Cleanup on unmount
   useEffect(() => {

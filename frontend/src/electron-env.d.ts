@@ -1,6 +1,6 @@
 export interface IElectronAPI {
   ping: () => Promise<string>;
-  getDesktopSources: () => Promise<any[]>;
+  getDesktopSources: () => Promise<unknown[]>;
 }
 
 declare global {
