@@ -1,0 +1,57 @@
+{
+  "featureId": "purge-legacy-code",
+  "reviewedAt": "2026-03-06T10:35:00.000Z",
+  "commitId": "09968b81895df6e62f846e95012a0e1a13463335",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The worker successfully removed the Three.js and DALL-E components from the frontend codebase, as well as the bash-mcp-server package and mcp_client.py. However, the Python backend was not fully purged. Dead functions (generate_threejs, generate_image), MCP variables, and configuration settings were left behind.",
+    "issues": [
+      {
+        "file": "src/app/services/gemini_audio.py",
+        "line": 15,
+        "severity": "blocking",
+        "description": "The generate_threejs function and its logic are still present in the file."
+      },
+      {
+        "file": "src/app/services/gemini_audio.py",
+        "line": 114,
+        "severity": "blocking",
+        "description": "The generate_image function and its logic are still present in the file."
+      },
+      {
+        "file": "src/app/services/gemini_audio.py",
+        "line": 366,
+        "severity": "non_blocking",
+        "description": "Log statement still mentions 'ThreeJS Generator'."
+      },
+      {
+        "file": "src/app/core/config.py",
+        "line": 12,
+        "severity": "blocking",
+        "description": "MCP_SERVER_URL environment variable reference is still defined in the config."
+      },
+      {
+        "file": "src/app/api/v1/endpoints/live.py",
+        "line": 49,
+        "severity": "blocking",
+        "description": "mcp_tools and mcp_tool_mapping variables are still initialized and passed to GeminiLive()."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "environment",
+      "observation": "Worker spent significant time struggling to run `npm install` and `npm run build` because the `node` and `npm` executables were not in the default system PATH during the session. The worker had to manually locate Node.js and inject the path into the execution command.",
+      "evidence": "Transcript shows: `Get-Command node` followed by `cd frontend && $env:PATH += \";C:\\Program Files\\nodejs\" ; npm install --legacy-peer-deps && npm run build`."
+    },
+    {
+      "area": "services",
+      "observation": "Worker encountered unresolved peer dependencies when running `npm install` and had to use `--legacy-peer-deps`. The `services.yaml` currently only specifies `npm install` for frontend installation, which might fail if peer dependencies remain unresolvable.",
+      "evidence": "Transcript shows worker executing `npm install --legacy-peer-deps` multiple times. skillFeedback.deviations states: 'Previous worker left the working tree broken with unresolved node_modules issues, requiring manual cleanup and a clean npm install with --legacy-peer-deps before baseline tests could pass.'"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review complete. Frontend code was properly purged, but the Python backend still contains dead code (generate_threejs, generate_image), configuration settings (MCP_SERVER_URL), and MCP-related variables that were not removed."
+}
