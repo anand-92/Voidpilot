@@ -14,13 +14,16 @@
     "@google/genai": "^1.42.0",
     "@midscene/computer": "^1.5.2",
     "@tailwindcss/vite": "^4.2.1",
+    "@types/three": "^0.183.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.35.0",
     "lucide-react": "^0.575.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.1",
     "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.1"
+    "tailwindcss": "^4.2.1",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
