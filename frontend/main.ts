@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, desktopCapturer, systemPreferences } from 
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
+import { agentFromComputer } from '@midscene/computer'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -73,7 +74,22 @@ app.on('activate', () => {
 
 app.whenReady().then(async () => {
   await requestPermissions()
-  
+
+  // Initialize Midscene with Gemini 3.1 Pro Preview
+  process.env.MIDSCENE_MODEL_NAME = 'gemini-3.1-pro-preview'
+  process.env.MIDSCENE_USE_GEMINI = '1'
+  if (process.env.GOOGLE_API_KEY && !process.env.OPENAI_API_KEY) {
+    process.env.OPENAI_API_KEY = process.env.GOOGLE_API_KEY
+    process.env.OPENAI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/'
+  }
+
+  try {
+    await agentFromComputer()
+    console.log('Midscene ready')
+  } catch (error) {
+    console.error('Failed to initialize Midscene:', error)
+  }
+
   // Expose desktopCapturer to renderer via IPC (to get sources)
   ipcMain.handle('get-desktop-sources', async () => {
     return await desktopCapturer.getSources({ types: ['window', 'screen'] })
