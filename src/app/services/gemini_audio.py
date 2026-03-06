@@ -190,8 +190,6 @@ class GeminiLive:
             ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
-            proactivity=types.ProactivityConfig(proactive_audio=True),
-            enable_affective_dialog=True,
             tools=self.tools,
             context_window_compression=types.ContextWindowCompressionConfig(
                 trigger_tokens=25600,
