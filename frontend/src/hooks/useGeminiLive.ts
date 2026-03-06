@@ -5,8 +5,9 @@ export interface Message { role: MessageRole; content: string }
 
 // Use current host with WebSocket protocol (ws:// or wss:// based on HTTP/HTTPS)
 const isElectronPackaged = window.location.protocol === 'file:'
-const wsProtocol = isElectronPackaged ? 'ws:' : (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
-const wsHost = isElectronPackaged ? '127.0.0.1:8000' : window.location.host
+const wsProtocol = isElectronPackaged ? 'wss:' : (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
+// When running locally in Electron, it connects to the local backend. In production (packaged), it connects to the Cloud Run backend.
+const wsHost = isElectronPackaged ? 'gemini-live-3d-bridge-bcz5ilsa6q-ue.a.run.app' : window.location.host
 const API_BASE_URL = `${wsProtocol}//${wsHost}`
 const SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 512
@@ -236,7 +237,7 @@ export function useGeminiLive() {
             if (now - lastInterruptTime > 1000) {
               lastInterruptTime = now;
               if (window.electronAPI && window.electronAPI.interruptMidscene) {
-                 window.electronAPI.interruptMidscene().catch(() => {});
+                window.electronAPI.interruptMidscene().catch(() => { });
               }
             }
           }
@@ -279,18 +280,18 @@ export function useGeminiLive() {
             videoElementRef.current = videoElement
 
             const canvas = document.createElement('canvas')
-            
+
             frameIntervalRef.current = window.setInterval(() => {
               if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
                 const width = videoElement.videoWidth
                 const height = videoElement.videoHeight
-                
+
                 // Downscale to max 1280x720
                 const MAX_WIDTH = 1280
                 const MAX_HEIGHT = 720
                 let scale = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height)
                 if (scale > 1) scale = 1
-                
+
                 const dw = Math.round(width * scale)
                 const dh = Math.round(height * scale)
 
@@ -299,7 +300,7 @@ export function useGeminiLive() {
                 const ctx = canvas.getContext('2d')
                 if (ctx) {
                   ctx.drawImage(videoElement, 0, 0, dw, dh)
-                  
+
                   // Delta-Vision logic
                   const currentImageData = ctx.getImageData(0, 0, dw, dh)
                   let significantChange = true
@@ -316,9 +317,9 @@ export function useGeminiLive() {
 
                     for (let i = 0; i < currData.length; i += 16) {
                       const rDiff = Math.abs(currData[i] - prevData[i])
-                      const gDiff = Math.abs(currData[i+1] - prevData[i+1])
-                      const bDiff = Math.abs(currData[i+2] - prevData[i+2])
-                      
+                      const gDiff = Math.abs(currData[i + 1] - prevData[i + 1])
+                      const bDiff = Math.abs(currData[i + 2] - prevData[i + 2])
+
                       if (rDiff > threshold || gDiff > threshold || bDiff > threshold) {
                         diffCount++
                       }
@@ -334,7 +335,7 @@ export function useGeminiLive() {
                   } else {
                     lastImageDataRef.current = currentImageData
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
-                    
+
                     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                       console.log('Frame extracted and sent at 1 fps')
                       const base64Data = dataUrl.split(',')[1]

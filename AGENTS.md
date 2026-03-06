@@ -145,7 +145,7 @@ bash dev.sh
 gcloud run deploy gemini-live-bridge \
   --source . \
   --project gen-lang-client-0579048282 \
-  --region us-central1 \
+  --region us-east1 \
   --allow-unauthenticated \
   --set-env-vars GOOGLE_API_KEY=your_key
 ```

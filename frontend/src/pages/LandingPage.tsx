@@ -1,5 +1,4 @@
-import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Box, Mic, Sparkles } from 'lucide-react'
+import { Box, Mic, Sparkles, Download, Code, Trophy } from 'lucide-react'
 
 const capabilities = [
   {
@@ -20,8 +19,6 @@ const capabilities = [
 ]
 
 export default function LandingPage() {
-  const navigate = useNavigate()
-
   return (
     <main className="relative w-full h-screen overflow-y-auto bg-[#020617] text-slate-100">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -38,23 +35,25 @@ export default function LandingPage() {
             A live playground for voice and 3D
           </h1>
           <p className="mt-5 max-w-2xl text-base text-slate-300 md:text-lg">
-            Talk with Gemini, steer the scene, and iterate quickly.
+            Talk with Gemini, steer the scene, iterate quickly, and even automate your desktop natively via Electron.
           </p>
 
           <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
-            <button
-              type="button"
-              onClick={() => navigate('/app')}
+            <a
+              href="https://github.com/tazzos/gemini-live-3d-bridge/releases/latest"
+              target="_blank"
+              rel="noreferrer"
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-7 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400 sm:w-auto"
             >
-              Open app
-              <ArrowRight className="h-4 w-4" />
-            </button>
+              <Download className="h-4 w-4" />
+              Download App
+            </a>
             <a
-              href="#capabilities"
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-white/15 bg-white/5 px-7 py-3 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10 sm:w-auto"
+              href="#hackathon"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-7 py-3 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10 sm:w-auto"
             >
-              See capabilities
+              <Trophy className="h-4 w-4" />
+              Hackathon Info
             </a>
           </div>
         </section>
@@ -74,13 +73,52 @@ export default function LandingPage() {
           ))}
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/0 p-6 md:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Quick start</p>
-          <ol className="mt-4 grid gap-4 text-sm text-slate-200 md:grid-cols-3 md:gap-5">
-            <li className="rounded-xl border border-white/10 bg-black/20 p-4">1. Open a live session.</li>
-            <li className="rounded-xl border border-white/10 bg-black/20 p-4">2. Describe what you want to build or change.</li>
-            <li className="rounded-xl border border-white/10 bg-black/20 p-4">3. Keep refining until the scene feels right.</li>
-          </ol>
+        <section id="hackathon" className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 md:p-10 backdrop-blur-md">
+          <div className="mb-8 flex items-center gap-3">
+            <div className="rounded-lg bg-indigo-500/20 p-2 text-indigo-400">
+              <Trophy className="h-6 w-6" />
+            </div>
+            <h2 className="text-2xl font-bold text-white">Gemini Live Agent Challenge</h2>
+          </div>
+          
+          <div className="space-y-6 text-slate-300">
+            <p className="text-lg leading-relaxed">
+              This project is an entry for the <strong>Gemini Live Agent Challenge</strong> on Devpost, redefining interaction from static chatbots to immersive experiences.
+            </p>
+
+            <div className="grid gap-6 md:grid-cols-2 mt-6">
+              <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-5">
+                <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <Mic className="h-4 w-4 text-indigo-400" />
+                  Live Agents Category
+                </h3>
+                <p className="text-sm">
+                  Built to handle real-time audio and vision. Our agent interacts naturally with users, gracefully handles barge-ins, and is powered directly by the Gemini Live API with low latency.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-5">
+                <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <Code className="h-4 w-4 text-sky-400" />
+                  UI Navigator & Storyteller
+                </h3>
+                <p className="text-sm">
+                  The desktop app leverages <strong>@midscene/computer</strong> so the agent can become the user's hands on screen—interpreting visual elements and executing OS-level actions natively in an Electron sandbox.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-xl bg-black/40 p-5 border border-white/5">
+              <h3 className="font-semibold text-white mb-3">Key Technical Achievements:</h3>
+              <ul className="list-inside list-disc space-y-2 text-sm text-slate-400">
+                <li>Native Desktop App architecture using React + Electron.</li>
+                <li>Real-time bidirectional WebSocket relay through a Python FastAPI backend.</li>
+                <li>Zero-latency voice interface powered by Gemini Live.</li>
+                <li>OS automation sandbox utilizing multimodal visual UI understanding.</li>
+                <li>Cloud-ready backend deployment built for Google Cloud Run.</li>
+              </ul>
+            </div>
+          </div>
         </section>
       </div>
     </main>
