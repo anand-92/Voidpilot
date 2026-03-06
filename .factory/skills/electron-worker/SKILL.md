@@ -13,9 +13,9 @@ Use this skill for all tasks related to the frontend, the Electron Main process,
 ## Work Procedure
 1. Explore the `frontend` folder to understand existing logic.
 2. If introducing new Node.js APIs or Electron features, add them to `preload.ts` and ensure typed definitions in the renderer.
-3. Write unit tests or component tests (e.g., vitest, jest) BEFORE implementing the actual feature.
+3. Write unit tests or component tests (e.g., vitest, jest) if applicable. DO NOT write E2E or Playwright tests.
 4. Ensure `npm run build` or `npm run typecheck` passes.
-5. If manually testing, boot the Electron app via Vite's dev server locally and verify using `agent-browser` or manual verification.
+5. DO NOT ATTEMPT TO BOOT OR TEST THE ELECTRON APP OR VITE APP. The orchestrator explicitly forbids this because the agent environment cannot correctly interact with the Electron window or desktop capturer APIs. Rely entirely on compilation/typechecks.
 6. Commit the changes.
 
 ## Example Handoff

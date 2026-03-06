@@ -58,6 +58,9 @@ export function useGeminiLive() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const videoStreamRef = useRef<MediaStream | null>(null)
+  const videoElementRef = useRef<HTMLVideoElement | null>(null)
+  const frameIntervalRef = useRef<number | null>(null)
   const nextPlayTimeRef = useRef<number>(0)
 
   const addMessage = useCallback((content: string, role: MessageRole) => {
@@ -84,10 +87,25 @@ export function useGeminiLive() {
       wsRef.current.close()
       wsRef.current = null
     }
-    // Stop all media stream tracks
+    // Stop audio stream tracks
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop())
       streamRef.current = null
+    }
+    // Stop video stream tracks
+    if (videoStreamRef.current) {
+      videoStreamRef.current.getTracks().forEach(track => track.stop())
+      videoStreamRef.current = null
+    }
+    // Clear video element
+    if (videoElementRef.current) {
+      videoElementRef.current.srcObject = null;
+      videoElementRef.current = null;
+    }
+    // Clear interval
+    if (frameIntervalRef.current !== null) {
+      clearInterval(frameIntervalRef.current);
+      frameIntervalRef.current = null;
     }
     // Disconnect and close audio nodes
     processorRef.current?.disconnect()
@@ -207,6 +225,67 @@ export function useGeminiLive() {
       source.connect(processorRef.current)
       processorRef.current.connect(audioContextRef.current.destination)
       nextPlayTimeRef.current = 0
+
+      // Set up video capture (desktop)
+      try {
+        if (window.electronAPI && window.electronAPI.getDesktopSources) {
+          const sources = await window.electronAPI.getDesktopSources()
+          const primarySource = sources.find((s: any) => s.id.startsWith('screen')) || sources[0]
+          if (primarySource) {
+            console.log('Stream acquired:', primarySource.id)
+            const videoStream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                mandatory: {
+                  chromeMediaSource: 'desktop',
+                  chromeMediaSourceId: primarySource.id,
+                }
+              } as any
+            })
+
+            videoStreamRef.current = videoStream
+
+            const videoElement = document.createElement('video')
+            videoElement.srcObject = videoStream
+            await videoElement.play()
+            videoElementRef.current = videoElement
+
+            const canvas = document.createElement('canvas')
+            
+            frameIntervalRef.current = window.setInterval(() => {
+              if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+                const width = videoElement.videoWidth
+                const height = videoElement.videoHeight
+                
+                // Downscale to max 1280x720
+                const MAX_WIDTH = 1280
+                const MAX_HEIGHT = 720
+                let scale = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height)
+                if (scale > 1) scale = 1
+                
+                const dw = Math.round(width * scale)
+                const dh = Math.round(height * scale)
+
+                canvas.width = dw
+                canvas.height = dh
+                const ctx = canvas.getContext('2d')
+                if (ctx) {
+                  ctx.drawImage(videoElement, 0, 0, dw, dh)
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
+                  
+                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    console.log('Frame extracted and sent at 1 fps')
+                    const base64Data = dataUrl.split(',')[1]
+                    wsRef.current.send(JSON.stringify({ type: 'image', content: base64Data, mime_type: 'image/jpeg' }))
+                  }
+                }
+              }
+            }, 1000)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to get desktop stream:', err)
+      }
     } catch (err) {
       console.error(err)
       addMessage('Error: ' + (err as Error).message, 'system')
