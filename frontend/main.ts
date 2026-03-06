@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, desktopCapturer, systemPreferences } from 'electron'
+import { app, BrowserWindow, ipcMain, desktopCapturer, systemPreferences, screen } from 'electron'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
@@ -18,6 +18,7 @@ export const RENDERER_DIST = join(process.env.APP_ROOT, 'dist')
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null
+let ghostCursorWin: BrowserWindow | null = null
 
 async function requestPermissions() {
   if (process.platform === 'darwin') {
@@ -61,16 +62,71 @@ function createWindow() {
   }
 }
 
+function createGhostCursorWindow() {
+  ghostCursorWin = new BrowserWindow({
+    width: 60,
+    height: 60,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    hasShadow: false,
+    webPreferences: { nodeIntegration: false, contextIsolation: true }
+  })
+  
+  ghostCursorWin.setIgnoreMouseEvents(true, { forward: true })
+  
+  const html = `
+    <html>
+      <head>
+        <style>
+          body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: transparent;
+          }
+          .cursor {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: rgba(56, 189, 248, 0.4);
+            border: 3px solid rgba(56, 189, 248, 0.8);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.8);
+            animation: pulse 1s infinite cubic-bezier(0.4, 0, 0.6, 1);
+          }
+          @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.8; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="cursor"></div>
+      </body>
+    </html>
+  `
+  ghostCursorWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+  ghostCursorWin.hide()
+}
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
     win = null
+    ghostCursorWin = null
   }
 })
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
+    createGhostCursorWindow()
   }
 })
 
@@ -88,6 +144,61 @@ app.whenReady().then(async () => {
   try {
     midsceneAgent = await agentFromComputer()
     console.log('Midscene ready')
+
+    midsceneAgent.addDumpUpdateListener((dumpStr, executionDump) => {
+      if (!ghostCursorWin || !executionDump || !executionDump.tasks) return;
+      
+      let targetCenter: [number, number] | null = null;
+      
+      const tasks = executionDump.tasks;
+      for (let i = tasks.length - 1; i >= 0; i--) {
+        const task = tasks[i];
+        
+        if (task.output && typeof task.output === 'object' && 'element' in task.output && (task.output as any).element) {
+          const el = (task.output as any).element;
+          if (el.center) targetCenter = el.center;
+          break;
+        }
+
+        if (task.type === 'Action Space' && task.param && typeof task.param === 'object') {
+          const param = task.param as any;
+          if (param.center) targetCenter = param.center;
+        }
+        
+        if (!targetCenter && task.output && typeof task.output === 'object' && 'actions' in task.output) {
+           const actions = (task.output as any).actions;
+           if (Array.isArray(actions) && actions.length > 0) {
+             const lastAction = actions[actions.length - 1];
+             if (lastAction && lastAction.param) {
+               if (lastAction.param.bbox && Array.isArray(lastAction.param.bbox)) {
+                 const bbox = lastAction.param.bbox;
+                 if (bbox.length === 4) {
+                   targetCenter = [ (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2 ];
+                   break;
+                 }
+               }
+             }
+           }
+        }
+        if (targetCenter) break;
+      }
+      
+      const isRunning = tasks.some((t: any) => t.status === 'running');
+      
+      if (isRunning && targetCenter && Array.isArray(targetCenter) && targetCenter.length === 2) {
+        // Offset by half of 60x60 size
+        const x = Math.round(targetCenter[0] - 30);
+        const y = Math.round(targetCenter[1] - 30);
+        
+        ghostCursorWin.setBounds({ x, y, width: 60, height: 60 });
+        if (!ghostCursorWin.isVisible()) {
+          ghostCursorWin.showInactive();
+        }
+      } else if (!isRunning && ghostCursorWin.isVisible()) {
+        ghostCursorWin.hide();
+      }
+    });
+
   } catch (error) {
     console.error('Failed to initialize Midscene:', error)
   }
@@ -112,4 +223,5 @@ app.whenReady().then(async () => {
   ipcMain.handle('ping', () => 'pong')
 
   createWindow()
+  createGhostCursorWindow()
 })
