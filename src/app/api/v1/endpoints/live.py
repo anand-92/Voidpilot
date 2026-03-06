@@ -65,12 +65,24 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
                             if isinstance(payload, dict):
                                 msg_type = payload.get("type")
                                 if msg_type == "image":
+                                    content = payload.get("content", "")
+                                    if not content:
+                                        logger.warning(
+                                            "Received image payload with no content"
+                                        )
+                                        continue
+
                                     logger.info(
-                                        f"Received image chunk: {len(payload['data'])} base64 chars"  # noqa: E501
+                                        f"Received image chunk: {len(content)} base64 chars"  # noqa: E501
                                     )
-                                    await video_input_queue.put(
-                                        base64.b64decode(payload["data"])
-                                    )
+                                    try:
+                                        await video_input_queue.put(
+                                            base64.b64decode(content)
+                                        )
+                                    except Exception as e:
+                                        logger.error(
+                                            f"Failed to decode base64 image: {e}"
+                                        )
                                     continue
                                 if msg_type == "text":
                                     logger.info(
