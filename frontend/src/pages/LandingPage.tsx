@@ -40,7 +40,7 @@ export default function LandingPage() {
 
           <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
             <a
-              href="https://github.com/tazzos/gemini-live-3d-bridge/releases/latest"
+              href="https://github.com/anand-92/gemini-live-3d-bridge/releases/latest"
               target="_blank"
               rel="noreferrer"
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-7 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400 sm:w-auto"
