@@ -9,11 +9,14 @@ COPY frontend/package*.json ./
 # Install dependencies
 RUN npm install --legacy-peer-deps
 
+# Ensure bin scripts are executable (fixes Alpine permission issues)
+RUN chmod +x node_modules/.bin/* 2>/dev/null || true
+
 # Copy source
 COPY frontend/ ./
 
-# Build the React app
-RUN npm run build
+# Build the React app (web-only, skip Electron)
+RUN npx vite build
 
 # Stage 2: Python backend
 FROM python:3.12-slim AS backend
@@ -30,7 +33,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
 # Copy backend files
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 COPY src ./src
 
 # Install Python dependencies using uv
