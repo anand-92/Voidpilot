@@ -4,8 +4,10 @@ export type MessageRole = 'user' | 'gemini' | 'system' | 'thought' | 'user_voice
 export interface Message { role: MessageRole; content: string }
 
 // Use current host with WebSocket protocol (ws:// or wss:// based on HTTP/HTTPS)
-const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-const API_BASE_URL = `${wsProtocol}//${window.location.host}`
+const isElectronPackaged = window.location.protocol === 'file:'
+const wsProtocol = isElectronPackaged ? 'ws:' : (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
+const wsHost = isElectronPackaged ? '127.0.0.1:8000' : window.location.host
+const API_BASE_URL = `${wsProtocol}//${wsHost}`
 const SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 512
 
