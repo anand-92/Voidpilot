@@ -1,5 +1,6 @@
 import json
-with open('comments.json', encoding='utf-8') as f:
+
+with open("comments.json", encoding="utf-8") as f:
     comments = json.load(f)
 for c in comments:
     print(f"File: {c.get('path')}")

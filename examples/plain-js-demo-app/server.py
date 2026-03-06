@@ -66,7 +66,7 @@ async def proxy_task(
                 print(f"Error processing message: {e}")
     except ConnectionClosed as e:
         print(
-            f"{'Server' if is_server else 'Client'} connection closed: {e.code} - {e.reason}"
+            f"{'Server' if is_server else 'Client'} connection closed: {e.code} - {e.reason}"  # noqa: E501
         )
     except Exception as e:
         print(f"Unexpected error in proxy_task: {e}")
@@ -77,7 +77,8 @@ async def proxy_task(
 async def create_proxy(
     client_websocket: WebSocketCommonProtocol, bearer_token: str, service_url: str
 ) -> None:
-    """Establishes a WebSocket connection to the Gemini server and creates bidirectional proxy.
+    """Establishes a WebSocket connection to the Gemini server and
+    creates bidirectional proxy.
 
     Args:
         client_websocket: The WebSocket connection of the client.
@@ -127,12 +128,12 @@ async def create_proxy(
             # Close connections
             try:
                 await server_websocket.close()
-            except:
+            except Exception:
                 pass
 
             try:
                 await client_websocket.close()
-            except:
+            except Exception:
                 pass
 
     except ConnectionClosed as e:
@@ -182,7 +183,7 @@ async def handle_websocket_client(client_websocket: WebSocketServerProtocol) -> 
 
         await create_proxy(client_websocket, bearer_token, service_url)
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         print("⏱️ Timeout waiting for the first message from the client")
         await client_websocket.close(code=1008, reason="Timeout")
     except json.JSONDecodeError as e:

@@ -43,7 +43,7 @@ async def root():
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket):  # noqa: C901
     """WebSocket endpoint for Gemini Live."""
     await websocket.accept()
 
@@ -57,7 +57,7 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.send_bytes(data)
 
     async def audio_interrupt_callback():
-        # The event queue handles the JSON message, but we might want to do something else here
+        # The event queue handles the JSON message, but we might want to do something else here  # noqa: E501
         pass
 
     gemini_client = GeminiLive(
@@ -76,7 +76,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     try:
                         payload = json.loads(text)
                         if isinstance(payload, dict) and payload.get("type") == "image":
-                            logger.info(f"Received image chunk from client: {len(payload['data'])} base64 chars")
+                            logger.info(
+                                f"Received image chunk from client: {len(payload['data'])} base64 chars"  # noqa: E501
+                            )
                             image_data = base64.b64decode(payload["data"])
                             await video_input_queue.put(image_data)
                             continue
@@ -112,7 +114,7 @@ async def websocket_endpoint(websocket: WebSocket):
         # Ensure websocket is closed if not already
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
 
 

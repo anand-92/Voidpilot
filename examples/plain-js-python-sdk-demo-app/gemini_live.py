@@ -1,13 +1,24 @@
 import asyncio
 import inspect
+
 from google import genai
 from google.genai import types
+
 
 class GeminiLive:
     """
     Handles the interaction with the Gemini Live API.
     """
-    def __init__(self, project_id, location, model, input_sample_rate, tools=None, tool_mapping=None):
+
+    def __init__(
+        self,
+        project_id,
+        location,
+        model,
+        input_sample_rate,
+        tools=None,
+        tool_mapping=None,
+    ):
         """
         Initializes the GeminiLive client.
 
@@ -17,7 +28,8 @@ class GeminiLive:
             model (str): The model name to use.
             input_sample_rate (int): The sample rate for audio input.
             tools (list, optional): List of tools to enable. Defaults to None.
-            tool_mapping (dict, optional): Mapping of tool names to functions. Defaults to None.
+            tool_mapping (dict, optional): Mapping of tool names to functions.
+                Defaults to None.
         """
         self.project_id = project_id
         self.location = location
@@ -27,31 +39,47 @@ class GeminiLive:
         self.tools = tools or []
         self.tool_mapping = tool_mapping or {}
 
-    async def start_session(self, audio_input_queue, video_input_queue, text_input_queue, audio_output_callback, audio_interrupt_callback=None):
+    async def start_session(  # noqa: C901
+        self,
+        audio_input_queue,
+        video_input_queue,
+        text_input_queue,
+        audio_output_callback,
+        audio_interrupt_callback=None,
+    ):
         config = types.LiveConnectConfig(
             response_modalities=[types.Modality.AUDIO],
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                        voice_name="Puck"
-                    )
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
                 )
             ),
-            system_instruction=types.Content(parts=[types.Part(text="You are a helpful AI assistant. Keep your responses concise. Speak in a friendly Irish accent.")]),
+            system_instruction=types.Content(
+                parts=[
+                    types.Part(
+                        text="You are a helpful AI assistant. Keep your responses concise. Speak in a friendly Irish accent."  # noqa: E501
+                    )
+                ]
+            ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
             proactivity=types.ProactivityConfig(proactive_audio=True),
             tools=self.tools,
         )
-        
-        async with self.client.aio.live.connect(model=self.model, config=config) as session:
-            
+
+        async with self.client.aio.live.connect(
+            model=self.model, config=config
+        ) as session:
+
             async def send_audio():
                 try:
                     while True:
                         chunk = await audio_input_queue.get()
                         await session.send_realtime_input(
-                            audio=types.Blob(data=chunk, mime_type=f"audio/pcm;rate={self.input_sample_rate}")
+                            audio=types.Blob(
+                                data=chunk,
+                                mime_type=f"audio/pcm;rate={self.input_sample_rate}",
+                            )
                         )
                 except asyncio.CancelledError:
                     pass
@@ -76,34 +104,58 @@ class GeminiLive:
 
             event_queue = asyncio.Queue()
 
-            async def receive_loop():
+            async def receive_loop():  # noqa: C901
                 try:
                     while True:
                         async for response in session.receive():
                             server_content = response.server_content
                             tool_call = response.tool_call
-                            
+
                             if server_content:
                                 if server_content.model_turn:
                                     for part in server_content.model_turn.parts:
                                         if part.inline_data:
-                                            if inspect.iscoroutinefunction(audio_output_callback):
-                                                await audio_output_callback(part.inline_data.data)
+                                            if inspect.iscoroutinefunction(
+                                                audio_output_callback
+                                            ):
+                                                await audio_output_callback(
+                                                    part.inline_data.data
+                                                )
                                             else:
-                                                audio_output_callback(part.inline_data.data)
-                                
-                                if server_content.input_transcription and server_content.input_transcription.text:
-                                    await event_queue.put({"type": "user", "text": server_content.input_transcription.text})
-                                
-                                if server_content.output_transcription and server_content.output_transcription.text:
-                                    await event_queue.put({"type": "gemini", "text": server_content.output_transcription.text})
-                                
+                                                audio_output_callback(
+                                                    part.inline_data.data
+                                                )
+
+                                if (
+                                    server_content.input_transcription
+                                    and server_content.input_transcription.text
+                                ):
+                                    await event_queue.put(
+                                        {
+                                            "type": "user",
+                                            "text": server_content.input_transcription.text,  # noqa: E501
+                                        }
+                                    )
+
+                                if (
+                                    server_content.output_transcription
+                                    and server_content.output_transcription.text
+                                ):
+                                    await event_queue.put(
+                                        {
+                                            "type": "gemini",
+                                            "text": server_content.output_transcription.text,  # noqa: E501
+                                        }
+                                    )
+
                                 if server_content.turn_complete:
                                     await event_queue.put({"type": "turn_complete"})
-                                
+
                                 if server_content.interrupted:
                                     if audio_interrupt_callback:
-                                        if inspect.iscoroutinefunction(audio_interrupt_callback):
+                                        if inspect.iscoroutinefunction(
+                                            audio_interrupt_callback
+                                        ):
                                             await audio_interrupt_callback()
                                         else:
                                             audio_interrupt_callback()
@@ -114,7 +166,7 @@ class GeminiLive:
                                 for fc in tool_call.function_calls:
                                     func_name = fc.name
                                     args = fc.args or {}
-                                    
+
                                     if func_name in self.tool_mapping:
                                         try:
                                             tool_func = self.tool_mapping[func_name]
@@ -122,18 +174,31 @@ class GeminiLive:
                                                 result = await tool_func(**args)
                                             else:
                                                 loop = asyncio.get_running_loop()
-                                                result = await loop.run_in_executor(None, lambda: tool_func(**args))
+                                                result = await loop.run_in_executor(
+                                                    None, lambda tf=tool_func, a=args: tf(**a)  # noqa: E501
+                                                )
                                         except Exception as e:
                                             result = f"Error: {e}"
-                                        
-                                        function_responses.append(types.FunctionResponse(
-                                            name=func_name,
-                                            id=fc.id,
-                                            response={"result": result}
-                                        ))
-                                        await event_queue.put({"type": "tool_call", "name": func_name, "args": args, "result": result})
-                                
-                                await session.send_tool_response(function_responses=function_responses)
+
+                                        function_responses.append(
+                                            types.FunctionResponse(
+                                                name=func_name,
+                                                id=fc.id,
+                                                response={"result": result},
+                                            )
+                                        )
+                                        await event_queue.put(
+                                            {
+                                                "type": "tool_call",
+                                                "name": func_name,
+                                                "args": args,
+                                                "result": result,
+                                            }
+                                        )
+
+                                await session.send_tool_response(
+                                    function_responses=function_responses
+                                )
 
                 except Exception as e:
                     await event_queue.put({"type": "error", "error": str(e)})
@@ -151,9 +216,9 @@ class GeminiLive:
                     if event is None:
                         break
                     if isinstance(event, dict) and event.get("type") == "error":
-                        # Just yield the error event, don't raise to keep the stream alive if possible or let caller handle
+                        # Just yield the error event, don't raise to keep the stream alive if possible or let caller handle  # noqa: E501
                         yield event
-                        break 
+                        break
                     yield event
             finally:
                 send_audio_task.cancel()

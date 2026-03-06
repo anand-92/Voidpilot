@@ -13,12 +13,9 @@ def create_ephemeral_token(api_key: str) -> str:
     Returns:
         The ephemeral token name that can be used by the frontend.
     """
-    client = genai.Client(
-        api_key=api_key,
-        http_options={"api_version": "v1beta"}
-    )
+    client = genai.Client(api_key=api_key, http_options={"api_version": "v1beta"})
 
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    now = datetime.datetime.now(tz=datetime.UTC)
 
     token = client.auth_tokens.create(
         config={
@@ -30,7 +27,7 @@ def create_ephemeral_token(api_key: str) -> str:
                 "config": {
                     "session_resumption": {},
                     "response_modalities": ["AUDIO"],
-                }
+                },
             },
             "http_options": {"api_version": "v1beta"},
         }

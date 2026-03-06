@@ -18,7 +18,7 @@ MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 
 
 @router.websocket("/live")
-async def gemini_live_ws(websocket: WebSocket):
+async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
     """WebSocket endpoint for Gemini Live connection."""
     logger.info("New Gemini Live WebSocket connection request received")
     await websocket.accept()
@@ -45,7 +45,7 @@ async def gemini_live_ws(websocket: WebSocket):
         except Exception as e:
             logger.error(f"Error sending interrupted to client: {e}")
 
-    async with AsyncExitStack() as stack:
+    async with AsyncExitStack():
         mcp_tools = None
         mcp_tool_mapping = None
 
@@ -57,7 +57,7 @@ async def gemini_live_ws(websocket: WebSocket):
             tool_mapping=mcp_tool_mapping,
         )
 
-        async def receive_from_client() -> None:
+        async def receive_from_client() -> None:  # noqa: C901
             try:
                 while True:
                     message = await websocket.receive()
@@ -71,7 +71,7 @@ async def gemini_live_ws(websocket: WebSocket):
                                 msg_type = payload.get("type")
                                 if msg_type == "image":
                                     logger.info(
-                                        f"Received image chunk: {len(payload['data'])} base64 chars"
+                                        f"Received image chunk: {len(payload['data'])} base64 chars"  # noqa: E501
                                     )
                                     await video_input_queue.put(
                                         base64.b64decode(payload["data"])
@@ -122,18 +122,22 @@ async def gemini_live_ws(websocket: WebSocket):
                     retry_count = 0
                     event_type = event.get("type")
                     if event_type in ("user", "gemini"):
-                        await websocket.send_json({
-                            "type": "text",
-                            "role": event_type,
-                            "content": event.get("text", event.get("content", "")),
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "text",
+                                "role": event_type,
+                                "content": event.get("text", event.get("content", "")),
+                            }
+                        )
                     elif event_type == "tool_call":
-                        await websocket.send_json({
-                            "type": "tool_call",
-                            "name": event.get("name"),
-                            "args": event.get("args"),
-                            "result": event.get("result"),
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "tool_call",
+                                "name": event.get("name"),
+                                "args": event.get("args"),
+                                "result": event.get("result"),
+                            }
+                        )
                     else:
                         await websocket.send_json(event)
                 logger.info("Gemini session ended normally")
