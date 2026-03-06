@@ -81,43 +81,89 @@ export default function LandingPage() {
             <h2 className="text-2xl font-bold text-white">Gemini Live Agent Challenge</h2>
           </div>
           
-          <div className="space-y-6 text-slate-300">
-            <p className="text-lg leading-relaxed">
-              This project is an entry for the <strong>Gemini Live Agent Challenge</strong> on Devpost, redefining interaction from static chatbots to immersive experiences.
-            </p>
+          <div className="space-y-8 text-slate-300">
+            <div>
+              <h3 className="text-xl font-bold text-white mb-2">Challenge Overview</h3>
+              <p className="text-base leading-relaxed">
+                Redefining Interaction: From Static Chatbots to Immersive Experiences. This project is built as an entry to move beyond simple text-in/text-out interactions by leveraging Google’s Live API with multimodal inputs and outputs (audio and vision).
+              </p>
+            </div>
 
-            <div className="grid gap-6 md:grid-cols-2 mt-6">
+            <div className="grid gap-6 md:grid-cols-3">
               <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-5">
                 <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
                   <Mic className="h-4 w-4 text-indigo-400" />
-                  Live Agents Category
+                  Live Agents
                 </h3>
                 <p className="text-sm">
-                  Built to handle real-time audio and vision. Our agent interacts naturally with users, gracefully handles barge-ins, and is powered directly by the Gemini Live API with low latency.
+                  <strong>Focus: Real-time Interaction (Audio/Vision).</strong> Build an agent that users can talk to naturally and can be interrupted. Must use Gemini Live API or ADK and be hosted on Google Cloud.
                 </p>
               </div>
 
               <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-5">
                 <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
-                  <Code className="h-4 w-4 text-sky-400" />
-                  UI Navigator & Storyteller
+                  <Sparkles className="h-4 w-4 text-sky-400" />
+                  Creative Storyteller
                 </h3>
                 <p className="text-sm">
-                  The desktop app leverages <strong>@midscene/computer</strong> so the agent can become the user's hands on screen—interpreting visual elements and executing OS-level actions natively in an Electron sandbox.
+                  <strong>Focus: Multimodal Storytelling with Interleaved Output.</strong> Build an agent that seamlessly weaves together text, images, audio, and video in a single fluid output stream leveraging Gemini's native interleaved output.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+                <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <Code className="h-4 w-4 text-emerald-400" />
+                  UI Navigator
+                </h3>
+                <p className="text-sm">
+                  <strong>Focus: Visual UI Understanding & Interaction.</strong> Build an agent that becomes the user's hands on screen. It observes the display, interprets visual elements, and performs actions based on user intent.
                 </p>
               </div>
             </div>
 
-            <div className="mt-8 rounded-xl bg-black/40 p-5 border border-white/5">
-              <h3 className="font-semibold text-white mb-3">Key Technical Achievements:</h3>
-              <ul className="list-inside list-disc space-y-2 text-sm text-slate-400">
-                <li>Native Desktop App architecture using React + Electron.</li>
-                <li>Real-time bidirectional WebSocket relay through a Python FastAPI backend.</li>
-                <li>Zero-latency voice interface powered by Gemini Live.</li>
-                <li>OS automation sandbox utilizing multimodal visual UI understanding.</li>
-                <li>Cloud-ready backend deployment built for Google Cloud Run.</li>
-              </ul>
+            <div className="grid gap-8 md:grid-cols-2 mt-4">
+              <div className="rounded-xl bg-black/40 p-6 border border-white/5">
+                <h3 className="text-lg font-semibold text-white mb-4">Submission Requirements</h3>
+                <ul className="list-inside list-disc space-y-2 text-sm text-slate-300">
+                  <li><strong>New Projects Only:</strong> Must be newly created during the contest period (Feb 16 - Mar 16, 2026).</li>
+                  <li><strong>Google Cloud Native:</strong> Must use at least one Google Cloud service. Must include proof of deployment (e.g., console logs, code links).</li>
+                  <li><strong>GenAI SDK:</strong> Agents must be built using Google GenAI SDK or Agent Development Kit.</li>
+                  <li><strong>Code & Demo:</strong> Include a public code repository with spin-up instructions, an architecture diagram, and a demonstration video (max 4 minutes) showing real-time agentic features working.</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl bg-black/40 p-6 border border-white/5">
+                <h3 className="text-lg font-semibold text-white mb-4">Judging Criteria</h3>
+                <ul className="list-inside list-disc space-y-3 text-sm text-slate-300">
+                  <li><strong>Innovation & Multimodal User Experience (40%):</strong> Does the project break the "text box" paradigm? Is the interaction natural, immersive, seamless, and context-aware?</li>
+                  <li><strong>Technical Implementation & Architecture (30%):</strong> Effective use of GenAI SDK/ADK, robust Google Cloud hosting, sound agent logic handling errors/timeouts, and avoidance of hallucinations.</li>
+                  <li><strong>Demo & Presentation (30%):</strong> Clear definition of the problem/solution, clear architecture diagram, visual proof of Cloud deployment, and a demo showing actual software working.</li>
+                </ul>
+              </div>
             </div>
+
+            <div className="rounded-xl bg-slate-800/50 p-6 border border-white/10">
+              <h3 className="text-lg font-semibold text-white mb-4">Prizes & Important Dates</h3>
+              <div className="grid gap-4 md:grid-cols-2 text-sm">
+                <div>
+                  <p className="mb-2"><strong>Dates:</strong></p>
+                  <ul className="list-inside list-disc text-slate-300 space-y-1">
+                    <li>Submission Period: Feb 16 – Mar 16, 2026</li>
+                    <li>Judging Period: Mar 17 – Apr 3, 2026</li>
+                    <li>Winners Announced: April 22 - 24, 2026 (at Google NEXT)</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="mb-2"><strong>Prizes include:</strong></p>
+                  <ul className="list-inside list-disc text-slate-300 space-y-1">
+                    <li><strong>Grand Prize:</strong> $25,000 USD, $3k GCP Credits, Google Cloud Next Tickets & Travel Stipend.</li>
+                    <li><strong>Category Winners (x3):</strong> $10,000 USD, $1k GCP Credits, Google Cloud Next Tickets.</li>
+                    <li><strong>Subcategory Winners (x3):</strong> $5,000 USD, $500 GCP Credits.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
           </div>
         </section>
       </div>
