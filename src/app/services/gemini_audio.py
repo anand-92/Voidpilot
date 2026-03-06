@@ -7,174 +7,7 @@ import httpx
 from google import genai
 from google.genai import types
 
-from src.app.core.config import settings
-
 logger = logging.getLogger(__name__)
-
-
-async def generate_threejs(description: str) -> str:
-    """Generate Three.js code for a 3D scene based on a description.
-
-    Use this when the user wants to create, visualize, or generate a 3D scene,
-    animation, or interactive 3D element using Three.js.
-
-    Returns executable JavaScript code that creates a Three.js scene.
-    """
-    try:
-        logger.info(f"generate_threejs called: {description[:100]}...")
-
-        # Use the regular genai client for non-streaming generation
-        client = genai.Client(api_key=settings.GOOGLE_API_KEY)
-
-        prompt = f"""Generate Three.js code to create a 3D object or mesh based on
-this description:
-
-{description}
-
-IMPORTANT: This code will be added to an EXISTING scene that already has:
-- THREE (the Three.js library)
-- scene (a THREE.Scene object)
-- camera (a THREE.PerspectiveCamera)
-- renderer (a THREE.WebGLRenderer)
-- controls (optional OrbitControls)
-
-Requirements:
-1. Create ONLY the mesh/object code - NO scene/camera/renderer setup
-2. Use modern Three.js (ES6 modules)
-3. Add animation if appropriate using requestAnimationFrame
-4. Make it visually interesting with materials, colors, effects
-5. Return ONLY the JavaScript code, no markdown formatting, no explanation
-6. The code should add the object directly to the existing 'scene' variable
-
-Example structure (just this part, not the full scene):
-```javascript
-const geometry = new THREE.TorusKnotGeometry(1, 0.3, 128, 32);
-const material = new THREE.MeshStandardMaterial({{
-  color: 0x00ff88,
-  metalness: 0.8,
-  roughness: 0.2
-}});
-const mesh = new THREE.Mesh(geometry, material);
-scene.add(mesh);
-
-function animate() {{
-  requestAnimationFrame(animate);
-  mesh.rotation.x += 0.01;
-  mesh.rotation.y += 0.01;
-}}
-animate();
-```
-
-Generate the code now:"""
-
-        logger.info("Calling Gemini 3 Flash with code execution...")
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model="gemini-3-flash-preview",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=types.Content(
-                    parts=[
-                        types.Part(
-                            text="You are an expert Three.js developer. You generate clean, working, visually impressive Three.js code. Always include proper lighting, materials, and animations. Use ES6 modules imported from unpkg or esm.sh."  # noqa: E501
-                        )
-                    ]
-                ),
-                tools=[types.Tool(code_execution=types.ToolCodeExecution)],
-                temperature=0.35,
-            ),
-        )
-        logger.info("API call complete, processing response...")
-
-        code = response.text.strip()
-
-        # Remove markdown code blocks if present
-        if code.startswith("```javascript"):
-            code = code[13:]
-        elif code.startswith("```js"):
-            code = code[5:]
-        elif code.startswith("```"):
-            code = code[3:]
-        if code.endswith("```"):
-            code = code[:-3]
-
-        # Handle edge case where code starts with "```\n"
-        if code.startswith("\n"):
-            code = code[1:]
-        code = code.strip()
-
-        logger.info(f"Generated Three.js code: {len(code)} characters")
-        return code
-
-    except Exception as e:
-        logger.error(f"Error generating Three.js code: {e}")
-        return f"Error generating Three.js code: {str(e)}"
-
-
-async def generate_image(prompt: str) -> str:
-    """Generate an image based on a text prompt using Gemini 3.1 Flash.
-
-    Use this when the user wants to create, generate, or visualize an image, picture,
-    illustration, or artwork. The image will be displayed in a fullscreen modal.
-
-    Returns a base64-encoded PNG image that can be displayed in the browser.
-    """
-    try:
-        import base64
-
-        logger.info(f"generate_image called: {prompt[:100]}...")
-
-        client = genai.Client(api_key=settings.GOOGLE_API_KEY)
-
-        logger.info("Calling Gemini 3.1 Flash image generation...")
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model="gemini-3.1-flash-image-preview",
-            contents=[prompt],
-            config=types.GenerateContentConfig(
-                response_modalities=["IMAGE"],
-                thinking_config=types.ThinkingConfig(
-                    thinking_level=types.ThinkingLevel.MINIMAL
-                ),
-                tools=[
-                    types.Tool(
-                        google_search=types.GoogleSearch(
-                            search_types=types.SearchTypes(
-                                web_search=types.WebSearch(),
-                                image_search=types.ImageSearch(),
-                            )
-                        )
-                    )
-                ],
-            ),
-        )
-
-        logger.info("Processing image response...")
-
-        # Find the image part
-        image_data = None
-        for part in response.parts:
-            if part.inline_data is not None:
-                image_data = part.inline_data.data
-                break
-
-        if image_data is None:
-            return "Error: No image was generated"
-
-        # Convert to base64 for frontend
-        b64_data = base64.b64encode(image_data).decode("utf-8")
-        logger.info(f"Generated image: {len(b64_data)} base64 chars")
-
-        # Return as data URL
-        return f"data:image/png;base64,{b64_data}"
-
-    except Exception as e:
-        logger.error(f"Error generating image: {e}")
-        import traceback
-
-        logger.error(traceback.format_exc())
-        return f"Error generating image: {str(e)}"
-
 
 async def get_weather(location: str, unit: str = "fahrenheit", days: int = 0) -> str:  # noqa: C901
     """Get current weather or forecast for a location using Open-Meteo
@@ -275,7 +108,6 @@ async def get_weather(location: str, unit: str = "fahrenheit", days: int = 0) ->
     except Exception as e:
         return f"Error getting weather: {str(e)}"
 
-
 class GeminiLive:
     """
     Handles the interaction with the Gemini Live API.
@@ -363,7 +195,7 @@ class GeminiLive:
             tools=self.tools,
         )
 
-        logger.info("=== Gemini Live with Tools (Weather + ThreeJS Generator) ===")
+        logger.info("=== Gemini Live with Tools (Weather) ===")
         logger.info(
             f"Tools loaded: {[t['function_declarations'][0]['name'] for t in self.tools]}"  # noqa: E501
         )

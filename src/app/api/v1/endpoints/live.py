@@ -46,15 +46,10 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
             logger.error(f"Error sending interrupted to client: {e}")
 
     async with AsyncExitStack():
-        mcp_tools = None
-        mcp_tool_mapping = None
-
         gemini_client = GeminiLive(
             api_key=api_key,
             model=MODEL,
             input_sample_rate=16000,
-            tools=mcp_tools,
-            tool_mapping=mcp_tool_mapping,
         )
 
         async def receive_from_client() -> None:  # noqa: C901
