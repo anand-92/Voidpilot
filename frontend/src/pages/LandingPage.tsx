@@ -128,7 +128,10 @@ export default function LandingPage() {
                   <li><strong>New Projects Only:</strong> Must be newly created during the contest period (Feb 16 - Mar 16, 2026).</li>
                   <li><strong>Google Cloud Native:</strong> Must use at least one Google Cloud service. Must include proof of deployment (e.g., console logs, code links).</li>
                   <li><strong>GenAI SDK:</strong> Agents must be built using Google GenAI SDK or Agent Development Kit.</li>
-                  <li><strong>Code & Demo:</strong> Include a public code repository with spin-up instructions, an architecture diagram, and a demonstration video (max 4 minutes) showing real-time agentic features working.</li>
+                  <li><strong>Code & Demo:</strong> Include a public code repository with spin-up instructions, an architecture diagram, and a demonstration video (max 4 minutes, YouTube/Vimeo, English/Subtitled) showing real-time agentic features working.</li>
+                  <li><strong>Text Description:</strong> Must cover features, tech used, data sources, and learnings. Application must support English.</li>
+                  <li><strong>Testing Access:</strong> Must provide a link to a working project/demo/test build (with login credentials if private).</li>
+                  <li><strong>Cloud Credits:</strong> Fill out the <a href="https://forms.gle/rKNPXA1o6XADvQGb7" target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">Google Cloud credits form</a> by March 13 (12:00 PM PT) to request $100.</li>
                 </ul>
               </div>
 
@@ -138,6 +141,13 @@ export default function LandingPage() {
                   <li><strong>Innovation & Multimodal User Experience (40%):</strong> Does the project break the "text box" paradigm? Is the interaction natural, immersive, seamless, and context-aware?</li>
                   <li><strong>Technical Implementation & Architecture (30%):</strong> Effective use of GenAI SDK/ADK, robust Google Cloud hosting, sound agent logic handling errors/timeouts, and avoidance of hallucinations.</li>
                   <li><strong>Demo & Presentation (30%):</strong> Clear definition of the problem/solution, clear architecture diagram, visual proof of Cloud deployment, and a demo showing actual software working.</li>
+                  <li><strong>Stage Three (Bonus up to 1.0 pts):</strong>
+                    <ul className="list-inside list-disc ml-4 mt-2 space-y-1 text-xs text-slate-400">
+                      <li><strong>Content Creation (0.6 pts):</strong> Publish a public blog/podcast/video about the build process with the #GeminiLiveAgentChallenge hashtag.</li>
+                      <li><strong>Automated Deployment (0.2 pts):</strong> Demonstrate automated deployment via scripts or IaC in the public repo.</li>
+                      <li><strong>GDG Membership (0.2 pts):</strong> Provide a link to a public Google Developer Group profile.</li>
+                    </ul>
+                  </li>
                 </ul>
               </div>
             </div>
