@@ -10,6 +10,7 @@ export interface IElectronAPI {
   ping: () => Promise<string>;
   getDesktopSources: () => Promise<DesktopCapturerSource[]>;
   executeMidsceneAction: (args: { action: string }) => Promise<string>;
+  interruptMidscene: () => Promise<void>;
 }
 
 declare global {

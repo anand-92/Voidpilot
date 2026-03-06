@@ -141,66 +141,113 @@ app.whenReady().then(async () => {
     process.env.OPENAI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/'
   }
 
-  try {
-    midsceneAgent = await agentFromComputer()
-    console.log('Midscene ready')
+  
+let midsceneIsActive = false;
+let isPlanning = false;
+let currentMidsceneResolve: ((value: unknown) => void) | null = null;
+let currentMidsceneReject: ((reason?: any) => void) | null = null;
 
-    midsceneAgent.addDumpUpdateListener((dumpStr, executionDump) => {
-      if (!ghostCursorWin || !executionDump || !executionDump.tasks) return;
+function setupMidsceneAgent() {
+  if (!midsceneAgent) return;
+  midsceneAgent.addDumpUpdateListener((dumpStr, executionDump) => {
+    if (!ghostCursorWin || !executionDump || !executionDump.tasks) return;
+    
+    let targetCenter: [number, number] | null = null;
+    
+    const tasks = executionDump.tasks;
+    for (let i = tasks.length - 1; i >= 0; i--) {
+      const task = tasks[i];
       
-      let targetCenter: [number, number] | null = null;
-      
-      const tasks = executionDump.tasks;
-      for (let i = tasks.length - 1; i >= 0; i--) {
-        const task = tasks[i];
-        
-        if (task.output && typeof task.output === 'object' && 'element' in task.output && (task.output as any).element) {
-          const el = (task.output as any).element;
-          if (el.center) targetCenter = el.center;
-          break;
-        }
+      if (task.output && typeof task.output === 'object' && 'element' in task.output && (task.output as any).element) {
+        const el = (task.output as any).element;
+        if (el.center) targetCenter = el.center;
+        break;
+      }
 
-        if (task.type === 'Action Space' && task.param && typeof task.param === 'object') {
-          const param = task.param as any;
-          if (param.center) targetCenter = param.center;
-        }
-        
-        if (!targetCenter && task.output && typeof task.output === 'object' && 'actions' in task.output) {
-           const actions = (task.output as any).actions;
-           if (Array.isArray(actions) && actions.length > 0) {
-             const lastAction = actions[actions.length - 1];
-             if (lastAction && lastAction.param) {
-               if (lastAction.param.bbox && Array.isArray(lastAction.param.bbox)) {
-                 const bbox = lastAction.param.bbox;
-                 if (bbox.length === 4) {
-                   targetCenter = [ (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2 ];
-                   break;
-                 }
+      if (task.type === 'Action Space' && task.param && typeof task.param === 'object') {
+        const param = task.param as any;
+        if (param.center) targetCenter = param.center;
+      }
+      
+      if (!targetCenter && task.output && typeof task.output === 'object' && 'actions' in task.output) {
+         const actions = (task.output as any).actions;
+         if (Array.isArray(actions) && actions.length > 0) {
+           const lastAction = actions[actions.length - 1];
+           if (lastAction && lastAction.param) {
+             if (lastAction.param.bbox && Array.isArray(lastAction.param.bbox)) {
+               const bbox = lastAction.param.bbox;
+               if (bbox.length === 4) {
+                 targetCenter = [ (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2 ];
+                 break;
                }
              }
            }
-        }
-        if (targetCenter) break;
+         }
       }
-      
-      const isRunning = tasks.some((t: any) => t.status === 'running');
-      
-      if (isRunning && targetCenter && Array.isArray(targetCenter) && targetCenter.length === 2) {
-        // Offset by half of 60x60 size
-        const x = Math.round(targetCenter[0] - 30);
-        const y = Math.round(targetCenter[1] - 30);
-        
-        ghostCursorWin.setBounds({ x, y, width: 60, height: 60 });
-        if (!ghostCursorWin.isVisible()) {
-          ghostCursorWin.showInactive();
-        }
-      } else if (!isRunning && ghostCursorWin.isVisible()) {
-        ghostCursorWin.hide();
+      if (targetCenter) break;
+    }
+    
+    const runningTask = tasks.find((t: any) => t.status === 'running');
+    const isRunning = !!runningTask;
+    
+    if (runningTask) {
+      if (runningTask.type === 'Planning') {
+        isPlanning = true;
+      } else {
+        isPlanning = false;
       }
-    });
+    } else {
+      isPlanning = false;
+    }
+    
+    if (isRunning && targetCenter && Array.isArray(targetCenter) && targetCenter.length === 2) {
+      const x = Math.round(targetCenter[0] - 30);
+      const y = Math.round(targetCenter[1] - 30);
+      
+      ghostCursorWin.setBounds({ x, y, width: 60, height: 60 });
+      if (!ghostCursorWin.isVisible()) {
+        ghostCursorWin.showInactive();
+      }
+    } else if (!isRunning && ghostCursorWin.isVisible()) {
+      ghostCursorWin.hide();
+    }
+  });
+}
 
+function abortMidscene(reason: string) {
+  if (!midsceneIsActive) return;
+  console.log('Action sequence aborted due to interrupt:', reason);
+  
+  if (midsceneAgent) {
+    midsceneAgent.destroy();
+    midsceneAgent = null;
+  }
+  
+  midsceneIsActive = false;
+  isPlanning = false;
+  
+  if (currentMidsceneReject) {
+    currentMidsceneReject(new Error('Action sequence aborted due to interrupt: ' + reason));
+    currentMidsceneReject = null;
+    currentMidsceneResolve = null;
+  }
+  
+  agentFromComputer().then(agent => {
+    midsceneAgent = agent;
+    setupMidsceneAgent();
+    console.log('Midscene re-initialized after interrupt');
+  }).catch(err => {
+    console.error('Failed to re-initialize midscene:', err);
+  });
+}
+
+
+  try {
+    midsceneAgent = await agentFromComputer();
+    console.log('Midscene ready');
+    setupMidsceneAgent();
   } catch (error) {
-    console.error('Failed to initialize Midscene:', error)
+    console.error('Failed to initialize Midscene:', error);
   }
 
   // Handle midscene action from renderer
@@ -209,10 +256,44 @@ app.whenReady().then(async () => {
       throw new Error('Midscene not initialized');
     }
     console.log('Tool call received in main process:', args);
-    const result = await midsceneAgent.action(args.action);
-    console.log('Midscene action completed', result);
-    return "Action executed successfully";
-  })
+    midsceneIsActive = true;
+    
+    return new Promise((resolve, reject) => {
+      currentMidsceneResolve = resolve;
+      currentMidsceneReject = reject;
+      
+      midsceneAgent!.action(args.action).then((result) => {
+        if (!midsceneIsActive) return;
+        midsceneIsActive = false;
+        console.log('Midscene action completed', result);
+        resolve("Action executed successfully");
+      }).catch((err) => {
+        if (!midsceneIsActive) return;
+        midsceneIsActive = false;
+        console.error('Midscene action failed', err);
+        reject(err);
+      });
+    });
+  });
+
+  ipcMain.handle('interrupt-midscene', () => {
+    abortMidscene('User spoke (interrupt trigger)');
+  });
+
+  let lastMousePos = screen.getCursorScreenPoint();
+  setInterval(() => {
+    if (midsceneIsActive && isPlanning) {
+      const currentPos = screen.getCursorScreenPoint();
+      const dist = Math.hypot(currentPos.x - lastMousePos.x, currentPos.y - lastMousePos.y);
+      if (dist > 15) {
+        abortMidscene('Physical mouse movement detected');
+      }
+      lastMousePos = currentPos;
+    } else {
+      lastMousePos = screen.getCursorScreenPoint();
+    }
+  }, 100);
+
 
   // Expose desktopCapturer to renderer via IPC (to get sources)
   ipcMain.handle('get-desktop-sources', async () => {

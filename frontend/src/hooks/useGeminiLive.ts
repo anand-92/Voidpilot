@@ -225,10 +225,21 @@ export function useGeminiLive() {
       // Send audio to backend
       const sourceRate = audioContextRef.current.sampleRate
       const targetRate = 16000
+      let lastInterruptTime = 0
       processorRef.current.onaudioprocess = (e) => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           const inputData = e.inputBuffer.getChannelData(0)
           intensityRef.current = calculateIntensityFromFloat(inputData)
+
+          if (intensityRef.current > 0.1) {
+            const now = Date.now();
+            if (now - lastInterruptTime > 1000) {
+              lastInterruptTime = now;
+              if (window.electronAPI && window.electronAPI.interruptMidscene) {
+                 window.electronAPI.interruptMidscene().catch(() => {});
+              }
+            }
+          }
 
           // Resample to 16kHz
           const resampledData = resampleAudio(inputData, sourceRate, targetRate)
