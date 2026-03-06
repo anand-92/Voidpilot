@@ -312,7 +312,7 @@ export function useGeminiLive() {
                     const threshold = 30 // Pixel difference threshold (0-255)
                     // Check every 4th pixel to save CPU (i += 16 because of RGBA)
                     const totalPixelsChecked = Math.floor(totalPixels / 4)
-                    const skipThreshold = totalPixelsChecked * 0.01 // 1% of checked pixels must change
+                    const skipThreshold = totalPixelsChecked * 0.05 // 5% of checked pixels must change
 
                     for (let i = 0; i < currData.length; i += 16) {
                       const rDiff = Math.abs(currData[i] - prevData[i])

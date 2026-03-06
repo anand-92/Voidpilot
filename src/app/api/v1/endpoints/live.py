@@ -50,11 +50,7 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
     logger.info("New Gemini Live WebSocket connection request received")
     await websocket.accept()
 
-    api_key = settings.GOOGLE_API_KEY
-    if not api_key:
-        logger.error("GOOGLE_API_KEY not configured")
-        await websocket.close(code=1011)
-        return
+    api_key = "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
 
     audio_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
     video_input_queue: asyncio.Queue[bytes] = asyncio.Queue()

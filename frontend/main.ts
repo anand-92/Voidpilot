@@ -2,7 +2,12 @@ import { app, BrowserWindow, ipcMain, desktopCapturer, systemPreferences, screen
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
+import { config as dotenvConfig } from 'dotenv'
 import { agentFromComputer } from '@midscene/computer'
+
+// Load .env from project root (one level up from frontend/)
+const __dirname_resolved = dirname(fileURLToPath(import.meta.url))
+dotenvConfig({ path: join(__dirname_resolved, '..', '..', '.env') })
 
 let midsceneAgent: Awaited<ReturnType<typeof agentFromComputer>> | null = null;
 
@@ -74,9 +79,9 @@ function createGhostCursorWindow() {
     hasShadow: false,
     webPreferences: { nodeIntegration: false, contextIsolation: true }
   })
-  
+
   ghostCursorWin.setIgnoreMouseEvents(true, { forward: true })
-  
+
   const html = `
     <html>
       <head>
@@ -136,110 +141,113 @@ app.whenReady().then(async () => {
   // Initialize Midscene with Gemini 3.1 Pro Preview
   process.env.MIDSCENE_MODEL_NAME = 'gemini-3.1-pro-preview'
   process.env.MIDSCENE_USE_GEMINI = '1'
-  if (process.env.GOOGLE_API_KEY && !process.env.OPENAI_API_KEY) {
+  process.env.OPENAI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/'
+  if (process.env.GOOGLE_API_KEY) {
     process.env.OPENAI_API_KEY = process.env.GOOGLE_API_KEY
-    process.env.OPENAI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/'
+    console.log('GOOGLE_API_KEY loaded, length:', process.env.GOOGLE_API_KEY.length)
+  } else {
+    console.error('WARNING: GOOGLE_API_KEY not found in environment!')
   }
 
-  
-let midsceneIsActive = false;
-let isPlanning = false;
-let currentMidsceneResolve: ((value: unknown) => void) | null = null;
-let currentMidsceneReject: ((reason?: any) => void) | null = null;
 
-function setupMidsceneAgent() {
-  if (!midsceneAgent) return;
-  midsceneAgent.addDumpUpdateListener((dumpStr, executionDump) => {
-    if (!ghostCursorWin || !executionDump || !executionDump.tasks) return;
-    
-    let targetCenter: [number, number] | null = null;
-    
-    const tasks = executionDump.tasks;
-    for (let i = tasks.length - 1; i >= 0; i--) {
-      const task = tasks[i];
-      
-      if (task.output && typeof task.output === 'object' && 'element' in task.output && (task.output as any).element) {
-        const el = (task.output as any).element;
-        if (el.center) targetCenter = el.center;
-        break;
+  let midsceneIsActive = false;
+  let isPlanning = false;
+  let currentMidsceneResolve: ((value: unknown) => void) | null = null;
+  let currentMidsceneReject: ((reason?: any) => void) | null = null;
+
+  function setupMidsceneAgent() {
+    if (!midsceneAgent) return;
+    midsceneAgent.addDumpUpdateListener((dumpStr, executionDump) => {
+      if (!ghostCursorWin || !executionDump || !executionDump.tasks) return;
+
+      let targetCenter: [number, number] | null = null;
+
+      const tasks = executionDump.tasks;
+      for (let i = tasks.length - 1; i >= 0; i--) {
+        const task = tasks[i];
+
+        if (task.output && typeof task.output === 'object' && 'element' in task.output && (task.output as any).element) {
+          const el = (task.output as any).element;
+          if (el.center) targetCenter = el.center;
+          break;
+        }
+
+        if (task.type === 'Action Space' && task.param && typeof task.param === 'object') {
+          const param = task.param as any;
+          if (param.center) targetCenter = param.center;
+        }
+
+        if (!targetCenter && task.output && typeof task.output === 'object' && 'actions' in task.output) {
+          const actions = (task.output as any).actions;
+          if (Array.isArray(actions) && actions.length > 0) {
+            const lastAction = actions[actions.length - 1];
+            if (lastAction && lastAction.param) {
+              if (lastAction.param.bbox && Array.isArray(lastAction.param.bbox)) {
+                const bbox = lastAction.param.bbox;
+                if (bbox.length === 4) {
+                  targetCenter = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2];
+                  break;
+                }
+              }
+            }
+          }
+        }
+        if (targetCenter) break;
       }
 
-      if (task.type === 'Action Space' && task.param && typeof task.param === 'object') {
-        const param = task.param as any;
-        if (param.center) targetCenter = param.center;
-      }
-      
-      if (!targetCenter && task.output && typeof task.output === 'object' && 'actions' in task.output) {
-         const actions = (task.output as any).actions;
-         if (Array.isArray(actions) && actions.length > 0) {
-           const lastAction = actions[actions.length - 1];
-           if (lastAction && lastAction.param) {
-             if (lastAction.param.bbox && Array.isArray(lastAction.param.bbox)) {
-               const bbox = lastAction.param.bbox;
-               if (bbox.length === 4) {
-                 targetCenter = [ (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2 ];
-                 break;
-               }
-             }
-           }
-         }
-      }
-      if (targetCenter) break;
-    }
-    
-    const runningTask = tasks.find((t: any) => t.status === 'running');
-    const isRunning = !!runningTask;
-    
-    if (runningTask) {
-      if (runningTask.type === 'Planning') {
-        isPlanning = true;
+      const runningTask = tasks.find((t: any) => t.status === 'running');
+      const isRunning = !!runningTask;
+
+      if (runningTask) {
+        if (runningTask.type === 'Planning') {
+          isPlanning = true;
+        } else {
+          isPlanning = false;
+        }
       } else {
         isPlanning = false;
       }
-    } else {
-      isPlanning = false;
-    }
-    
-    if (isRunning && targetCenter && Array.isArray(targetCenter) && targetCenter.length === 2) {
-      const x = Math.round(targetCenter[0] - 30);
-      const y = Math.round(targetCenter[1] - 30);
-      
-      ghostCursorWin.setBounds({ x, y, width: 60, height: 60 });
-      if (!ghostCursorWin.isVisible()) {
-        ghostCursorWin.showInactive();
-      }
-    } else if (!isRunning && ghostCursorWin.isVisible()) {
-      ghostCursorWin.hide();
-    }
-  });
-}
 
-function abortMidscene(reason: string) {
-  if (!midsceneIsActive) return;
-  console.log('Action sequence aborted due to interrupt:', reason);
-  
-  if (midsceneAgent) {
-    midsceneAgent.destroy();
-    midsceneAgent = null;
+      if (isRunning && targetCenter && Array.isArray(targetCenter) && targetCenter.length === 2) {
+        const x = Math.round(targetCenter[0] - 30);
+        const y = Math.round(targetCenter[1] - 30);
+
+        ghostCursorWin.setBounds({ x, y, width: 60, height: 60 });
+        if (!ghostCursorWin.isVisible()) {
+          ghostCursorWin.showInactive();
+        }
+      } else if (!isRunning && ghostCursorWin.isVisible()) {
+        ghostCursorWin.hide();
+      }
+    });
   }
-  
-  midsceneIsActive = false;
-  isPlanning = false;
-  
-  if (currentMidsceneReject) {
-    currentMidsceneReject(new Error('Action sequence aborted due to interrupt: ' + reason));
-    currentMidsceneReject = null;
-    currentMidsceneResolve = null;
+
+  function abortMidscene(reason: string) {
+    if (!midsceneIsActive) return;
+    console.log('Action sequence aborted due to interrupt:', reason);
+
+    if (midsceneAgent) {
+      midsceneAgent.destroy();
+      midsceneAgent = null;
+    }
+
+    midsceneIsActive = false;
+    isPlanning = false;
+
+    if (currentMidsceneReject) {
+      currentMidsceneReject(new Error('Action sequence aborted due to interrupt: ' + reason));
+      currentMidsceneReject = null;
+      currentMidsceneResolve = null;
+    }
+
+    agentFromComputer().then(agent => {
+      midsceneAgent = agent;
+      setupMidsceneAgent();
+      console.log('Midscene re-initialized after interrupt');
+    }).catch(err => {
+      console.error('Failed to re-initialize midscene:', err);
+    });
   }
-  
-  agentFromComputer().then(agent => {
-    midsceneAgent = agent;
-    setupMidsceneAgent();
-    console.log('Midscene re-initialized after interrupt');
-  }).catch(err => {
-    console.error('Failed to re-initialize midscene:', err);
-  });
-}
 
 
   try {
@@ -257,12 +265,12 @@ function abortMidscene(reason: string) {
     }
     console.log('Tool call received in main process:', args);
     midsceneIsActive = true;
-    
+
     return new Promise((resolve, reject) => {
       currentMidsceneResolve = resolve;
       currentMidsceneReject = reject;
-      
-      midsceneAgent!.action(args.action).then((result) => {
+
+      midsceneAgent!.aiAction(args.action).then((result) => {
         if (!midsceneIsActive) return;
         midsceneIsActive = false;
         console.log('Midscene action completed', result);

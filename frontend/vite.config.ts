@@ -12,6 +12,13 @@ export default defineConfig({
     electron({
       main: {
         entry: 'main.ts',
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['@midscene/computer', 'dotenv'],
+            },
+          },
+        },
       },
       preload: {
         input: 'preload.ts',

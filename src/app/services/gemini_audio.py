@@ -119,9 +119,9 @@ class GeminiLive:
         self.api_key = api_key
         self.model = model
         self.input_sample_rate = input_sample_rate
-        # Use v1alpha as per example
+        # Use v1beta as per the official example
         self.client = genai.Client(
-            api_key=api_key, http_options={"api_version": "v1alpha"}
+            api_key=api_key, http_options={"api_version": "v1beta"}
         )
 
         # Default weather tool
@@ -193,6 +193,10 @@ class GeminiLive:
             proactivity=types.ProactivityConfig(proactive_audio=True),
             enable_affective_dialog=True,
             tools=self.tools,
+            context_window_compression=types.ContextWindowCompressionConfig(
+                trigger_tokens=25600,
+                sliding_window=types.SlidingWindow(target_tokens=12800),
+            ),
         )
 
         logger.info("=== Gemini Live with Tools (Weather) ===")
