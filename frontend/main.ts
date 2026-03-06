@@ -71,6 +71,10 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 980,
+    minHeight: 760,
+    resizable: true,
+    backgroundColor: '#06111f',
     webPreferences: {
       preload: join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -191,6 +195,8 @@ function buildOverlayHtml(source: ScreenSource): string {
   const initialHeight = Math.max(minHeight, Math.round(source.bounds.height * 0.36))
   const initialLeft = Math.round((source.bounds.width - initialWidth) / 2)
   const initialTop = Math.round((source.bounds.height - initialHeight) / 2)
+  const nativeWidth = Math.round(source.bounds.width * source.scaleFactor)
+  const nativeHeight = Math.round(source.bounds.height * source.scaleFactor)
 
   return `
     <!doctype html>
@@ -201,12 +207,13 @@ function buildOverlayHtml(source: ScreenSource): string {
         <style>
           :root {
             color-scheme: dark;
-            --panel-bg: rgba(6, 23, 48, 0.82);
-            --panel-border: rgba(148, 163, 184, 0.28);
-            --shadow: 0 30px 90px rgba(2, 6, 23, 0.55);
-            --accent: #38bdf8;
-            --accent-strong: #0ea5e9;
-            --warm: #f97316;
+            --panel-bg: rgba(3, 13, 29, 0.82);
+            --panel-strong: rgba(9, 21, 43, 0.92);
+            --panel-border: rgba(148, 163, 184, 0.2);
+            --shadow: 0 35px 110px rgba(2, 6, 23, 0.6);
+            --accent: #7dd3fc;
+            --accent-strong: #38bdf8;
+            --warm: #fdba74;
           }
           * { box-sizing: border-box; user-select: none; }
           html, body {
@@ -214,50 +221,96 @@ function buildOverlayHtml(source: ScreenSource): string {
             height: 100%;
             margin: 0;
             overflow: hidden;
-            font-family: "Segoe UI", "SF Pro Display", sans-serif;
+            font-family: "Segoe UI Variable Display", "Segoe UI", "Avenir Next", sans-serif;
             background:
-              radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 28%),
-              radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.12), transparent 25%),
-              rgba(2, 6, 23, 0.32);
+              radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 25%),
+              radial-gradient(circle at 80% 16%, rgba(251, 146, 60, 0.14), transparent 18%),
+              radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.12), transparent 20%),
+              rgba(2, 6, 23, 0.2);
             color: white;
             cursor: default;
           }
           .hud {
             position: fixed;
-            top: 24px;
+            top: 22px;
             left: 50%;
             transform: translateX(-50%);
-            width: min(760px, calc(100vw - 40px));
-            padding: 18px 20px;
-            border-radius: 22px;
+            width: min(920px, calc(100vw - 40px));
+            padding: 20px 22px;
+            border-radius: 28px;
             border: 1px solid var(--panel-border);
             background: var(--panel-bg);
             backdrop-filter: blur(18px);
             box-shadow: var(--shadow);
             pointer-events: none;
           }
-          .hud h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: 0.01em;
-          }
-          .hud p {
-            margin: 8px 0 0;
-            color: rgba(226, 232, 240, 0.88);
-            font-size: 14px;
-            line-height: 1.45;
-          }
-          .stats {
-            margin-top: 12px;
+          .eyebrow {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
+            gap: 8px;
+            padding: 6px 10px;
             border-radius: 999px;
-            background: rgba(15, 23, 42, 0.68);
-            color: rgba(191, 219, 254, 0.95);
+            border: 1px solid rgba(125, 211, 252, 0.22);
+            background: rgba(125, 211, 252, 0.08);
+            color: rgba(224, 242, 254, 0.95);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+          }
+          .eyebrow::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #7dd3fc, #fdba74);
+            box-shadow: 0 0 14px rgba(125, 211, 252, 0.5);
+          }
+          .hud h1 {
+            margin: 14px 0 0;
+            font-size: 30px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            max-width: 680px;
+          }
+          .hud p {
+            margin: 10px 0 0;
+            color: rgba(226, 232, 240, 0.88);
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 760px;
+          }
+          .hud-grid {
+            margin-top: 16px;
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+          .stat-card {
+            padding: 12px 14px;
+            border-radius: 22px;
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            background: rgba(15, 23, 42, 0.66);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+          }
+          .stat-card .meta {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.9);
+          }
+          .stat-card strong {
+            display: block;
+            margin-top: 7px;
+            font-size: 18px;
+            color: white;
+          }
+          .stat-card span {
+            display: block;
+            margin-top: 3px;
             font-size: 13px;
+            color: rgba(226, 232, 240, 0.82);
           }
           .stage {
             position: fixed;
@@ -271,47 +324,60 @@ function buildOverlayHtml(source: ScreenSource): string {
           }
           .cutout {
             position: absolute;
-            border-radius: 28px;
+            border-radius: 30px;
             box-shadow:
-              0 0 0 200vmax rgba(2, 6, 23, 0.54),
-              0 20px 60px rgba(14, 165, 233, 0.18);
-            border: 2px solid rgba(125, 211, 252, 0.95);
+              0 0 0 200vmax rgba(2, 6, 23, 0.55),
+              0 24px 70px rgba(14, 165, 233, 0.18);
+            border: 2px solid rgba(125, 211, 252, 0.92);
             outline: 1px solid rgba(255, 255, 255, 0.18);
             background:
-              linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(249, 115, 22, 0.1));
+              linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(249, 115, 22, 0.12));
             cursor: move;
           }
           .cutout::before {
             content: "";
             position: absolute;
             inset: 10px;
-            border-radius: 20px;
+            border-radius: 22px;
             border: 1px dashed rgba(255, 255, 255, 0.28);
+          }
+          .cutout::after {
+            content: "";
+            position: absolute;
+            inset: 18px;
+            border-radius: 16px;
+            background-image:
+              linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+            background-size: 42px 42px;
+            opacity: 0.28;
+            pointer-events: none;
           }
           .handle {
             position: absolute;
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             border-radius: 999px;
             background: linear-gradient(135deg, #f8fafc, #7dd3fc);
             border: 2px solid rgba(2, 6, 23, 0.7);
-            box-shadow: 0 10px 22px rgba(2, 6, 23, 0.3);
+            box-shadow: 0 12px 28px rgba(2, 6, 23, 0.34);
           }
-          .handle.nw { left: -9px; top: -9px; cursor: nwse-resize; }
-          .handle.ne { right: -9px; top: -9px; cursor: nesw-resize; }
-          .handle.sw { left: -9px; bottom: -9px; cursor: nesw-resize; }
-          .handle.se { right: -9px; bottom: -9px; cursor: nwse-resize; }
+          .handle.nw { left: -10px; top: -10px; cursor: nwse-resize; }
+          .handle.ne { right: -10px; top: -10px; cursor: nesw-resize; }
+          .handle.sw { left: -10px; bottom: -10px; cursor: nesw-resize; }
+          .handle.se { right: -10px; bottom: -10px; cursor: nwse-resize; }
           .label {
             position: absolute;
             left: 18px;
             bottom: 18px;
             display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 14px;
-            border-radius: 999px;
-            background: rgba(15, 23, 42, 0.82);
-            border: 1px solid rgba(148, 163, 184, 0.24);
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: rgba(8, 16, 32, 0.84);
+            border: 1px solid rgba(148, 163, 184, 0.2);
             backdrop-filter: blur(10px);
             font-size: 13px;
             color: rgba(226, 232, 240, 0.95);
@@ -324,16 +390,16 @@ function buildOverlayHtml(source: ScreenSource): string {
           }
           .actions {
             position: fixed;
-            right: 24px;
-            bottom: 24px;
+            right: 22px;
+            bottom: 22px;
             display: flex;
             gap: 12px;
           }
           button {
             border: none;
-            border-radius: 16px;
-            padding: 14px 18px;
-            min-width: 132px;
+            border-radius: 18px;
+            padding: 15px 18px;
+            min-width: 140px;
             font-size: 15px;
             font-weight: 700;
             letter-spacing: 0.01em;
@@ -344,21 +410,54 @@ function buildOverlayHtml(source: ScreenSource): string {
           button:hover { transform: translateY(-1px); }
           button:active { transform: translateY(0); }
           .cancel {
-            background: rgba(15, 23, 42, 0.82);
+            background: rgba(8, 16, 32, 0.86);
             color: rgba(226, 232, 240, 0.95);
             border: 1px solid rgba(148, 163, 184, 0.2);
           }
           .confirm {
-            background: linear-gradient(135deg, var(--accent), var(--warm));
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong), var(--warm));
             color: #082f49;
+          }
+          @media (max-width: 900px) {
+            .hud-grid {
+              grid-template-columns: 1fr;
+            }
+            .hud h1 {
+              font-size: 24px;
+            }
+            .actions {
+              left: 20px;
+              right: 20px;
+            }
+            .actions button {
+              flex: 1;
+              min-width: 0;
+            }
           }
         </style>
       </head>
       <body>
         <div class="hud">
+          <div class="eyebrow">Focused Region Share</div>
           <h1>Choose the area Gemini should watch</h1>
           <p>Drag the frame to reposition it. Pull the corner handles to resize. Midscene will stay on this display, while Gemini receives only what fits inside the selection.</p>
-          <div class="stats" id="stats">Selected area</div>
+          <div class="hud-grid">
+            <div class="stat-card">
+              <div class="meta">Display</div>
+              <strong>${source.name.replace(/</g, '&lt;')}</strong>
+              <span>${nativeWidth.toLocaleString()} x ${nativeHeight.toLocaleString()} native</span>
+            </div>
+            <div class="stat-card">
+              <div class="meta">Desktop Space</div>
+              <strong>${source.bounds.width.toLocaleString()} x ${source.bounds.height.toLocaleString()}</strong>
+              <span>Logical desktop coordinates at ${source.scaleFactor.toFixed(2)}x scale</span>
+            </div>
+            <div class="stat-card">
+              <div class="meta">Selected Area</div>
+              <strong id="stats">Selected area</strong>
+              <span id="statsDetail">Move or resize the box before you confirm</span>
+            </div>
+          </div>
         </div>
         <div class="stage" id="stage">
           <div class="spotlight"></div>
@@ -381,6 +480,7 @@ function buildOverlayHtml(source: ScreenSource): string {
           const stage = document.getElementById('stage');
           const box = document.getElementById('box');
           const stats = document.getElementById('stats');
+          const statsDetail = document.getElementById('statsDetail');
           const label = document.getElementById('label');
           const confirmButton = document.getElementById('confirmButton');
           const cancelButton = document.getElementById('cancelButton');
@@ -411,8 +511,9 @@ function buildOverlayHtml(source: ScreenSource): string {
             box.style.width = rect.width + 'px';
             box.style.height = rect.height + 'px';
             const text = Math.round(rect.width) + ' × ' + Math.round(rect.height) + ' px';
-            label.textContent = text;
-            stats.textContent = 'Selected area: ' + text + ' • origin ' + Math.round(rect.x) + ', ' + Math.round(rect.y);
+            label.textContent = text + ' • origin ' + Math.round(rect.x) + ', ' + Math.round(rect.y);
+            stats.textContent = text;
+            statsDetail.textContent = 'Origin ' + Math.round(rect.x) + ', ' + Math.round(rect.y) + ' within the logical desktop space';
           }
 
           function startMove(event) {
