@@ -114,13 +114,15 @@ export function ChatModal3D({ messages, inputText, setInputText, handleSend, sto
                             onChange={(e) => setInputText(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                             placeholder="Type a message..."
-                            className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:border-sky-500/50 transition-colors text-white"
+                            autoFocus
+                            className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:border-sky-500 transition-all text-white"
                         />
                         <button
                             onClick={handleSend}
                             aria-label="Send message"
-                            title="Send message"
-                            className="p-4 bg-indigo-500 hover:bg-indigo-400 text-white rounded-2xl transition-all active:scale-95 cursor-pointer"
+                            title={inputText.trim() ? "Send message" : "Message cannot be empty"}
+                            disabled={!inputText.trim()}
+                            className="p-4 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl transition-all active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none"
                         >
                             <Send className="w-6 h-6" />
                         </button>
@@ -128,7 +130,7 @@ export function ChatModal3D({ messages, inputText, setInputText, handleSend, sto
                             onClick={stop}
                             aria-label="End session"
                             title="End session"
-                            className="p-4 bg-rose-500/20 hover:bg-rose-500/30 text-rose-500 rounded-2xl transition-all active:scale-95 cursor-pointer"
+                            className="p-4 bg-rose-500/20 hover:bg-rose-500/30 text-rose-500 rounded-2xl transition-all active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
                         >
                             <LogOut className="w-6 h-6" />
                         </button>

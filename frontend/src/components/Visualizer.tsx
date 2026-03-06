@@ -459,18 +459,22 @@ function MobileOverlay({
               onChange={(e) => setInputText?.(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend?.()}
               placeholder="Type a message..."
-              className="w-full min-h-12 rounded-xl bg-slate-900/80 border border-slate-700 px-4 py-3 text-base outline-none focus:border-sky-500/60"
+              className="w-full min-h-12 rounded-xl bg-slate-900/80 border border-slate-700 px-4 py-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:border-sky-500 transition-all"
             />
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleSend?.()}
-                className="min-h-12 rounded-xl bg-indigo-500 text-white font-semibold active:scale-[0.98]"
+                aria-label="Send message"
+                disabled={!(inputText || '').trim()}
+                title={(inputText || '').trim() ? "Send message" : "Message cannot be empty"}
+                className="min-h-12 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-semibold active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none transition-all"
               >
                 Send
               </button>
               <button
                 onClick={() => stop?.()}
-                className="min-h-12 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold active:scale-[0.98]"
+                aria-label="End session"
+                className="min-h-12 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-semibold active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none transition-all"
               >
                 End session
               </button>
@@ -480,7 +484,8 @@ function MobileOverlay({
       ) : (
         <button
           onClick={() => start?.()}
-          className="pointer-events-auto w-full min-h-14 rounded-2xl bg-sky-500 text-white text-lg font-bold shadow-lg active:scale-[0.98]"
+          aria-label="Start conversation"
+          className="pointer-events-auto w-full min-h-14 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white text-lg font-bold shadow-lg active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-none transition-all"
         >
           Start conversation
         </button>
