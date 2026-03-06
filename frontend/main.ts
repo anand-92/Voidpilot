@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 import { agentFromComputer } from '@midscene/computer'
 
+let midsceneAgent: Awaited<ReturnType<typeof agentFromComputer>> | null = null;
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 process.env.APP_ROOT = join(__dirname, '..')
@@ -84,11 +86,22 @@ app.whenReady().then(async () => {
   }
 
   try {
-    await agentFromComputer()
+    midsceneAgent = await agentFromComputer()
     console.log('Midscene ready')
   } catch (error) {
     console.error('Failed to initialize Midscene:', error)
   }
+
+  // Handle midscene action from renderer
+  ipcMain.handle('execute-midscene-action', async (_, args) => {
+    if (!midsceneAgent) {
+      throw new Error('Midscene not initialized');
+    }
+    console.log('Tool call received in main process:', args);
+    const result = await midsceneAgent.action(args.action);
+    console.log('Midscene action completed', result);
+    return "Action executed successfully";
+  })
 
   // Expose desktopCapturer to renderer via IPC (to get sources)
   ipcMain.handle('get-desktop-sources', async () => {

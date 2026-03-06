@@ -1,9 +1,4 @@
 import { test, expect, _electron as electron } from '@playwright/test';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 test('Electron app boots', async () => {
   // Use VITE_DEV_SERVER_URL trick to load index.html from dist

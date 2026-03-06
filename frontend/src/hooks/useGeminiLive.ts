@@ -144,6 +144,20 @@ export function useGeminiLive() {
         // Handle tool call responses
         else if (data.type === 'tool_call') {
           console.log('Tool call received:', data.name, data.args)
+          if (data.name === 'execute_midscene_action') {
+            if (window.electronAPI && window.electronAPI.executeMidsceneAction) {
+              window.electronAPI.executeMidsceneAction(data.args)
+                .then(result => {
+                  ws.send(JSON.stringify({ type: 'tool_response', call_id: data.call_id, result }))
+                })
+                .catch(err => {
+                  console.error('Midscene action failed:', err)
+                  ws.send(JSON.stringify({ type: 'tool_response', call_id: data.call_id, result: 'Error: ' + err.message }))
+                })
+            } else {
+              ws.send(JSON.stringify({ type: 'tool_response', call_id: data.call_id, result: 'Error: Electron API not available' }))
+            }
+          }
         }
         // Handle hex-encoded audio data from backend
         else if (data.type === 'audio') {
@@ -230,7 +244,7 @@ export function useGeminiLive() {
       try {
         if (window.electronAPI && window.electronAPI.getDesktopSources) {
           const sources = await window.electronAPI.getDesktopSources()
-          const primarySource = sources.find((s: any) => s.id.startsWith('screen')) || sources[0]
+          const primarySource = sources.find((s: { id: string }) => s.id.startsWith('screen')) || sources[0]
           if (primarySource) {
             console.log('Stream acquired:', primarySource.id)
             const videoStream = await navigator.mediaDevices.getUserMedia({
@@ -240,7 +254,7 @@ export function useGeminiLive() {
                   chromeMediaSource: 'desktop',
                   chromeMediaSourceId: primarySource.id,
                 }
-              } as any
+              } as unknown as MediaTrackConstraints
             })
 
             videoStreamRef.current = videoStream
@@ -290,7 +304,7 @@ export function useGeminiLive() {
       console.error(err)
       addMessage('Error: ' + (err as Error).message, 'system')
     }
-  }, [addMessage])
+  }, [addMessage, stop])
 
   const sendText = useCallback(async (text: string) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

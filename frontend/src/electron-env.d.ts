@@ -1,14 +1,15 @@
 export interface DesktopCapturerSource {
   id: string;
   name: string;
-  thumbnail?: any;
+  thumbnail?: unknown;
   display_id?: string;
-  appIcon?: any;
+  appIcon?: unknown;
 }
 
 export interface IElectronAPI {
   ping: () => Promise<string>;
   getDesktopSources: () => Promise<DesktopCapturerSource[]>;
+  executeMidsceneAction: (args: { action: string }) => Promise<string>;
 }
 
 declare global {
