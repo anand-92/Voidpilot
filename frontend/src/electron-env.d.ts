@@ -27,6 +27,7 @@ export interface IElectronAPI {
   setMidsceneDisplay: (displayId?: string) => Promise<{ ok: true }>;
   executeMidsceneAction: (args: { action: string }) => Promise<string>;
   interruptMidscene: () => Promise<void>;
+  runBash: (args: { command: string; timeout?: number }) => Promise<string>;
 }
 
 declare global {

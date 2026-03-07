@@ -203,15 +203,16 @@ class GeminiLive:
 
         self.tools = default_tools
         if tools:
-            if (
-                isinstance(tools, list)
-                and "function_declarations" in tools[0]
-            ):
-                self.tools[0]["function_declarations"].extend(
-                    tools[0]["function_declarations"]
-                )
-            else:
-                self.tools.extend(tools)
+            for tool_def in tools:
+                if (
+                    isinstance(tool_def, dict)
+                    and "function_declarations" in tool_def
+                ):
+                    self.tools[0]["function_declarations"].extend(
+                        tool_def["function_declarations"]
+                    )
+                else:
+                    self.tools.append(tool_def)
 
         self.tool_mapping = {"get_weather": get_weather} | (
             tool_mapping or {}
@@ -253,8 +254,9 @@ class GeminiLive:
         )
 
         tool_names = [
-            t["function_declarations"][0]["name"]
+            fn["name"]
             for t in self.tools
+            for fn in t.get("function_declarations", [])
         ]
         logger.info("=== Gemini Live with Tools ===")
         logger.info("Tools loaded: %s", tool_names)

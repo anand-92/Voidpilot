@@ -101,7 +101,7 @@ gemini-live-3d-bridge/
 uv sync
 
 # 2. Install Node deps
-cd frontend && npm install --legacy-peer-deps && cd ..
+cd frontend && npm install && cd ..
 
 # 3. Create .env
 echo "GOOGLE_API_KEY=your_key" > .env
@@ -161,4 +161,4 @@ The Dockerfile handles the full build. The backend serves the React frontend as 
 3. **Audio format**: PCM16 at 24kHz sample rate — both encoding and decoding.
 4. **Static file serving**: Backend checks for `frontend/dist` directory and mounts it at `/` — this is how the web version works in production.
 5. **The `.env` file must exist** with `GOOGLE_API_KEY` for the backend to connect to Gemini.
-6. **npm install requires `--legacy-peer-deps`** due to dependency conflicts.
+6. **npm install** works without `--legacy-peer-deps` — peer deps are resolved cleanly.

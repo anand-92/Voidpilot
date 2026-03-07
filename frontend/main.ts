@@ -2,6 +2,7 @@ import { app, BrowserWindow, desktopCapturer, ipcMain, screen, systemPreferences
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
+import { execFile } from 'node:child_process'
 import { config as dotenvConfig } from 'dotenv'
 import { agentFromComputer } from '@midscene/computer'
 
@@ -809,6 +810,57 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('interrupt-midscene', () => {
     abortMidscene('User spoke (interrupt trigger)')
+  })
+
+  ipcMain.handle('run-bash', async (_, args: { command: string; timeout?: number }) => {
+    const timeout = Math.min(Math.max(args.timeout ?? 30, 1), 120) * 1000 // ms
+    const maxOutput = 4000
+
+    console.log(`[run-bash] Executing: ${args.command} (timeout: ${timeout}ms)`)
+
+    return new Promise<string>((resolve) => {
+      const child = execFile(
+        '/bin/bash',
+        ['-l', '-c', args.command],
+        {
+          timeout,
+          maxBuffer: 1024 * 1024, // 1MB
+          env: { ...process.env, TERM: 'dumb' },
+        },
+        (error, stdout, stderr) => {
+          const parts: string[] = []
+
+          if (stdout) parts.push(stdout.trim())
+          if (stderr) parts.push(`[stderr]\n${stderr.trim()}`)
+
+          if (error) {
+            if (error.killed) {
+              parts.push(`[timed out after ${timeout / 1000}s]`)
+            } else if (error.code !== undefined) {
+              parts.push(`[exit code: ${error.code}]`)
+            } else {
+              parts.push(`[error: ${error.message}]`)
+            }
+          }
+
+          let result = parts.length > 0 ? parts.join('\n') : '(no output)'
+
+          if (result.length > maxOutput) {
+            result = result.slice(0, maxOutput) + `\n... (truncated, ${result.length} total chars)`
+          }
+
+          console.log(`[run-bash] Done: ${result.length} chars, exit=${error?.code ?? 0}`)
+          resolve(result)
+        },
+      )
+
+      // Safety: kill if somehow the callback timeout doesn't fire
+      setTimeout(() => {
+        if (!child.killed) {
+          child.kill('SIGKILL')
+        }
+      }, timeout + 2000)
+    })
   })
 
   ipcMain.handle('set-midscene-display', async (_, displayId?: string) => {

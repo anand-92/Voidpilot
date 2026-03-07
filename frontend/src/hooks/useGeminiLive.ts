@@ -90,10 +90,17 @@ function getOutputSize(width: number, height: number) {
   }
 }
 
+export type PendingBashRequest = {
+  callId: string
+  command: string
+  timeout: number
+}
+
 export function useGeminiLive() {
   const [isConnected, setIsConnected] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
+  const [pendingBash, setPendingBash] = useState<PendingBashRequest | null>(null)
   const intensityRef = useRef(0)
   const activeCaptureConfigRef = useRef<CaptureConfig | null>(null)
 
@@ -106,6 +113,59 @@ export function useGeminiLive() {
   const frameIntervalRef = useRef<number | null>(null)
   const nextPlayTimeRef = useRef(0)
   const lastImageDataRef = useRef<ImageData | null>(null)
+  const pendingBashRef = useRef<PendingBashRequest | null>(null)
+
+  // Keep ref in sync with state so ws.onmessage closures see latest value
+  const syncPendingBash = useCallback((value: PendingBashRequest | null) => {
+    pendingBashRef.current = value
+    setPendingBash(value)
+  }, [])
+
+  function resolvePendingBash(ws: WebSocket) {
+    const pending = pendingBashRef.current
+    if (!pending) return
+
+    syncPendingBash(null)
+
+    if (window.electronAPI && window.electronAPI.runBash) {
+      window.electronAPI
+        .runBash({ command: pending.command, timeout: pending.timeout })
+        .then((result) => {
+          ws.send(JSON.stringify({ type: 'tool_response', call_id: pending.callId, result }))
+        })
+        .catch((error) => {
+          ws.send(
+            JSON.stringify({
+              type: 'tool_response',
+              call_id: pending.callId,
+              result: 'Error: ' + error.message,
+            }),
+          )
+        })
+    } else {
+      ws.send(
+        JSON.stringify({
+          type: 'tool_response',
+          call_id: pending.callId,
+          result: 'Error: Bash execution requires the Electron desktop app',
+        }),
+      )
+    }
+  }
+
+  function denyPendingBash(ws: WebSocket) {
+    const pending = pendingBashRef.current
+    if (!pending) return
+
+    syncPendingBash(null)
+    ws.send(
+      JSON.stringify({
+        type: 'tool_response',
+        call_id: pending.callId,
+        result: 'User denied the command — it was not executed.',
+      }),
+    )
+  }
 
   const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages((previous) => {
@@ -180,6 +240,13 @@ export function useGeminiLive() {
           if (data.type === 'text') {
             const role = data.role === 'user' ? 'user' : 'gemini'
             addMessage(data.content, role)
+          } else if (data.type === 'bash_confirm_voice') {
+            // Gemini confirmed/denied via voice — resolve the pending bash request
+            if (data.approved) {
+              resolvePendingBash(ws)
+            } else {
+              denyPendingBash(ws)
+            }
           } else if (data.type === 'tool_call') {
             console.log('Tool call received:', data.name, data.args)
             if (data.name === 'execute_midscene_action') {
@@ -208,6 +275,13 @@ export function useGeminiLive() {
                   }),
                 )
               }
+            } else if (data.name === 'run_bash') {
+              // Don't execute immediately — show confirmation popup
+              setPendingBash({
+                callId: data.call_id,
+                command: data.args.command,
+                timeout: data.args.timeout ?? 30,
+              })
             }
           } else if (data.type === 'audio') {
             const hexMatch = data.content.match(/.{1,2}/g)
@@ -427,11 +501,34 @@ export function useGeminiLive() {
     [addMessage],
   )
 
+  const confirmBash = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      resolvePendingBash(wsRef.current)
+    }
+  }, [])
+
+  const denyBash = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      denyPendingBash(wsRef.current)
+    }
+  }, [])
+
   useEffect(() => {
     return () => {
       stop()
     }
   }, [stop])
 
-  return { isConnected, isStarting, messages, intensityRef, start, stop, sendText }
+  return {
+    isConnected,
+    isStarting,
+    messages,
+    intensityRef,
+    pendingBash,
+    start,
+    stop,
+    sendText,
+    confirmBash,
+    denyBash,
+  }
 }

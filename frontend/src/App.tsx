@@ -10,12 +10,16 @@ import {
   Radio,
   ScanSearch,
   Send,
+  ShieldAlert,
   Sparkles,
+  Terminal,
   WandSparkles,
+  X,
   Zap,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGeminiLive } from './hooks/useGeminiLive'
+import type { PendingBashRequest } from './hooks/useGeminiLive'
 import type { DesktopCapturerSource, RegionBounds } from './electron-env'
 
 type ShareMode = 'full' | 'region'
@@ -36,9 +40,6 @@ function getNativeResolution(source: DesktopCapturerSource) {
   }
 }
 
-/* ────────────────────────────────────────────────────────────
-   Pulse ring animation around the "Live" indicator
-   ──────────────────────────────────────────────────────────── */
 function PulseRing({ active }: { active: boolean }) {
   if (!active) return null
   return (
@@ -49,11 +50,164 @@ function PulseRing({ active }: { active: boolean }) {
   )
 }
 
-/* ────────────────────────────────────────────────────────────
-   Main app
-   ──────────────────────────────────────────────────────────── */
+function StatusChip({ isConnected, isStarting }: { isConnected: boolean; isStarting: boolean }) {
+  let colorClasses: string
+  let label: string
+
+  if (isConnected) {
+    colorClasses = 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-300'
+    label = 'Live'
+  } else if (isStarting) {
+    colorClasses = 'border border-amber-400/20 bg-amber-500/10 text-amber-300'
+    label = 'Starting…'
+  } else {
+    colorClasses = 'border border-white/10 bg-white/5 text-slate-400'
+    label = 'Offline'
+  }
+
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest transition-colors ${colorClasses}`}
+    >
+      <PulseRing active={isConnected} />
+      {label}
+    </div>
+  )
+}
+
+const MESSAGE_STYLES: Record<string, { bubble: string; label: string; name: string }> = {
+  user: {
+    bubble: 'bg-sky-600/20 text-sky-100',
+    label: 'text-sky-400/60',
+    name: 'You',
+  },
+  system: {
+    bubble: 'border border-white/[0.06] bg-white/[0.03] text-slate-500 italic',
+    label: 'text-slate-600',
+    name: 'System',
+  },
+  model: {
+    bubble: 'border border-white/[0.06] bg-white/[0.04] text-slate-200',
+    label: 'text-indigo-400/60',
+    name: 'Gemini',
+  },
+}
+
+function MessageBubble({ role, content }: { role: string; content: string }) {
+  const isUser = role === 'user'
+  const styles = MESSAGE_STYLES[role] ?? MESSAGE_STYLES.model
+  return (
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${styles.bubble}`}>
+        <div className={`mb-1 text-[10px] font-bold uppercase tracking-[0.2em] ${styles.label}`}>
+          {styles.name}
+        </div>
+        <div>{content}</div>
+      </div>
+    </div>
+  )
+}
+
+function InfoCard({
+  icon: Icon,
+  iconColor,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  iconColor: string
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+      <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <Icon className={`h-3 w-3 ${iconColor}`} />
+        {title}
+      </div>
+      <div className="mt-2 text-sm text-slate-300">{children}</div>
+    </div>
+  )
+}
+
+function BashConfirmPopup({
+  request,
+  onAllow,
+  onDeny,
+}: {
+  request: PendingBashRequest
+  onAllow: () => void
+  onDeny: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="mx-4 w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c1229] shadow-[0_32px_80px_rgba(0,0,0,0.6)]">
+        {/* Header */}
+        <div className="flex items-center gap-3 border-b border-white/[0.06] bg-amber-500/[0.06] px-5 py-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
+            <ShieldAlert className="h-5 w-5 text-amber-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-white">Command Confirmation</h3>
+            <p className="mt-0.5 text-xs text-slate-400">
+              Gemini wants to run this command on your computer
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onDeny}
+            className="ml-auto flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Command display */}
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <Terminal className="h-3 w-3 text-sky-400" />
+            Command
+          </div>
+          <div className="mt-2 rounded-xl border border-white/[0.08] bg-[#060818] px-4 py-3">
+            <code className="break-all text-sm font-mono text-emerald-300">
+              {request.command}
+            </code>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-slate-500">
+            You can also say <span className="font-medium text-slate-300">"yes"</span> or{' '}
+            <span className="font-medium text-slate-300">"go ahead"</span> to approve, or{' '}
+            <span className="font-medium text-slate-300">"no"</span> /{' '}
+            <span className="font-medium text-slate-300">"cancel"</span> to deny.
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 border-t border-white/[0.06] bg-white/[0.02] px-5 py-4">
+          <button
+            type="button"
+            onClick={onDeny}
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-300 transition-all hover:bg-white/[0.06]"
+          >
+            <X className="h-4 w-4" />
+            Deny
+          </button>
+          <button
+            type="button"
+            onClick={onAllow}
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:brightness-110"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Allow
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
-  const { isConnected, isStarting, messages, start, stop, sendText } = useGeminiLive()
+  const { isConnected, isStarting, messages, start, stop, sendText, pendingBash, confirmBash, denyBash } =
+    useGeminiLive()
   const [inputText, setInputText] = useState('')
   const [sources, setSources] = useState<DesktopCapturerSource[]>([])
   const [selectedSourceId, setSelectedSourceId] = useState('')
@@ -65,12 +219,12 @@ export default function App() {
   const [showDisplayPicker, setShowDisplayPicker] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  /* ── auto-scroll chat ─────────────────────────────────── */
+  // Auto-scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  /* ── load displays ────────────────────────────────────── */
+  // Load displays on mount
   useEffect(() => {
     let isMounted = true
 
@@ -120,7 +274,6 @@ export default function App() {
     setSelectedRegion(null)
   }, [selectedSourceId, shareMode])
 
-  /* ── handlers (region picker logic kept identical) ───── */
   const handleSend = () => {
     if (inputText.trim()) {
       sendText(inputText)
@@ -186,19 +339,7 @@ export default function App() {
           </span>
         </div>
 
-        {/* Session status chip */}
-        <div
-          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest transition-colors ${
-            isConnected
-              ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-300'
-              : isStarting
-                ? 'border border-amber-400/20 bg-amber-500/10 text-amber-300'
-                : 'border border-white/10 bg-white/5 text-slate-400'
-          }`}
-        >
-          <PulseRing active={isConnected} />
-          {isConnected ? 'Live' : isStarting ? 'Starting…' : 'Offline'}
-        </div>
+        <StatusChip isConnected={isConnected} isStarting={isStarting} />
       </header>
 
       {/* ═══════ Body (2-column) ═══════ */}
@@ -284,12 +425,10 @@ export default function App() {
               Capture mode
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  { mode: 'full' as const, label: 'Full screen', icon: Monitor },
-                  { mode: 'region' as const, label: 'Region', icon: MoveDiagonal },
-                ] as const
-              ).map(({ mode, label, icon: Icon }) => {
+              {[
+                { mode: 'full' as ShareMode, label: 'Full screen', icon: Monitor },
+                { mode: 'region' as ShareMode, label: 'Region', icon: MoveDiagonal },
+              ].map(({ mode, label, icon: Icon }) => {
                 const isActive = shareMode === mode
                 return (
                   <button
@@ -309,7 +448,6 @@ export default function App() {
               })}
             </div>
 
-            {/* Region picker (same logic, new look) */}
             {shareMode === 'region' && (
               <div className="mt-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-3">
                 <div className="flex items-center justify-between gap-3">
@@ -332,48 +470,26 @@ export default function App() {
             )}
           </section>
 
-          {/* ── Info cards ── */}
           <section className="flex flex-col gap-3 p-4">
-            {/* Display info card */}
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                <Activity className="h-3 w-3 text-sky-400" />
-                Display info
-              </div>
-              <div className="mt-2 text-sm text-slate-300">
-                {nativeResolution && selectedSource
-                  ? `${formatPixels(nativeResolution.width, nativeResolution.height)} native · ${formatPixels(selectedSource.bounds.width, selectedSource.bounds.height)} logical`
-                  : 'Select a display'}
-              </div>
-            </div>
+            <InfoCard icon={Activity} iconColor="text-sky-400" title="Display info">
+              {nativeResolution && selectedSource
+                ? `${formatPixels(nativeResolution.width, nativeResolution.height)} native · ${formatPixels(selectedSource.bounds.width, selectedSource.bounds.height)} logical`
+                : 'Select a display'}
+            </InfoCard>
 
-            {/* Gemini view card */}
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                <Radio className="h-3 w-3 text-orange-400" />
-                Gemini sees
-              </div>
-              <div className="mt-2 text-sm text-slate-300">
-                {shareMode === 'full'
-                  ? selectedSource
-                    ? `Full feed from ${selectedSource.name}`
-                    : 'Waiting for display'
-                  : selectedRegion
-                    ? formatRegion(selectedRegion)
-                    : 'Region not yet defined'}
-              </div>
-            </div>
+            <InfoCard icon={Radio} iconColor="text-orange-400" title="Gemini sees">
+              {shareMode === 'full'
+                ? selectedSource
+                  ? `Full feed from ${selectedSource.name}`
+                  : 'Waiting for display'
+                : selectedRegion
+                  ? formatRegion(selectedRegion)
+                  : 'Region not yet defined'}
+            </InfoCard>
 
-            {/* Midscene target card */}
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                <Zap className="h-3 w-3 text-emerald-400" />
-                Midscene target
-              </div>
-              <div className="mt-2 text-sm text-slate-300">
-                {selectedSource?.name ?? 'None'}
-              </div>
-            </div>
+            <InfoCard icon={Zap} iconColor="text-emerald-400" title="Midscene target">
+              {selectedSource?.name ?? 'None'}
+            </InfoCard>
           </section>
 
           {/* ── Error ── */}
@@ -435,35 +551,9 @@ export default function App() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {messages.map((message, index) => {
-                  const isUser = message.role === 'user'
-                  const isSystem = message.role === 'system'
-                  return (
-                    <div
-                      key={index}
-                      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                          isUser
-                            ? 'bg-sky-600/20 text-sky-100'
-                            : isSystem
-                              ? 'border border-white/[0.06] bg-white/[0.03] text-slate-500 italic'
-                              : 'border border-white/[0.06] bg-white/[0.04] text-slate-200'
-                        }`}
-                      >
-                        <div
-                          className={`mb-1 text-[10px] font-bold uppercase tracking-[0.2em] ${
-                            isUser ? 'text-sky-400/60' : isSystem ? 'text-slate-600' : 'text-indigo-400/60'
-                          }`}
-                        >
-                          {isUser ? 'You' : isSystem ? 'System' : 'Gemini'}
-                        </div>
-                        <div>{message.content}</div>
-                      </div>
-                    </div>
-                  )
-                })}
+                {messages.map((message, index) => (
+                  <MessageBubble key={index} role={message.role} content={message.content} />
+                ))}
                 <div ref={messagesEndRef} />
               </div>
             )}
@@ -499,6 +589,11 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Bash confirmation popup */}
+      {pendingBash && (
+        <BashConfirmPopup request={pendingBash} onAllow={confirmBash} onDeny={denyBash} />
+      )}
     </main>
   )
 }

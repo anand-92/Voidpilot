@@ -29,6 +29,7 @@ export interface ElectronAPI {
   setMidsceneDisplay: (displayId?: string) => Promise<{ ok: true }>;
   executeMidsceneAction: (args: unknown) => Promise<unknown>;
   interruptMidscene: () => Promise<void>;
+  runBash: (args: { command: string; timeout?: number }) => Promise<string>;
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -38,4 +39,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setMidsceneDisplay: (displayId?: string) => ipcRenderer.invoke('set-midscene-display', displayId),
   executeMidsceneAction: (args: unknown) => ipcRenderer.invoke('execute-midscene-action', args),
   interruptMidscene: () => ipcRenderer.invoke('interrupt-midscene'),
+  runBash: (args: { command: string; timeout?: number }) => ipcRenderer.invoke('run-bash', args),
 })

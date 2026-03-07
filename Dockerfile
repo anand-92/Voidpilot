@@ -7,7 +7,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 
 # Install dependencies
-RUN npm install --legacy-peer-deps
+RUN npm install
 
 # Ensure bin scripts are executable (fixes Alpine permission issues)
 RUN chmod +x node_modules/.bin/* 2>/dev/null || true

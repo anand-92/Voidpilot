@@ -21,7 +21,7 @@ It utilizes `@midscene/computer` to allow Gemini to execute UI actions directly 
 2. **Install Node dependencies:**
    ```bash
    cd frontend
-   npm install --legacy-peer-deps
+   npm install
    ```
 
 3. **Environment Setup:**

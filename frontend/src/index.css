@@ -24,6 +24,14 @@
   cursor: none !important;
 }
 
+/* When custom-cursor is active, hide cursor on the entire page */
+body:has(.custom-cursor) {
+  cursor: none !important;
+}
+body:has(.custom-cursor) * {
+  cursor: none !important;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -32,20 +40,11 @@ body {
   background: #060818;
 }
 
-/* Landing page gradient background */
-body.landing-bg {
-  background:
-    radial-gradient(circle at top, rgba(56, 189, 248, 0.14), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.10), transparent 24%),
-    linear-gradient(180deg, #060818, #0f172a);
-}
-
 #root {
   width: 100%;
   min-height: 100vh;
 }
 
-/* Scrollbar styling for the app */
 ::-webkit-scrollbar {
   width: 6px;
 }
