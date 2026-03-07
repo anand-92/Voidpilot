@@ -50,7 +50,16 @@ let ghostCursorWin: BrowserWindow | null = null
 let regionSelectorWin: BrowserWindow | null = null
 let selectedMidsceneDisplayId: string | undefined
 
-async function requestPermissions() {
+async function requestMicrophonePermission() {
+  if (process.platform === 'darwin') {
+    const micPrivilege = systemPreferences.getMediaAccessStatus('microphone')
+    if (micPrivilege !== 'granted') {
+      await systemPreferences.askForMediaAccess('microphone')
+    }
+  }
+}
+
+function requestScreenPermissions() {
   if (process.platform === 'darwin') {
     const screenPrivilege = systemPreferences.getMediaAccessStatus('screen')
     if (screenPrivilege !== 'granted') {
@@ -60,10 +69,6 @@ async function requestPermissions() {
     if (!accessibilityPrivilege) {
       console.log('Accessibility privilege not granted.')
       systemPreferences.isTrustedAccessibilityClient(true)
-    }
-    const micPrivilege = systemPreferences.getMediaAccessStatus('microphone')
-    if (micPrivilege !== 'granted') {
-      await systemPreferences.askForMediaAccess('microphone')
     }
   }
 }
@@ -660,7 +665,7 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(async () => {
-  await requestPermissions()
+  await requestMicrophonePermission()
 
   process.env.MIDSCENE_MODEL_NAME = 'gemini-3.1-pro-preview'
   process.env.MIDSCENE_USE_GEMINI = '1'
@@ -740,6 +745,8 @@ app.whenReady().then(async () => {
   }
 
   async function initializeMidscene(displayId?: string) {
+    requestScreenPermissions()
+
     if (midsceneAgent) {
       await midsceneAgent.destroy().catch((error) => {
         console.error('Failed to destroy previous Midscene agent:', error)
@@ -775,11 +782,7 @@ app.whenReady().then(async () => {
     })
   }
 
-  try {
-    await initializeMidscene()
-  } catch (error) {
-    console.error('Failed to initialize Midscene:', error)
-  }
+  // Midscene is initialized lazily when screen sharing is enabled via set-midscene-display
 
   ipcMain.handle('execute-midscene-action', async (_, args: { action: string }) => {
     if (!midsceneAgent) {
