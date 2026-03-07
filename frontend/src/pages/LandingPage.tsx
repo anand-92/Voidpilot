@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import { ThreeBackground } from '../components/ThreeBackground';
@@ -87,35 +87,40 @@ function sectionScale(progress: number, sectionIndex: number): number {
 export default function LandingPage() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const scrollVelocity = useRef(0);
+  const lastTouchY = useRef<number | null>(null);
   const animFrameRef = useRef<number>(0);
   const totalSections = 2; // max value of scrollProgress (0 to 2)
 
-  // Smooth momentum-based scroll
-  const momentumLoop = useCallback(() => {
-    setScrollProgress(prev => {
-      const next = prev + scrollVelocity.current;
-      // Clamp to range
-      const clamped = Math.max(0, Math.min(totalSections, next));
+// Smooth momentum-based scroll
+  const momentumLoop = useRef(() => {});
 
-      // If we hit bounds, kill velocity
-      if (clamped <= 0 || clamped >= totalSections) {
-        scrollVelocity.current *= 0.3;
+  useEffect(() => {
+    momentumLoop.current = () => {
+      setScrollProgress(prev => {
+        const next = prev + scrollVelocity.current;
+        // Clamp to range
+        const clamped = Math.max(0, Math.min(totalSections, next));
+
+        // If we hit bounds, kill velocity
+        if (clamped <= 0 || clamped >= totalSections) {
+          scrollVelocity.current *= 0.3;
+        }
+
+        return clamped;
+      });
+
+      // Apply friction to velocity
+      scrollVelocity.current *= 0.95;
+
+      // Stop the loop if velocity is negligible
+      if (Math.abs(scrollVelocity.current) > 0.0001) {
+        animFrameRef.current = requestAnimationFrame(momentumLoop.current);
       }
-
-      return clamped;
-    });
-
-    // Apply friction to velocity
-    scrollVelocity.current *= 0.95;
-
-    // Stop the loop if velocity is negligible
-    if (Math.abs(scrollVelocity.current) > 0.0001) {
-      animFrameRef.current = requestAnimationFrame(momentumLoop);
-    }
+    };
   }, []);
 
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
+const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
 
       // Normalize delta across browsers/trackpads (smaller = more granular)
@@ -129,15 +134,81 @@ export default function LandingPage() {
 
       // Start momentum loop if not running
       cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = requestAnimationFrame(momentumLoop);
+      animFrameRef.current = requestAnimationFrame(momentumLoop.current);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      lastTouchY.current = e.touches[0].clientY;
+      // Stop current momentum when user touches
+      scrollVelocity.current = 0;
+      cancelAnimationFrame(animFrameRef.current);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (lastTouchY.current === null) return;
+
+      // If the target is within a scrollable container, don't prevent default or take over
+      let target = e.target as HTMLElement | null;
+      let isScrollableContainer = false;
+      while (target && target !== document.body) {
+        if (target.classList.contains('overflow-y-auto') || target.classList.contains('custom-scrollbar')) {
+            const hasScrollableContent = target.scrollHeight > target.clientHeight;
+            const isAtTop = target.scrollTop === 0;
+            const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 1;
+
+            const currentY = e.touches[0].clientY;
+            const deltaY = lastTouchY.current - currentY;
+
+            if (hasScrollableContent) {
+              // If scrolling up (deltaY < 0) and at top, we want to handle it
+              // If scrolling down (deltaY > 0) and at bottom, we want to handle it
+              // Otherwise, let the container scroll natively
+              if (!((deltaY < 0 && isAtTop) || (deltaY > 0 && isAtBottom))) {
+                isScrollableContainer = true;
+                break;
+              }
+            }
+        }
+        target = target.parentElement;
+      }
+
+      if (isScrollableContainer) {
+        lastTouchY.current = e.touches[0].clientY;
+        return;
+      }
+
+      e.preventDefault();
+
+      const currentY = e.touches[0].clientY;
+      const deltaY = lastTouchY.current - currentY;
+      lastTouchY.current = currentY;
+
+      // Normalize delta for touch (slightly different scale than wheel)
+      const delta = deltaY * 0.002;
+
+      scrollVelocity.current += delta;
+      scrollVelocity.current = Math.max(-0.05, Math.min(0.05, scrollVelocity.current));
+
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = requestAnimationFrame(momentumLoop.current);
+    };
+
+    const handleTouchEnd = () => {
+      lastTouchY.current = null;
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
     return () => {
       window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
       cancelAnimationFrame(animFrameRef.current);
     };
-  }, [momentumLoop]);
+  }, []);
 
   // Derive which section is "active" for indicators
   const activeSection = Math.round(scrollProgress);
@@ -177,7 +248,7 @@ export default function LandingPage() {
                   // Animate smoothly to section
                   scrollVelocity.current = (i - scrollProgress) * 0.05;
                   cancelAnimationFrame(animFrameRef.current);
-                  animFrameRef.current = requestAnimationFrame(momentumLoop);
+                  animFrameRef.current = requestAnimationFrame(momentumLoop.current);
                 }}
                 className={`h-2 transition-all duration-500 rounded-full ${activeSection === i ? 'w-8 bg-sky-400' : 'w-2 bg-white/20 hover:bg-white/40'}`}
               />

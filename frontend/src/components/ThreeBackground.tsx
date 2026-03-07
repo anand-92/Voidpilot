@@ -24,11 +24,66 @@ function lerpWaypoint(a: typeof WAYPOINTS[0], b: typeof WAYPOINTS[0], t: number)
 export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sceneRef = useRef<any>(null);
     const targetParams = useRef(WAYPOINTS[0]);
     const mouseRef = useRef({ x: 0, y: 0, halfW: 0, halfH: 0 });
 
     // Continuously interpolate camera target based on scroll progress
+    const startLoop = () => {
+        const renderer = rendererRef.current;
+        const s = sceneRef.current;
+        if (!renderer || !s) return;
+        const { scene, camera, clock, coreGroup, coreMesh, cageMesh, nodesGroup, nodes, linesMesh, gridMat, maxLines, nodeCount } = s;
+
+        renderer.setAnimationLoop(() => {
+            const time = clock.getElapsedTime();
+            gridMat.uniforms.time.value = time;
+
+            coreMesh.rotation.y += 0.005;
+            coreMesh.rotation.x += 0.002;
+            cageMesh.rotation.y -= 0.003;
+            cageMesh.rotation.z += 0.001;
+
+            const tp = targetParams.current;
+            coreGroup.rotation.y += (tp.coreRotY - coreGroup.rotation.y) * 0.06;
+
+            const px = mouseRef.current.x * 0.001, py = mouseRef.current.y * 0.001;
+            coreGroup.position.x += (px * 2 - coreGroup.position.x) * 0.05;
+            coreGroup.position.y += (-py * 2 - coreGroup.position.y) * 0.05;
+
+            let lIdx = 0;
+            const posArr = linesMesh.geometry.attributes.position.array as Float32Array;
+            for (let i = 0; i < nodeCount; i++) {
+                const n = nodes[i];
+                n.angle += n.speed;
+                n.mesh.position.set(Math.cos(n.angle) * n.radius, n.yOffset + Math.sin(time * 2 + i) * 0.5, Math.sin(n.angle) * n.radius);
+                n.mesh.rotation.x += 0.02;
+                n.mesh.rotation.y += 0.02;
+                for (let j = i + 1; j < nodeCount; j++) {
+                    if (lIdx >= maxLines * 6 - 6) break;
+                    const o = nodes[j];
+                    if (n.mesh.position.distanceTo(o.mesh.position) < 4.5) {
+                        posArr[lIdx++] = n.mesh.position.x; posArr[lIdx++] = n.mesh.position.y; posArr[lIdx++] = n.mesh.position.z;
+                        posArr[lIdx++] = o.mesh.position.x; posArr[lIdx++] = o.mesh.position.y; posArr[lIdx++] = o.mesh.position.z;
+                    }
+                }
+            }
+            for (let i = lIdx; i < maxLines * 6; i++) posArr[i] = 0;
+            linesMesh.geometry.attributes.position.needsUpdate = true;
+            nodesGroup.rotation.y = time * 0.05;
+
+            // Smooth camera follow with faster lerp for responsiveness
+            camera.position.x += (tp.camX - camera.position.x) * 0.06;
+            camera.position.y += (tp.camY - camera.position.y) * 0.06;
+            camera.position.z += (tp.camZ - camera.position.z) * 0.06;
+            camera.position.x += (px - (camera.position.x - tp.camX)) * 0.05;
+            camera.position.y += (-py - (camera.position.y - tp.camY)) * 0.05;
+
+            camera.lookAt(0, 0, 0);
+            renderer.render(scene, camera);
+        });
+    }
     useEffect(() => {
         const clamped = Math.max(0, Math.min(2, scrollProgress));
         const idx = Math.min(Math.floor(clamped), WAYPOINTS.length - 2);
@@ -94,6 +149,7 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
         const nodesGroup = new THREE.Group();
         scene.add(nodesGroup);
         const nodeCount = 40;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const nodes: any[] = [];
         const nodeGeo = new THREE.OctahedronGeometry(0.08, 0);
         const nodeMat = new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
@@ -192,60 +248,7 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
         };
     }, []);
 
-    function startLoop() {
-        const renderer = rendererRef.current;
-        const s = sceneRef.current;
-        if (!renderer || !s) return;
-        const { scene, camera, clock, coreGroup, coreMesh, cageMesh, nodesGroup, nodes, linesMesh, gridMat, maxLines, nodeCount } = s;
 
-        renderer.setAnimationLoop(() => {
-            const time = clock.getElapsedTime();
-            gridMat.uniforms.time.value = time;
-
-            coreMesh.rotation.y += 0.005;
-            coreMesh.rotation.x += 0.002;
-            cageMesh.rotation.y -= 0.003;
-            cageMesh.rotation.z += 0.001;
-
-            const tp = targetParams.current;
-            coreGroup.rotation.y += (tp.coreRotY - coreGroup.rotation.y) * 0.06;
-
-            const px = mouseRef.current.x * 0.001, py = mouseRef.current.y * 0.001;
-            coreGroup.position.x += (px * 2 - coreGroup.position.x) * 0.05;
-            coreGroup.position.y += (-py * 2 - coreGroup.position.y) * 0.05;
-
-            let lIdx = 0;
-            const posArr = linesMesh.geometry.attributes.position.array as Float32Array;
-            for (let i = 0; i < nodeCount; i++) {
-                const n = nodes[i];
-                n.angle += n.speed;
-                n.mesh.position.set(Math.cos(n.angle) * n.radius, n.yOffset + Math.sin(time * 2 + i) * 0.5, Math.sin(n.angle) * n.radius);
-                n.mesh.rotation.x += 0.02;
-                n.mesh.rotation.y += 0.02;
-                for (let j = i + 1; j < nodeCount; j++) {
-                    if (lIdx >= maxLines * 6 - 6) break;
-                    const o = nodes[j];
-                    if (n.mesh.position.distanceTo(o.mesh.position) < 4.5) {
-                        posArr[lIdx++] = n.mesh.position.x; posArr[lIdx++] = n.mesh.position.y; posArr[lIdx++] = n.mesh.position.z;
-                        posArr[lIdx++] = o.mesh.position.x; posArr[lIdx++] = o.mesh.position.y; posArr[lIdx++] = o.mesh.position.z;
-                    }
-                }
-            }
-            for (let i = lIdx; i < maxLines * 6; i++) posArr[i] = 0;
-            linesMesh.geometry.attributes.position.needsUpdate = true;
-            nodesGroup.rotation.y = time * 0.05;
-
-            // Smooth camera follow with faster lerp for responsiveness
-            camera.position.x += (tp.camX - camera.position.x) * 0.06;
-            camera.position.y += (tp.camY - camera.position.y) * 0.06;
-            camera.position.z += (tp.camZ - camera.position.z) * 0.06;
-            camera.position.x += (px - (camera.position.x - tp.camX)) * 0.05;
-            camera.position.y += (-py - (camera.position.y - tp.camY)) * 0.05;
-
-            camera.lookAt(0, 0, 0);
-            renderer.render(scene, camera);
-        });
-    }
 
     return <div ref={containerRef} className="fixed top-0 left-0 w-full h-full pointer-events-none z-0" />;
 }
