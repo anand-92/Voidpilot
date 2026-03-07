@@ -11,7 +11,5 @@ frontend/dist
 frontend/dist-electron
 frontend/test-results
 frontend/midscene_run
-examples
-gemini-live-api-examples
 skills
 .factory
