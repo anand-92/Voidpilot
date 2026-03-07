@@ -113,7 +113,7 @@ export default function LandingPage() {
   const s2Scale = sectionScale(scrollProgress, 2);
 
   return (
-    <main style={{ height: `${(totalSections + 1) * 100}vh` }} className="relative w-full bg-[#020617] text-slate-100 font-sans selection:bg-sky-500/30">
+    <main style={{ height: `${(totalSections + 1) * 100}vh` }} className="custom-cursor relative w-full bg-[#060818] text-slate-100 font-sans selection:bg-sky-500/30">
       <div className="fixed top-0 left-0 w-full h-screen overflow-hidden">
 
       <ThreeBackground scrollProgress={scrollProgress} />

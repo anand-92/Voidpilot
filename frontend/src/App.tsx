@@ -1,14 +1,20 @@
 import {
   Activity,
   CheckCircle2,
+  ChevronDown,
   MessageSquareText,
+  Mic,
+  MicOff,
   Monitor,
   MoveDiagonal,
+  Radio,
   ScanSearch,
+  Send,
   Sparkles,
   WandSparkles,
+  Zap,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGeminiLive } from './hooks/useGeminiLive'
 import type { DesktopCapturerSource, RegionBounds } from './electron-env'
 
@@ -16,11 +22,11 @@ type ShareMode = 'full' | 'region'
 
 function formatRegion(region?: RegionBounds) {
   if (!region) return 'No area selected yet'
-  return `${region.width} x ${region.height} at ${region.x}, ${region.y}`
+  return `${region.width}×${region.height} at (${region.x}, ${region.y})`
 }
 
 function formatPixels(width: number, height: number) {
-  return `${width.toLocaleString()} x ${height.toLocaleString()}`
+  return `${width.toLocaleString()}×${height.toLocaleString()}`
 }
 
 function getNativeResolution(source: DesktopCapturerSource) {
@@ -30,6 +36,22 @@ function getNativeResolution(source: DesktopCapturerSource) {
   }
 }
 
+/* ────────────────────────────────────────────────────────────
+   Pulse ring animation around the "Live" indicator
+   ──────────────────────────────────────────────────────────── */
+function PulseRing({ active }: { active: boolean }) {
+  if (!active) return null
+  return (
+    <span className="relative flex h-2.5 w-2.5">
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+    </span>
+  )
+}
+
+/* ────────────────────────────────────────────────────────────
+   Main app
+   ──────────────────────────────────────────────────────────── */
 export default function App() {
   const { isConnected, isStarting, messages, start, stop, sendText } = useGeminiLive()
   const [inputText, setInputText] = useState('')
@@ -40,7 +62,15 @@ export default function App() {
   const [isPickingRegion, setIsPickingRegion] = useState(false)
   const [isLoadingSources, setIsLoadingSources] = useState(true)
   const [setupError, setSetupError] = useState<string | null>(null)
+  const [showDisplayPicker, setShowDisplayPicker] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  /* ── auto-scroll chat ─────────────────────────────────── */
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  /* ── load displays ────────────────────────────────────── */
   useEffect(() => {
     let isMounted = true
 
@@ -71,7 +101,6 @@ export default function App() {
     }
 
     loadSources()
-
     return () => {
       isMounted = false
     }
@@ -87,17 +116,11 @@ export default function App() {
     [selectedSource],
   )
 
-  const sessionState = isConnected ? 'Connected' : isStarting ? 'Starting' : 'Ready to launch'
-  const sessionTone = isConnected
-    ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100'
-    : isStarting
-      ? 'border-amber-300/30 bg-amber-300/10 text-amber-100'
-      : 'border-sky-300/25 bg-sky-300/10 text-sky-100'
-
   useEffect(() => {
     setSelectedRegion(null)
   }, [selectedSourceId, shareMode])
 
+  /* ── handlers (region picker logic kept identical) ───── */
   const handleSend = () => {
     if (inputText.trim()) {
       sendText(inputText)
@@ -151,299 +174,330 @@ export default function App() {
     !isPickingRegion
 
   return (
-    <main className="min-h-screen overflow-y-auto text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_28%),radial-gradient(circle_at_80%_20%,_rgba(251,146,60,0.12),_transparent_18%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.12),_transparent_22%)]" />
+    <main className="flex h-screen flex-col overflow-hidden bg-[#060818] text-slate-100">
+      {/* ═══════ Top bar ═══════ */}
+      <header className="flex shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#0a0e1f]/80 px-5 py-3 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600">
+            <Sparkles className="h-4 w-4 text-white" />
+          </div>
+          <span className="text-sm font-semibold tracking-tight text-white">
+            Gemini Desktop <span className="text-sky-400">Bridge</span>
+          </span>
+        </div>
 
-      <div className="relative mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-4 py-4 sm:px-6 sm:py-6 xl:px-8">
-        <section className="overflow-hidden rounded-[34px] border border-white/10 bg-slate-950/70 shadow-[0_35px_120px_rgba(2,6,23,0.62)] backdrop-blur-xl">
-          <div className="grid gap-6 border-b border-white/8 bg-[linear-gradient(135deg,rgba(14,165,233,0.16),rgba(15,23,42,0.2)_45%,rgba(249,115,22,0.14))] px-5 py-6 sm:px-7 lg:grid-cols-[1.25fr_0.75fr] lg:px-8">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/25 bg-sky-300/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-100">
-                <Sparkles className="h-3.5 w-3.5" />
-                Gemini desktop bridge
+        {/* Session status chip */}
+        <div
+          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest transition-colors ${
+            isConnected
+              ? 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-300'
+              : isStarting
+                ? 'border border-amber-400/20 bg-amber-500/10 text-amber-300'
+                : 'border border-white/10 bg-white/5 text-slate-400'
+          }`}
+        >
+          <PulseRing active={isConnected} />
+          {isConnected ? 'Live' : isStarting ? 'Starting…' : 'Offline'}
+        </div>
+      </header>
+
+      {/* ═══════ Body (2-column) ═══════ */}
+      <div className="flex min-h-0 flex-1">
+        {/* ─── Left: Controls ─── */}
+        <div className="flex w-[380px] shrink-0 flex-col gap-0 overflow-y-auto border-r border-white/[0.06] bg-[#080c1c]/60">
+
+          {/* ── Display selector ── */}
+          <section className="border-b border-white/[0.06] p-4">
+            <button
+              type="button"
+              onClick={() => setShowDisplayPicker(!showDisplayPicker)}
+              className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-left transition-colors hover:bg-white/[0.06]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10">
+                  <Monitor className="h-4 w-4 text-sky-400" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Display
+                  </div>
+                  <div className="mt-0.5 text-sm font-medium text-white">
+                    {isLoadingSources
+                      ? 'Scanning…'
+                      : selectedSource?.name ?? 'No display found'}
+                  </div>
+                </div>
               </div>
-              <h1 className="mt-4 max-w-3xl text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                A cleaner launchpad for live desktop sessions.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-200/85 sm:text-[15px]">
-                Pick the monitor, decide whether Gemini sees the whole display or a focused crop, and start with Midscene locked to that same display. The layout now scrolls naturally and holds up when you resize the app window.
-              </p>
+              <ChevronDown
+                className={`h-4 w-4 text-slate-500 transition-transform ${showDisplayPicker ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {showDisplayPicker && (
+              <div className="mt-3 flex flex-col gap-2">
+                {sources.map((source) => {
+                  const isSelected = source.id === selectedSourceId
+                  const native = getNativeResolution(source)
+                  return (
+                    <button
+                      key={source.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSourceId(source.id)
+                        setShowDisplayPicker(false)
+                      }}
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
+                        isSelected
+                          ? 'border-sky-500/30 bg-sky-500/10'
+                          : 'border-white/[0.06] bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <div
+                        className={`h-3 w-3 shrink-0 rounded-full border-2 transition-colors ${
+                          isSelected ? 'border-sky-400 bg-sky-400' : 'border-slate-600 bg-transparent'
+                        }`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-sm font-medium text-white">{source.name}</span>
+                          {source.isPrimary && (
+                            <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-emerald-400">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-500">
+                          {formatPixels(native.width, native.height)} · {source.scaleFactor}x
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* ── Share mode ── */}
+          <section className="border-b border-white/[0.06] p-4">
+            <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <ScanSearch className="h-3.5 w-3.5 text-orange-400" />
+              Capture mode
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { mode: 'full' as const, label: 'Full screen', icon: Monitor },
+                  { mode: 'region' as const, label: 'Region', icon: MoveDiagonal },
+                ] as const
+              ).map(({ mode, label, icon: Icon }) => {
+                const isActive = shareMode === mode
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setShareMode(mode)}
+                    className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3.5 py-3 text-sm font-medium transition-all ${
+                      isActive
+                        ? 'border-orange-400/30 bg-orange-500/10 text-orange-200'
+                        : 'border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-slate-200'
+                    }`}
+                  >
+                    <Icon className={`h-4 w-4 ${isActive ? 'text-orange-400' : 'text-slate-500'}`} />
+                    {label}
+                  </button>
+                )
+              })}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-              <div className={`rounded-[26px] border px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${sessionTone}`}>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em]">
-                  <Activity className="h-4 w-4" />
-                  Session
-                </div>
-                <div className="mt-3 text-xl font-semibold">{sessionState}</div>
-                <div className="mt-1 text-sm opacity-90">
-                  {isConnected ? 'Audio and screen stream are live.' : isStarting ? 'Starting microphone, screen, and websocket...' : 'Waiting for a display and share mode.'}
-                </div>
-              </div>
-
-              <div className="rounded-[26px] border border-white/10 bg-slate-900/65 px-4 py-4 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                  <Monitor className="h-4 w-4 text-sky-300" />
-                  Display
-                </div>
-                <div className="mt-3 text-lg font-semibold text-white">{selectedSource?.name ?? 'No display selected'}</div>
-                <div className="mt-1 text-sm text-slate-300">
-                  {nativeResolution && selectedSource
-                    ? `${formatPixels(nativeResolution.width, nativeResolution.height)} native • ${formatPixels(selectedSource.bounds.width, selectedSource.bounds.height)} logical`
-                    : 'Choose a monitor to see its native and scaled desktop size.'}
+            {/* Region picker (same logic, new look) */}
+            {shareMode === 'region' && (
+              <div className="mt-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-slate-400">
+                      {selectedRegion ? formatRegion(selectedRegion) : 'No region selected'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePickRegion}
+                    disabled={!selectedSource || isPickingRegion || isConnected}
+                    className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-sky-500/20 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <WandSparkles className="h-3.5 w-3.5" />
+                    {isPickingRegion ? 'Picking…' : selectedRegion ? 'Re-pick' : 'Select area'}
+                  </button>
                 </div>
               </div>
+            )}
+          </section>
 
-              <div className="rounded-[26px] border border-white/10 bg-slate-900/65 px-4 py-4 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                  <MoveDiagonal className="h-4 w-4 text-orange-300" />
-                  Gemini view
-                </div>
-                <div className="mt-3 text-lg font-semibold text-white">
-                  {shareMode === 'full' ? 'Entire display' : selectedRegion ? 'Focused region selected' : 'Region not selected'}
-                </div>
-                <div className="mt-1 text-sm text-slate-300">
-                  {shareMode === 'full'
-                    ? 'Gemini receives the full display feed.'
-                    : selectedRegion
-                      ? formatRegion(selectedRegion)
-                      : 'Open the selection overlay to define the shared area.'}
-                </div>
+          {/* ── Info cards ── */}
+          <section className="flex flex-col gap-3 p-4">
+            {/* Display info card */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <Activity className="h-3 w-3 text-sky-400" />
+                Display info
+              </div>
+              <div className="mt-2 text-sm text-slate-300">
+                {nativeResolution && selectedSource
+                  ? `${formatPixels(nativeResolution.width, nativeResolution.height)} native · ${formatPixels(selectedSource.bounds.width, selectedSource.bounds.height)} logical`
+                  : 'Select a display'}
               </div>
             </div>
+
+            {/* Gemini view card */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <Radio className="h-3 w-3 text-orange-400" />
+                Gemini sees
+              </div>
+              <div className="mt-2 text-sm text-slate-300">
+                {shareMode === 'full'
+                  ? selectedSource
+                    ? `Full feed from ${selectedSource.name}`
+                    : 'Waiting for display'
+                  : selectedRegion
+                    ? formatRegion(selectedRegion)
+                    : 'Region not yet defined'}
+              </div>
+            </div>
+
+            {/* Midscene target card */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <Zap className="h-3 w-3 text-emerald-400" />
+                Midscene target
+              </div>
+              <div className="mt-2 text-sm text-slate-300">
+                {selectedSource?.name ?? 'None'}
+              </div>
+            </div>
+          </section>
+
+          {/* ── Error ── */}
+          {setupError && (
+            <div className="mx-4 mb-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+              {setupError}
+            </div>
+          )}
+
+          {/* ── Start / Stop ── */}
+          <div className="mt-auto border-t border-white/[0.06] p-4">
+            {!isConnected ? (
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={!canStart}
+                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500 px-5 py-3.5 text-sm font-bold text-white shadow-[0_8px_32px_rgba(56,189,248,0.25)] transition-all hover:-translate-y-px hover:shadow-[0_12px_40px_rgba(56,189,248,0.35)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              >
+                <Mic className="h-4 w-4" />
+                {isStarting ? 'Connecting…' : 'Start Live Session'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={stop}
+                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-rose-600 px-5 py-3.5 text-sm font-bold text-white shadow-[0_8px_32px_rgba(225,29,72,0.25)] transition-all hover:bg-rose-500"
+              >
+                <MicOff className="h-4 w-4" />
+                End Session
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ─── Right: Conversation ─── */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Chat header */}
+          <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] bg-[#080c1c]/40 px-5 py-3">
+            <MessageSquareText className="h-4 w-4 text-sky-400" />
+            <span className="text-sm font-semibold text-white">Conversation</span>
+            <span className="ml-auto text-[10px] font-medium uppercase tracking-widest text-slate-500">
+              {messages.length} messages
+            </span>
           </div>
 
-          <div className="grid gap-6 p-5 sm:p-7 xl:grid-cols-[1.3fr_0.7fr]">
-            <div className="space-y-6">
-              <section className="rounded-[30px] border border-white/10 bg-slate-900/60 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="flex items-center gap-3 text-sm font-semibold text-white">
-                  <Monitor className="h-4 w-4 text-sky-300" />
-                  Choose a display
+          {/* Messages area */}
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            {messages.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
+                  <Sparkles className="h-7 w-7 text-sky-500/40" />
                 </div>
-                <div className="mt-4 grid gap-3">
-                  {isLoadingSources ? (
-                    <div className="rounded-[24px] border border-dashed border-slate-700 bg-slate-950/50 px-4 py-8 text-sm text-slate-400">
-                      Looking for connected displays...
-                    </div>
-                  ) : (
-                    sources.map((source) => {
-                      const isSelected = source.id === selectedSourceId
-                      const native = getNativeResolution(source)
-
-                      return (
-                        <button
-                          key={source.id}
-                          type="button"
-                          onClick={() => setSelectedSourceId(source.id)}
-                          className={`group rounded-[26px] border px-4 py-4 text-left transition ${
-                            isSelected
-                              ? 'border-sky-300/50 bg-[linear-gradient(135deg,rgba(14,165,233,0.18),rgba(15,23,42,0.72))] shadow-[0_18px_60px_rgba(14,165,233,0.12)]'
-                              : 'border-white/8 bg-slate-950/55 hover:border-slate-500/40 hover:bg-slate-900/85'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-base font-semibold text-white">{source.name}</span>
-                                {source.isPrimary ? (
-                                  <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
-                                    Primary
-                                  </span>
-                                ) : null}
-                              </div>
-                              <div className="mt-2 text-sm text-slate-300">
-                                {formatPixels(native.width, native.height)} native
-                              </div>
-                              <div className="mt-1 text-sm text-slate-400">
-                                {formatPixels(source.bounds.width, source.bounds.height)} logical desktop
-                              </div>
-                              <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
-                                Scale factor {source.scaleFactor.toFixed(2)}x
-                              </div>
-                            </div>
-                            <div
-                              className={`mt-1 h-4 w-4 rounded-full border transition ${
-                                isSelected
-                                  ? 'border-sky-100 bg-sky-300 shadow-[0_0_18px_rgba(125,211,252,0.8)]'
-                                  : 'border-slate-500 bg-transparent group-hover:border-slate-300'
-                              }`}
-                            />
-                          </div>
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
-              </section>
-
-              <section className="rounded-[30px] border border-white/10 bg-slate-900/60 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="flex items-center gap-3 text-sm font-semibold text-white">
-                  <ScanSearch className="h-4 w-4 text-orange-300" />
-                  What Gemini should see
-                </div>
-
-                <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                  {([
-                    {
-                      mode: 'full' as const,
-                      title: 'Entire screen',
-                      description: 'Best when you want the assistant to understand the full context of the selected monitor.',
-                    },
-                    {
-                      mode: 'region' as const,
-                      title: 'Focused region',
-                      description: 'Best when you want Gemini to watch a smaller part of the display through a draggable overlay.',
-                    },
-                  ]).map((option) => {
-                    const isSelected = shareMode === option.mode
-                    return (
-                      <button
-                        key={option.mode}
-                        type="button"
-                        onClick={() => setShareMode(option.mode)}
-                        className={`rounded-[26px] border px-4 py-4 text-left transition ${
-                          isSelected
-                            ? 'border-orange-300/45 bg-[linear-gradient(135deg,rgba(251,146,60,0.18),rgba(15,23,42,0.76))]'
-                            : 'border-white/8 bg-slate-950/55 hover:border-slate-500/40 hover:bg-slate-900/85'
-                        }`}
-                      >
-                        <div className="text-base font-semibold text-white">{option.title}</div>
-                        <div className="mt-2 text-sm leading-6 text-slate-300">{option.description}</div>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <div className="mt-4 rounded-[26px] border border-white/8 bg-slate-950/55 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Selection summary</div>
-                      <div className="mt-2 text-sm text-slate-200">
-                        {shareMode === 'full'
-                          ? selectedSource
-                            ? `Gemini will receive the full feed from ${selectedSource.name}.`
-                            : 'Choose a display to enable sharing.'
-                          : selectedRegion
-                            ? `Gemini will receive only the selected region: ${formatRegion(selectedRegion)}.`
-                            : 'Choose the shared area on the selected display.'}
-                      </div>
-                    </div>
-
-                    {shareMode === 'region' ? (
-                      <button
-                        type="button"
-                        onClick={handlePickRegion}
-                        disabled={!selectedSource || isPickingRegion || isConnected}
-                        className="inline-flex items-center gap-2 rounded-[18px] bg-gradient-to-r from-sky-300 via-cyan-300 to-orange-300 px-4 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_45px_rgba(56,189,248,0.25)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
-                      >
-                        <WandSparkles className="h-4 w-4" />
-                        {isPickingRegion ? 'Opening overlay...' : selectedRegion ? 'Adjust shared area' : 'Choose shared area'}
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {shareMode === 'region' && selectedRegion ? (
-                    <div className="mt-4 inline-flex rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-sky-100">
-                      {formatRegion(selectedRegion)}
-                    </div>
-                  ) : null}
-                </div>
-              </section>
-
-              {setupError ? (
-                <div className="rounded-[24px] border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-                  {setupError}
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap items-center gap-3">
-                {!isConnected ? (
-                  <button
-                    type="button"
-                    onClick={handleStart}
-                    disabled={!canStart}
-                    className="rounded-[22px] bg-[linear-gradient(135deg,#7dd3fc,#38bdf8,#fdba74)] px-6 py-4 text-sm font-semibold text-slate-950 shadow-[0_20px_55px_rgba(56,189,248,0.28)] transition hover:-translate-y-[1px] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    {isStarting ? 'Starting live session...' : 'Start Live Session'}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={stop}
-                    className="rounded-[22px] bg-rose-500 px-6 py-4 text-sm font-semibold text-white shadow-[0_20px_55px_rgba(244,63,94,0.22)] transition hover:bg-rose-400"
-                  >
-                    Stop Live Session
-                  </button>
-                )}
-
-                <div className="rounded-[22px] border border-white/10 bg-slate-900/70 px-4 py-4 text-sm text-slate-300">
-                  Midscene automation stays on <span className="font-semibold text-white">{selectedSource?.name ?? 'the selected display'}</span>.
+                <div>
+                  <p className="text-sm font-medium text-slate-400">No messages yet</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Start a session to begin talking with Gemini.
+                  </p>
                 </div>
               </div>
-            </div>
-
-            <aside className="space-y-6">
-              <section className="rounded-[30px] border border-white/10 bg-slate-900/60 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="flex items-center gap-3 text-sm font-semibold text-white">
-                  <MessageSquareText className="h-4 w-4 text-sky-300" />
-                  Conversation
-                </div>
-                <div className="mt-4 max-h-[42vh] min-h-[320px] overflow-y-auto rounded-[24px] border border-white/8 bg-slate-950/55 p-4">
-                  {messages.length === 0 ? (
-                    <div className="flex h-full min-h-[240px] items-center justify-center text-center text-sm leading-7 text-slate-400">
-                      Start a session and the conversation feed will appear here.
-                    </div>
-                  ) : (
-                    messages.map((message, index) => (
+            ) : (
+              <div className="flex flex-col gap-3">
+                {messages.map((message, index) => {
+                  const isUser = message.role === 'user'
+                  const isSystem = message.role === 'system'
+                  return (
+                    <div
+                      key={index}
+                      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                    >
                       <div
-                        key={index}
-                        className={`mb-3 rounded-[22px] border px-3.5 py-3 text-sm leading-6 ${
-                          message.role === 'user'
-                            ? 'border-sky-300/20 bg-sky-300/10 text-sky-50'
-                            : message.role === 'system'
-                              ? 'border-slate-700 bg-slate-900/80 text-slate-300'
-                              : 'border-white/8 bg-slate-900 text-slate-100'
+                        className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                          isUser
+                            ? 'bg-sky-600/20 text-sky-100'
+                            : isSystem
+                              ? 'border border-white/[0.06] bg-white/[0.03] text-slate-500 italic'
+                              : 'border border-white/[0.06] bg-white/[0.04] text-slate-200'
                         }`}
                       >
-                        <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] opacity-75">
-                          {message.role === 'user' ? 'You' : message.role === 'system' ? 'System' : 'Gemini'}
+                        <div
+                          className={`mb-1 text-[10px] font-bold uppercase tracking-[0.2em] ${
+                            isUser ? 'text-sky-400/60' : isSystem ? 'text-slate-600' : 'text-indigo-400/60'
+                          }`}
+                        >
+                          {isUser ? 'You' : isSystem ? 'System' : 'Gemini'}
                         </div>
                         <div>{message.content}</div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </section>
-
-              <section className="rounded-[30px] border border-white/10 bg-slate-900/60 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="flex items-center gap-3 text-sm font-semibold text-white">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-                  Quick prompt
-                </div>
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <input
-                    type="text"
-                    value={inputText}
-                    onChange={(event) => setInputText(event.target.value)}
-                    onKeyDown={(event) => event.key === 'Enter' && handleSend()}
-                    placeholder="Type a message..."
-                    disabled={!isConnected}
-                    className="flex-1 rounded-[20px] border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSend}
-                    disabled={!isConnected || !inputText.trim()}
-                    className="rounded-[20px] bg-slate-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Send
-                  </button>
-                </div>
-              </section>
-            </aside>
+                    </div>
+                  )
+                })}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
           </div>
-        </section>
+
+          {/* Input bar */}
+          <div className="shrink-0 border-t border-white/[0.06] bg-[#080c1c]/40 px-5 py-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/40" />
+                Quick prompt
+              </div>
+            </div>
+            <div className="mt-2.5 flex gap-2.5">
+              <input
+                type="text"
+                value={inputText}
+                onChange={(event) => setInputText(event.target.value)}
+                onKeyDown={(event) => event.key === 'Enter' && handleSend()}
+                placeholder={isConnected ? 'Type a message…' : 'Connect first to chat'}
+                disabled={!isConnected}
+                className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-sky-500/40 focus:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-40"
+              />
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!isConnected || !inputText.trim()}
+                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-sky-600/80 text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   )

@@ -1,13 +1,14 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
 
 :root {
-  font-family: "Segoe UI Variable Display", "Segoe UI", "Avenir Next", Helvetica, Arial, sans-serif;
+  font-family: "DM Sans", "Segoe UI Variable Display", "Segoe UI", "Avenir Next", Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #020617;
+  background-color: #060818;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,9 +16,11 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-*,
-*::before,
-*::after {
+/* Custom cursor only on the landing page (non-Electron) */
+.custom-cursor,
+.custom-cursor *,
+.custom-cursor *::before,
+.custom-cursor *::after {
   cursor: none !important;
 }
 
@@ -26,14 +29,36 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
-  cursor: none;
+  background: #060818;
+}
+
+/* Landing page gradient background */
+body.landing-bg {
   background:
-    radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.12), transparent 24%),
-    linear-gradient(180deg, #020617, #0f172a);
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.14), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.10), transparent 24%),
+    linear-gradient(180deg, #060818, #0f172a);
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/* Scrollbar styling for the app */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
