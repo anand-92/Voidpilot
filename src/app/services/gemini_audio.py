@@ -9,109 +9,183 @@ from google.genai import types
 
 logger = logging.getLogger(__name__)
 
-async def get_weather(location: str, unit: str = "fahrenheit", days: int = 0) -> str:  # noqa: C901
+GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
+WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
+
+
+def _weather_code_desc(code: int) -> str:
+    """Map Open-Meteo weather code to human-readable description."""
+    match code:
+        case 0:
+            return "Clear sky"
+        case c if c <= 3:
+            return "Partly cloudy"
+        case c if c <= 49:
+            return "Foggy"
+        case c if c <= 69:
+            return "Rainy"
+        case c if c <= 79:
+            return "Snowy"
+        case _:
+            return "Stormy"
+
+
+async def _call_maybe_async(func, *args, **kwargs):
+    """Call a function, awaiting it if it's a coroutine function."""
+    if inspect.iscoroutinefunction(func):
+        return await func(*args, **kwargs)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None, lambda: func(*args, **kwargs)
+    )
+
+
+async def get_weather(
+    location: str, unit: str = "fahrenheit", days: int = 0
+) -> str:
     """Get current weather or forecast for a location using Open-Meteo
     (free, no API key)."""
     try:
         logger.info(
-            f"get_weather called: location={location}, unit={unit}, days={days}"
+            "get_weather called: location=%s, unit=%s, days=%d",
+            location, unit, days,
         )
 
-        # Clean up location - just take the first part before any comma
         location_clean = location.split(",")[0].strip()
-        logger.info(f"Cleaned location: {location} -> {location_clean}")
+        is_celsius = unit.lower() in ("c", "celsius")
+        temp_unit = "celsius" if is_celsius else "fahrenheit"
 
-        # First, get coordinates from location name using geocoding
-        async with httpx.AsyncClient() as geocode_client:
-            geocode_resp = await geocode_client.get(
-                "https://geocoding-api.open-meteo.com/v1/search",
+        async with httpx.AsyncClient() as client:
+            # Geocode location to coordinates
+            geo_resp = await client.get(
+                GEOCODING_URL,
                 params={"name": location_clean, "count": 1},
             )
-            geocode_data = geocode_resp.json()
-
-            if not geocode_data.get("results"):
+            geo_results = geo_resp.json().get("results")
+            if not geo_results:
                 return f"Could not find location: {location}"
 
-            lat = geocode_data["results"][0]["latitude"]
-            lon = geocode_data["results"][0]["longitude"]
-            location_name = geocode_data["results"][0]["name"]
+            place = geo_results[0]
+            lat, lon = place["latitude"], place["longitude"]
+            location_name = place["name"]
 
-        params = {
-            "latitude": lat,
-            "longitude": lon,
-            "temperature_unit": "celsius"
-            if unit.lower() in ["c", "celsius"]
-            else "fahrenheit",
-        }
+            params: dict = {
+                "latitude": lat,
+                "longitude": lon,
+                "temperature_unit": temp_unit,
+            }
 
-        # Simple weather code to description
-        def weather_code_desc(code):
-            if code == 0:
-                return "Clear sky"
-            elif code <= 3:
-                return "Partly cloudy"
-            elif code <= 49:
-                return "Foggy"
-            elif code <= 69:
-                return "Rainy"
-            elif code <= 79:
-                return "Snowy"
-            else:
-                return "Stormy"
-
-        if days > 0:
-            # Get forecast
-            params["daily"] = "temperature_2m_max,temperature_2m_min,weather_code"
-            params["timezone"] = "auto"
-            params["forecast_days"] = min(days, 16)  # Max 16 days
-
-            async with httpx.AsyncClient() as weather_client:
-                weather_resp = await weather_client.get(
-                    "https://api.open-meteo.com/v1/forecast", params=params
+            if days > 0:
+                return await _get_forecast(
+                    client, params, location_name, is_celsius, days
                 )
-                weather_data = weather_resp.json()
-                daily = weather_data["daily"]
-                times = daily["time"]
-                max_temps = daily["temperature_2m_max"]
-                min_temps = daily["temperature_2m_min"]
-                codes = daily["weather_code"]
-
-                unit_symbol = "°C" if unit.lower() in ["c", "celsius"] else "°F"
-                result = f"Weather forecast for {location_name}:\n"
-                for i, (time, max_temp, min_temp, code) in enumerate(
-                    zip(times, max_temps, min_temps, codes, strict=False)
-                ):
-                    if i == 0:
-                        day = "Today"
-                    elif i == 1:
-                        day = "Tomorrow"
-                    else:
-                        day = time
-                    result += f"{day}: {weather_code_desc(code)}, High: {max_temp}{unit_symbol}, Low: {min_temp}{unit_symbol}\n"  # noqa: E501
-                return result.strip()
-        else:
-            # Get current weather
-            params["current_weather"] = "true"
-
-            async with httpx.AsyncClient() as weather_client:
-                weather_resp = await weather_client.get(
-                    "https://api.open-meteo.com/v1/forecast", params=params
-                )
-                weather_data = weather_resp.json()
-                current = weather_data["current_weather"]
-
-                temp = current["temperature"]
-                wind = current["windspeed"]
-                weather_desc = weather_code_desc(current.get("weathercode", 0))
-
-                return f"Current weather in {location_name}: {weather_desc}, {temp}°{unit[0].upper()}, Wind: {wind} km/h"  # noqa: E501
+            return await _get_current_weather(
+                client, params, location_name, unit
+            )
     except Exception as e:
-        return f"Error getting weather: {str(e)}"
+        return f"Error getting weather: {e}"
+
+
+async def _get_forecast(
+    client: httpx.AsyncClient,
+    params: dict,
+    location_name: str,
+    is_celsius: bool,
+    days: int,
+) -> str:
+    """Fetch multi-day forecast from Open-Meteo."""
+    params["daily"] = (
+        "temperature_2m_max,temperature_2m_min,weather_code"
+    )
+    params["timezone"] = "auto"
+    params["forecast_days"] = min(days, 16)
+
+    resp = await client.get(WEATHER_URL, params=params)
+    daily = resp.json()["daily"]
+    unit_symbol = "°C" if is_celsius else "°F"
+
+    lines = [f"Weather forecast for {location_name}:"]
+    for i, (date, hi, lo, code) in enumerate(
+        zip(
+            daily["time"],
+            daily["temperature_2m_max"],
+            daily["temperature_2m_min"],
+            daily["weather_code"],
+            strict=False,
+        )
+    ):
+        if i == 0:
+            day_label = "Today"
+        elif i == 1:
+            day_label = "Tomorrow"
+        else:
+            day_label = date
+
+        desc = _weather_code_desc(code)
+        lines.append(
+            f"{day_label}: {desc}, "
+            f"High: {hi}{unit_symbol}, Low: {lo}{unit_symbol}"
+        )
+    return "\n".join(lines)
+
+
+async def _get_current_weather(
+    client: httpx.AsyncClient,
+    params: dict,
+    location_name: str,
+    unit: str,
+) -> str:
+    """Fetch current weather from Open-Meteo."""
+    params["current_weather"] = "true"
+
+    resp = await client.get(WEATHER_URL, params=params)
+    current = resp.json()["current_weather"]
+    desc = _weather_code_desc(current.get("weathercode", 0))
+    temp = current["temperature"]
+    wind = current["windspeed"]
+
+    return (
+        f"Current weather in {location_name}: {desc}, "
+        f"{temp}°{unit[0].upper()}, Wind: {wind} km/h"
+    )
+
+_WEATHER_TOOL_DECL = {
+    "name": "get_weather",
+    "description": (
+        "Get the current weather or forecast for a location in"
+        " Fahrenheit. Use this when the user asks about weather."
+        " Set days=0 for current weather, or days=1-7 for forecast."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "location": {
+                "type": "string",
+                "description": (
+                    "The city name or location to get weather for"
+                    " (e.g., 'New York', 'London', 'Tokyo')"
+                ),
+            },
+            "unit": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"],
+                "description": "Temperature unit - defaults to fahrenheit",
+            },
+            "days": {
+                "type": "integer",
+                "description": (
+                    "Number of days to forecast"
+                    " (0 for current weather, 1-7 for multi-day forecast)"
+                ),
+            },
+        },
+        "required": ["location"],
+    },
+}
+
 
 class GeminiLive:
-    """
-    Handles the interaction with the Gemini Live API.
-    """
+    """Handles the interaction with the Gemini Live API."""
 
     def __init__(
         self, api_key, model, input_sample_rate, tools=None, tool_mapping=None
@@ -119,56 +193,29 @@ class GeminiLive:
         self.api_key = api_key
         self.model = model
         self.input_sample_rate = input_sample_rate
-        # Use v1beta as per the official example
         self.client = genai.Client(
             api_key=api_key, http_options={"api_version": "v1beta"}
         )
 
-        # Default weather tool
         default_tools = [
-            {
-                "function_declarations": [
-                    {
-                        "name": "get_weather",
-                        "description": "Get the current weather or forecast for a location in Fahrenheit. Use this when the user asks about weather. Set days=0 for current weather, or days=1-7 for forecast.",  # noqa: E501
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "location": {
-                                    "type": "string",
-                                    "description": "The city name or location to get weather for (e.g., 'New York', 'London', 'Tokyo')",  # noqa: E501
-                                },
-                                "unit": {
-                                    "type": "string",
-                                    "enum": ["celsius", "fahrenheit"],
-                                    "description": "Temperature unit - defaults to fahrenheit",  # noqa: E501
-                                },
-                                "days": {
-                                    "type": "integer",
-                                    "description": "Number of days to forecast (0 for current weather, 1-7 for multi-day forecast)",  # noqa: E501
-                                },
-                            },
-                            "required": ["location"],
-                        },
-                    }
-                ]
-            }
+            {"function_declarations": [_WEATHER_TOOL_DECL]}
         ]
 
-        # Merge provided tools into defaults (combine declarations or append groups)
         self.tools = default_tools
         if tools:
-            if isinstance(tools, list) and "function_declarations" in tools[0]:
+            if (
+                isinstance(tools, list)
+                and "function_declarations" in tools[0]
+            ):
                 self.tools[0]["function_declarations"].extend(
                     tools[0]["function_declarations"]
                 )
             else:
                 self.tools.extend(tools)
 
-        default_tool_mapping = {
-            "get_weather": get_weather,
-        }
-        self.tool_mapping = default_tool_mapping | (tool_mapping or {})
+        self.tool_mapping = {"get_weather": get_weather} | (
+            tool_mapping or {}
+        )
 
     async def start_session(  # noqa: C901
         self,
@@ -182,285 +229,289 @@ class GeminiLive:
             response_modalities=[types.Modality.AUDIO],
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name="Puck"
+                    )
                 )
             ),
             system_instruction=types.Content(
-                parts=[types.Part(text="You are a helpful desktop assistant.")]
+                parts=[
+                    types.Part(
+                        text="You are a helpful desktop assistant."
+                    )
+                ]
             ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
             tools=self.tools,
             context_window_compression=types.ContextWindowCompressionConfig(
                 trigger_tokens=25600,
-                sliding_window=types.SlidingWindow(target_tokens=12800),
+                sliding_window=types.SlidingWindow(
+                    target_tokens=12800
+                ),
             ),
         )
 
-        logger.info("=== Gemini Live with Tools (Weather) ===")
-        logger.info(
-            f"Tools loaded: {[t['function_declarations'][0]['name'] for t in self.tools]}"  # noqa: E501
-        )
-        logger.info(f"Connecting to model {self.model}...")
+        tool_names = [
+            t["function_declarations"][0]["name"]
+            for t in self.tools
+        ]
+        logger.info("=== Gemini Live with Tools ===")
+        logger.info("Tools loaded: %s", tool_names)
+        logger.info("Connecting to model %s...", self.model)
+
         session_active = True
         try:
             async with self.client.aio.live.connect(
                 model=self.model, config=config
             ) as session:
                 logger.info("Session connected.")
+                audio_mime = (
+                    f"audio/pcm;rate={self.input_sample_rate}"
+                )
 
-                async def send_audio():
+                async def _send_loop(queue, label, build_input):
+                    """Generic send loop for audio/video/text."""
                     try:
                         while True:
-                            chunk = await audio_input_queue.get()
-                            await session.send_realtime_input(
-                                audio=types.Blob(
-                                    data=chunk,
-                                    mime_type=f"audio/pcm;rate={self.input_sample_rate}",  # noqa: E501
+                            data = await queue.get()
+                            if label == "video":
+                                logger.info(
+                                    "Sending video frame: %d bytes",
+                                    len(data),
                                 )
-                            )
-                    except asyncio.CancelledError:
-                        logger.info("send_audio task cancelled")
-                    except Exception as e:
-                        logger.error(f"Error in send_audio: {e}")
-
-                async def send_video():
-                    try:
-                        while True:
-                            chunk = await video_input_queue.get()
-                            logger.info(
-                                f"Sending video frame to Gemini: {len(chunk)} bytes"
-                            )
                             await session.send_realtime_input(
-                                video=types.Blob(data=chunk, mime_type="image/jpeg")
+                                **build_input(data)
                             )
                     except asyncio.CancelledError:
-                        logger.info("send_video task cancelled")
+                        logger.info("%s send task cancelled", label)
                     except Exception as e:
-                        logger.error(f"Error in send_video: {e}")
+                        logger.error("Error in %s send: %s", label, e)
 
-                async def send_text():
-                    try:
-                        while True:
-                            text = await text_input_queue.get()
-                            logger.info(f"Sending text to Gemini: {text}")
-                            await session.send_realtime_input(text=text)
-                    except asyncio.CancelledError:
-                        logger.info("send_text task cancelled")
-                    except Exception as e:
-                        logger.error(f"Error in send_text: {e}")
+                event_queue: asyncio.Queue = asyncio.Queue()
 
-                event_queue = asyncio.Queue()
+                async def _handle_server_content(server_content):
+                    """Process server content from a Gemini response."""
+                    if server_content.model_turn:
+                        for part in server_content.model_turn.parts:
+                            if part.inline_data:
+                                await _call_maybe_async(
+                                    audio_output_callback,
+                                    part.inline_data.data,
+                                )
+                            if part.text and not part.text.startswith(
+                                "**"
+                            ):
+                                await event_queue.put(
+                                    {
+                                        "type": "text",
+                                        "content": part.text,
+                                    }
+                                )
 
-                async def receive_loop():  # noqa: C901
+                    transcription = (
+                        server_content.input_transcription
+                    )
+                    if transcription and transcription.text:
+                        await event_queue.put(
+                            {"type": "user", "text": transcription.text}
+                        )
+
+                    transcription = (
+                        server_content.output_transcription
+                    )
+                    if transcription and transcription.text:
+                        await event_queue.put(
+                            {
+                                "type": "gemini",
+                                "text": transcription.text,
+                            }
+                        )
+
+                    if server_content.turn_complete:
+                        logger.info("Turn complete, session continues")
+                        await event_queue.put(
+                            {"type": "turn_complete"}
+                        )
+
+                    if server_content.interrupted:
+                        if audio_interrupt_callback:
+                            await _call_maybe_async(
+                                audio_interrupt_callback
+                            )
+                        await event_queue.put({"type": "interrupted"})
+
+                async def _handle_tool_call(tool_call):
+                    """Execute tool calls and send responses."""
+                    function_responses = []
+                    for fc in tool_call.function_calls:
+                        args = fc.args or {}
+                        logger.info(
+                            "Tool call: %s(%s)", fc.name, args
+                        )
+
+                        if fc.name not in self.tool_mapping:
+                            continue
+
+                        try:
+                            result = await _call_maybe_async(
+                                self.tool_mapping[fc.name], **args
+                            )
+                        except Exception as e:
+                            logger.error(
+                                "Error executing tool %s: %s",
+                                fc.name,
+                                e,
+                            )
+                            logger.error(traceback.format_exc())
+                            result = f"Error: {e}"
+
+                        logger.info(
+                            "Tool %s result: %.200s...",
+                            fc.name,
+                            result,
+                        )
+                        function_responses.append(
+                            types.FunctionResponse(
+                                name=fc.name,
+                                id=fc.id,
+                                response={"result": result},
+                            )
+                        )
+                        await event_queue.put(
+                            {
+                                "type": "tool_call",
+                                "name": fc.name,
+                                "args": args,
+                                "result": result,
+                            }
+                        )
+
+                    if function_responses:
+                        await asyncio.sleep(0.05)
+                        await session.send_tool_response(
+                            function_responses=function_responses
+                        )
+
+                async def receive_loop():
                     try:
                         async for response in session.receive():
-                            logger.debug("Received response from Gemini")
-                            server_content = response.server_content
-                            tool_call = response.tool_call
-
-                            if server_content:
-                                if server_content.model_turn:
-                                    for part in server_content.model_turn.parts:
-                                        if part.inline_data:
-                                            if inspect.iscoroutinefunction(
-                                                audio_output_callback
-                                            ):
-                                                await audio_output_callback(
-                                                    part.inline_data.data
-                                                )
-                                            else:
-                                                audio_output_callback(
-                                                    part.inline_data.data
-                                                )
-                                        if part.text:
-                                            # Skip internal thinking traces (text starting with **)  # noqa: E501
-                                            if not part.text.startswith("**"):
-                                                await event_queue.put(
-                                                    {
-                                                        "type": "text",
-                                                        "content": part.text,
-                                                    }
-                                                )
-
-                                if (
-                                    server_content.input_transcription
-                                    and server_content.input_transcription.text
-                                ):
-                                    await event_queue.put(
-                                        {
-                                            "type": "user",
-                                            "text": server_content.input_transcription.text,  # noqa: E501
-                                        }
-                                    )
-
-                                if (
-                                    server_content.output_transcription
-                                    and server_content.output_transcription.text
-                                ):
-                                    await event_queue.put(
-                                        {
-                                            "type": "gemini",
-                                            "text": server_content.output_transcription.text,  # noqa: E501
-                                        }
-                                    )
-
-                                if server_content.turn_complete:
-                                    logger.info(
-                                        "Turn complete, but session continues waiting for more input"  # noqa: E501
-                                    )
-                                    await event_queue.put({"type": "turn_complete"})
-                                    # Don't break - keep the session alive for more input  # noqa: E501
-
-                                if server_content.interrupted:
-                                    if audio_interrupt_callback:
-                                        if inspect.iscoroutinefunction(
-                                            audio_interrupt_callback
-                                        ):
-                                            await audio_interrupt_callback()
-                                        else:
-                                            audio_interrupt_callback()
-                                    await event_queue.put({"type": "interrupted"})
-
-                            if tool_call:
-                                function_responses = []
-                                for fc in tool_call.function_calls:
-                                    func_name = fc.name
-                                    args = fc.args or {}
-                                    logger.info(f"Tool call: {func_name}({args})")
-
-                                    if func_name in self.tool_mapping:
-                                        try:
-                                            tool_func = self.tool_mapping[func_name]
-                                            logger.info(
-                                                f"Tool function is coroutine: {inspect.iscoroutinefunction(tool_func)}"  # noqa: E501
-                                            )
-                                            if inspect.iscoroutinefunction(tool_func):
-                                                logger.info(
-                                                    f"Awaiting tool {func_name}..."
-                                                )
-                                                result = await tool_func(**args)
-                                                logger.info(
-                                                    f"Tool {func_name} completed"
-                                                )
-                                            else:
-                                                logger.info(
-                                                    f"Running sync tool {func_name} in executor..."  # noqa: E501
-                                                )
-                                                loop = asyncio.get_running_loop()
-                                                result = await loop.run_in_executor(
-                                                    None, lambda tf=tool_func, a=args: tf(**a)  # noqa: E501
-                                                )
-                                        except Exception as e:
-                                            logger.error(
-                                                f"Error executing tool {func_name}: {e}"
-                                            )
-                                            logger.error(traceback.format_exc())
-                                            result = f"Error: {e}"
-
-                                        logger.info(
-                                            f"Tool {func_name} result: {result[:200]}..."  # noqa: E501
-                                        )
-
-                                        function_responses.append(
-                                            types.FunctionResponse(
-                                                name=func_name,
-                                                id=fc.id,
-                                                response={"result": result},
-                                            )
-                                        )
-                                        await event_queue.put(
-                                            {
-                                                "type": "tool_call",
-                                                "name": func_name,
-                                                "args": args,
-                                                "result": result,
-                                            }
-                                        )
-
-                                if function_responses:
-                                    # Small delay to avoid race conditions with Gemini API  # noqa: E501
-                                    await asyncio.sleep(0.05)
-                                    await session.send_tool_response(
-                                        function_responses=function_responses
-                                    )
-
+                            logger.debug(
+                                "Received response from Gemini"
+                            )
+                            if response.server_content:
+                                await _handle_server_content(
+                                    response.server_content
+                                )
+                            if response.tool_call:
+                                await _handle_tool_call(
+                                    response.tool_call
+                                )
                     except asyncio.CancelledError:
                         logger.info("Receive loop cancelled")
                         await event_queue.put(None)
                     except Exception as e:
-                        error_str = str(e)
-                        # Check for connection/API errors that indicate session is dead
-                        if (
-                            "1007" in error_str
-                            or "invalid frame" in error_str.lower()
-                            or "ConnectionClosed" in error_str
-                        ):
-                            logger.warning(f"Session connection closed or invalid: {e}")
-                            # Session is dead - signal this to stop the loop
-                            await event_queue.put(
-                                {"type": "session_dead", "error": error_str}
-                            )
-                        else:
-                            logger.error(f"Error in receive loop: {e}")
-                            logger.error(traceback.format_exc())
-                            await event_queue.put({"type": "error", "error": str(e)})
+                        await _handle_receive_error(e)
                     finally:
                         logger.info("Receive loop finished.")
                         await event_queue.put(None)
 
-                send_audio_task = asyncio.create_task(send_audio())
-                send_video_task = asyncio.create_task(send_video())
-                send_text_task = asyncio.create_task(send_text())
+                async def _handle_receive_error(error):
+                    """Classify receive errors as fatal or recoverable."""
+                    error_str = str(error)
+                    fatal_markers = (
+                        "1007",
+                        "invalid frame",
+                        "ConnectionClosed",
+                    )
+                    if any(
+                        m.lower() in error_str.lower()
+                        for m in fatal_markers
+                    ):
+                        logger.warning(
+                            "Session connection closed: %s", error
+                        )
+                        await event_queue.put(
+                            {
+                                "type": "session_dead",
+                                "error": error_str,
+                            }
+                        )
+                    else:
+                        logger.error(
+                            "Error in receive loop: %s", error
+                        )
+                        logger.error(traceback.format_exc())
+                        await event_queue.put(
+                            {"type": "error", "error": error_str}
+                        )
 
-                # Track if we're waiting for new input after a turn
-                waiting_for_input = False
+                send_tasks = [
+                    asyncio.create_task(
+                        _send_loop(
+                            audio_input_queue,
+                            "audio",
+                            lambda d: {
+                                "audio": types.Blob(
+                                    data=d, mime_type=audio_mime
+                                )
+                            },
+                        )
+                    ),
+                    asyncio.create_task(
+                        _send_loop(
+                            video_input_queue,
+                            "video",
+                            lambda d: {
+                                "video": types.Blob(
+                                    data=d, mime_type="image/jpeg"
+                                )
+                            },
+                        )
+                    ),
+                    asyncio.create_task(
+                        _send_loop(
+                            text_input_queue,
+                            "text",
+                            lambda d: {"text": d},
+                        )
+                    ),
+                ]
 
                 try:
                     while session_active:
-                        # Start receiving in a task
-                        receive_task = asyncio.create_task(receive_loop())
-                        waiting_for_input = False
+                        receive_task = asyncio.create_task(
+                            receive_loop()
+                        )
 
-                        # Process events from the queue
                         while session_active:
                             try:
                                 event = await event_queue.get()
                             except TimeoutError:
-                                # No events - wait for more input
-                                logger.debug("No events, waiting for more input...")
-                                if (
-                                    audio_input_queue.empty()
-                                    and video_input_queue.empty()
-                                    and text_input_queue.empty()
-                                ):
-                                    waiting_for_input = True
-                                    logger.info(
-                                        "No more input, waiting for user to speak..."
-                                    )
-                                    break
-                                continue
+                                logger.debug("No events, waiting...")
+                                break
 
                             if event is None:
-                                # Receive loop ended (e.g., after turn_complete)
                                 logger.info(
-                                    "Receive loop ended, waiting for more user input..."
+                                    "Receive loop ended, "
+                                    "waiting for more input..."
                                 )
-                                waiting_for_input = True
                                 break
 
-                            # Don't end session on turn_complete - keep waiting for more input  # noqa: E501
-                            if event.get("type") == "turn_complete":
+                            event_type = event.get("type")
+
+                            if event_type == "turn_complete":
                                 logger.info(
-                                    "Turn complete, waiting for more user input..."
+                                    "Turn complete, waiting for "
+                                    "more user input..."
                                 )
-                                waiting_for_input = True
-                                # Break to restart receive loop
                                 break
 
-                            # Handle session death (connection errors)
-                            if event.get("type") == "session_dead":
-                                logger.warning(f"Session died: {event.get('error')}")
+                            if event_type == "session_dead":
+                                logger.warning(
+                                    "Session died: %s",
+                                    event.get("error"),
+                                )
                                 session_active = False
                                 yield {
                                     "type": "error",
@@ -470,7 +521,6 @@ class GeminiLive:
 
                             yield event
 
-                        # Clean up receive task if still running
                         if not receive_task.done():
                             receive_task.cancel()
                             try:
@@ -478,24 +528,19 @@ class GeminiLive:
                             except asyncio.CancelledError:
                                 pass
 
-                        # If waiting for input, just wait - the send tasks will handle incoming data  # noqa: E501
-                        if waiting_for_input:
-                            # Wait a bit then check if there's new input
+                        if session_active:
                             await asyncio.sleep(0.5)
 
                 finally:
-                    send_audio_task.cancel()
-                    send_video_task.cancel()
-                    send_text_task.cancel()
+                    for task in send_tasks:
+                        task.cancel()
                     try:
                         receive_task.cancel()
                     except Exception:
                         pass
 
         except Exception as e:
-            logger.error(f"Failed to connect or session error: {e}")
+            logger.error("Failed to connect or session error: %s", e)
             logger.error(traceback.format_exc())
-            # Yield the error but don't end the session - wait for reconnect
             yield {"type": "error", "error": str(e)}
-            # Wait for a bit then try to continue
             await asyncio.sleep(1)

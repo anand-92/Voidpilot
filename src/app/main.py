@@ -8,7 +8,6 @@ from fastapi.staticfiles import StaticFiles
 from src.app.api.v1.router import api_router
 from src.app.core.config import settings
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
 
 app = FastAPI(
@@ -24,15 +23,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(api_router, prefix=settings.API_V1_STR)
+
 
 @app.get("/health", tags=["Health"])
-async def health_check():
+async def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
-app.include_router(api_router, prefix=settings.API_V1_STR)
-
 # Serve React frontend in production
-frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
-if frontend_dist.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="static")
+_frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if _frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=_frontend_dist, html=True), name="static")
