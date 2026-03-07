@@ -156,6 +156,7 @@ function BashConfirmPopup({
           <button
             type="button"
             onClick={onDeny}
+            aria-label="Deny command"
             className="ml-auto flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300"
           >
             <X className="h-4 w-4" />
@@ -352,6 +353,8 @@ export default function App() {
             <button
               type="button"
               onClick={() => setShowDisplayPicker(!showDisplayPicker)}
+              aria-expanded={showDisplayPicker}
+              aria-label="Select display source"
               className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-left transition-colors hover:bg-white/[0.06]"
             >
               <div className="flex items-center gap-3">
@@ -580,6 +583,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleSend}
+                aria-label="Send message"
                 disabled={!isConnected || !inputText.trim()}
                 className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-sky-600/80 text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-30"
               >
