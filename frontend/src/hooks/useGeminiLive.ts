@@ -277,7 +277,7 @@ export function useGeminiLive() {
               }
             } else if (data.name === 'run_bash') {
               // Don't execute immediately — show confirmation popup
-              setPendingBash({
+              syncPendingBash({
                 callId: data.call_id,
                 command: data.args.command,
                 timeout: data.args.timeout ?? 30,
