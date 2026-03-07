@@ -2,6 +2,8 @@ import {
   Activity,
   CheckCircle2,
   ChevronDown,
+  Eye,
+  EyeOff,
   MessageSquareText,
   Mic,
   MicOff,
@@ -209,6 +211,7 @@ export default function App() {
   const { isConnected, isStarting, messages, start, stop, sendText, pendingBash, confirmBash, denyBash } =
     useGeminiLive()
   const [inputText, setInputText] = useState('')
+  const [screenShareEnabled, setScreenShareEnabled] = useState(true)
   const [sources, setSources] = useState<DesktopCapturerSource[]>([])
   const [selectedSourceId, setSelectedSourceId] = useState('')
   const [shareMode, setShareMode] = useState<ShareMode>('full')
@@ -299,21 +302,27 @@ export default function App() {
   }
 
   const handleStart = async () => {
-    if (!selectedSource || !window.electronAPI?.setMidsceneDisplay) return
-    if (shareMode === 'region' && !selectedRegion) {
-      setSetupError('Choose a region before starting a partial display share.')
-      return
+    if (screenShareEnabled) {
+      if (!selectedSource || !window.electronAPI?.setMidsceneDisplay) return
+      if (shareMode === 'region' && !selectedRegion) {
+        setSetupError('Choose a region before starting a partial display share.')
+        return
+      }
     }
 
     setSetupError(null)
 
     try {
-      await window.electronAPI.setMidsceneDisplay(selectedSource.displayId)
-      await start({
-        source: selectedSource,
-        shareMode,
-        region: shareMode === 'region' ? selectedRegion ?? undefined : undefined,
-      })
+      if (screenShareEnabled && selectedSource && window.electronAPI?.setMidsceneDisplay) {
+        await window.electronAPI.setMidsceneDisplay(selectedSource.displayId)
+        await start({
+          source: selectedSource,
+          shareMode,
+          region: shareMode === 'region' ? selectedRegion ?? undefined : undefined,
+        })
+      } else {
+        await start()
+      }
     } catch (error) {
       setSetupError((error as Error).message)
     }
@@ -322,9 +331,8 @@ export default function App() {
   const canStart =
     !isConnected &&
     !isStarting &&
-    !!selectedSource &&
-    (shareMode === 'full' || Boolean(selectedRegion)) &&
-    !isPickingRegion
+    !isPickingRegion &&
+    (!screenShareEnabled || (!!selectedSource && (shareMode === 'full' || Boolean(selectedRegion))))
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#060818] text-slate-100">
@@ -347,6 +355,53 @@ export default function App() {
         {/* ─── Left: Controls ─── */}
         <div className="flex w-[380px] shrink-0 flex-col gap-0 overflow-y-auto border-r border-white/[0.06] bg-[#080c1c]/60">
 
+          {/* ── Screen sharing toggle ── */}
+          <section className="border-b border-white/[0.06] p-4">
+            <button
+              type="button"
+              onClick={() => !isConnected && setScreenShareEnabled(!screenShareEnabled)}
+              disabled={isConnected}
+              className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                screenShareEnabled
+                  ? 'border-sky-500/20 bg-sky-500/[0.07]'
+                  : 'border-white/[0.08] bg-white/[0.03]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                    screenShareEnabled ? 'bg-sky-500/15' : 'bg-white/[0.06]'
+                  }`}
+                >
+                  {screenShareEnabled ? (
+                    <Eye className="h-4 w-4 text-sky-400" />
+                  ) : (
+                    <EyeOff className="h-4 w-4 text-slate-500" />
+                  )}
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-white">Screen Sharing</div>
+                  <div className="mt-0.5 text-xs text-slate-500">
+                    {screenShareEnabled ? 'Gemini can see your screen' : 'Audio-only mode'}
+                  </div>
+                </div>
+              </div>
+              <div
+                className={`relative h-6 w-11 rounded-full transition-colors ${
+                  screenShareEnabled ? 'bg-sky-500' : 'bg-slate-700'
+                }`}
+              >
+                <div
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    screenShareEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                />
+              </div>
+            </button>
+          </section>
+
+          {screenShareEnabled && (
+            <>
           {/* ── Display selector ── */}
           <section className="border-b border-white/[0.06] p-4">
             <button
@@ -491,6 +546,8 @@ export default function App() {
               {selectedSource?.name ?? 'None'}
             </InfoCard>
           </section>
+            </>
+          )}
 
           {/* ── Error ── */}
           {setupError && (

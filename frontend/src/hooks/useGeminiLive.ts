@@ -217,14 +217,14 @@ export function useGeminiLive() {
   }, [])
 
   const start = useCallback(
-    async (captureConfig: CaptureConfig) => {
+    async (captureConfig?: CaptureConfig) => {
       setIsStarting(true)
       try {
         if (wsRef.current || streamRef.current) {
           stop()
         }
 
-        activeCaptureConfigRef.current = captureConfig
+        activeCaptureConfigRef.current = captureConfig ?? null
 
         const ws = new WebSocket(`${API_BASE_URL}/api/v1/live/live`)
 
@@ -381,104 +381,106 @@ export function useGeminiLive() {
         processorRef.current.connect(audioContextRef.current.destination)
         nextPlayTimeRef.current = 0
 
-        const videoStream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            mandatory: {
-              chromeMediaSource: 'desktop',
-              chromeMediaSourceId: captureConfig.source.id,
-            },
-          } as unknown as MediaTrackConstraints,
-        })
+        if (captureConfig) {
+          const videoStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              mandatory: {
+                chromeMediaSource: 'desktop',
+                chromeMediaSourceId: captureConfig.source.id,
+              },
+            } as unknown as MediaTrackConstraints,
+          })
 
-        videoStreamRef.current = videoStream
+          videoStreamRef.current = videoStream
 
-        const videoElement = document.createElement('video')
-        videoElement.srcObject = videoStream
-        await videoElement.play()
-        videoElementRef.current = videoElement
+          const videoElement = document.createElement('video')
+          videoElement.srcObject = videoStream
+          await videoElement.play()
+          videoElementRef.current = videoElement
 
-        const canvas = document.createElement('canvas')
+          const canvas = document.createElement('canvas')
 
-        frameIntervalRef.current = window.setInterval(() => {
-          if (!activeCaptureConfigRef.current) {
-            return
-          }
-          if (videoElement.readyState !== videoElement.HAVE_ENOUGH_DATA) {
-            return
-          }
+          frameIntervalRef.current = window.setInterval(() => {
+            if (!activeCaptureConfigRef.current) {
+              return
+            }
+            if (videoElement.readyState !== videoElement.HAVE_ENOUGH_DATA) {
+              return
+            }
 
-          const crop = getVideoCrop(
-            videoElement.videoWidth,
-            videoElement.videoHeight,
-            activeCaptureConfigRef.current.source,
-            activeCaptureConfigRef.current.shareMode === 'region'
-              ? activeCaptureConfigRef.current.region
-              : undefined,
-          )
-          const outputSize = getOutputSize(crop.width, crop.height)
+            const crop = getVideoCrop(
+              videoElement.videoWidth,
+              videoElement.videoHeight,
+              activeCaptureConfigRef.current.source,
+              activeCaptureConfigRef.current.shareMode === 'region'
+                ? activeCaptureConfigRef.current.region
+                : undefined,
+            )
+            const outputSize = getOutputSize(crop.width, crop.height)
 
-          canvas.width = outputSize.width
-          canvas.height = outputSize.height
-          const context = canvas.getContext('2d')
-          if (!context) {
-            return
-          }
+            canvas.width = outputSize.width
+            canvas.height = outputSize.height
+            const context = canvas.getContext('2d')
+            if (!context) {
+              return
+            }
 
-          context.drawImage(
-            videoElement,
-            crop.x,
-            crop.y,
-            crop.width,
-            crop.height,
-            0,
-            0,
-            outputSize.width,
-            outputSize.height,
-          )
+            context.drawImage(
+              videoElement,
+              crop.x,
+              crop.y,
+              crop.width,
+              crop.height,
+              0,
+              0,
+              outputSize.width,
+              outputSize.height,
+            )
 
-          const currentImageData = context.getImageData(0, 0, outputSize.width, outputSize.height)
-          let significantChange = true
+            const currentImageData = context.getImageData(0, 0, outputSize.width, outputSize.height)
+            let significantChange = true
 
-          if (
-            lastImageDataRef.current &&
-            lastImageDataRef.current.width === outputSize.width &&
-            lastImageDataRef.current.height === outputSize.height
-          ) {
-            const previousData = lastImageDataRef.current.data
-            const currentData = currentImageData.data
-            let diffCount = 0
-            const totalPixels = outputSize.width * outputSize.height
-            const threshold = 30
-            const checkedPixels = Math.floor(totalPixels / 4)
-            const skipThreshold = checkedPixels * 0.05
+            if (
+              lastImageDataRef.current &&
+              lastImageDataRef.current.width === outputSize.width &&
+              lastImageDataRef.current.height === outputSize.height
+            ) {
+              const previousData = lastImageDataRef.current.data
+              const currentData = currentImageData.data
+              let diffCount = 0
+              const totalPixels = outputSize.width * outputSize.height
+              const threshold = 30
+              const checkedPixels = Math.floor(totalPixels / 4)
+              const skipThreshold = checkedPixels * 0.05
 
-            for (let i = 0; i < currentData.length; i += 16) {
-              const redDiff = Math.abs(currentData[i] - previousData[i])
-              const greenDiff = Math.abs(currentData[i + 1] - previousData[i + 1])
-              const blueDiff = Math.abs(currentData[i + 2] - previousData[i + 2])
-              if (redDiff > threshold || greenDiff > threshold || blueDiff > threshold) {
-                diffCount += 1
+              for (let i = 0; i < currentData.length; i += 16) {
+                const redDiff = Math.abs(currentData[i] - previousData[i])
+                const greenDiff = Math.abs(currentData[i + 1] - previousData[i + 1])
+                const blueDiff = Math.abs(currentData[i + 2] - previousData[i + 2])
+                if (redDiff > threshold || greenDiff > threshold || blueDiff > threshold) {
+                  diffCount += 1
+                }
+              }
+
+              if (diffCount < skipThreshold) {
+                significantChange = false
               }
             }
 
-            if (diffCount < skipThreshold) {
-              significantChange = false
+            if (!significantChange) {
+              console.log('Frame skipped due to low delta')
+              return
             }
-          }
 
-          if (!significantChange) {
-            console.log('Frame skipped due to low delta')
-            return
-          }
-
-          lastImageDataRef.current = currentImageData
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            const base64Data = dataUrl.split(',')[1]
-            wsRef.current.send(JSON.stringify({ type: 'image', content: base64Data, mime_type: 'image/jpeg' }))
-          }
-        }, 1000)
+            lastImageDataRef.current = currentImageData
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.5)
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              const base64Data = dataUrl.split(',')[1]
+              wsRef.current.send(JSON.stringify({ type: 'image', content: base64Data, mime_type: 'image/jpeg' }))
+            }
+          }, 1000)
+        }
       } catch (error) {
         console.error(error)
         addMessage('Error: ' + (error as Error).message, 'system')
