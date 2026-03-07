@@ -11,7 +11,10 @@ from src.app.main import app
 
 @pytest.mark.asyncio
 async def test_walkthrough_accepts_connection():
-    """Test that the walkthrough WebSocket endpoint accepts connections."""
+    """Test that the walkthrough WebSocket endpoint accepts connections
+    and forwards text messages to the Gemini session."""
+    test_result = {"success": False, "error": None}
+
     mock_settings = MagicMock()
     mock_settings.GOOGLE_API_KEY = "test_key"
 
@@ -33,9 +36,18 @@ async def test_walkthrough_accepts_connection():
                 data = await asyncio.wait_for(
                     text_input_queue.get(), timeout=2.0
                 )
-                assert data == "hello voidpilot"
+                if data == "hello voidpilot":
+                    test_result["success"] = True
+                else:
+                    test_result["error"] = (
+                        f"Expected 'hello voidpilot', got {data!r}"
+                    )
             except TimeoutError:
-                pass
+                test_result["error"] = (
+                    "Timeout waiting for text_input_queue.get()"
+                )
+            except Exception as e:
+                test_result["error"] = str(e)
             yield {"type": "turn_complete"}
 
         mock_gemini_instance.start_session = mock_start_session
@@ -53,3 +65,5 @@ async def test_walkthrough_accepts_connection():
                 )
             )
             time.sleep(2.5)
+
+    assert test_result["success"] is True, test_result["error"]

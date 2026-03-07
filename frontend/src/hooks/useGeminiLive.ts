@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DesktopCapturerSource, RegionBounds } from '../electron-env'
+import {
+  API_BASE_URL,
+  AUDIO_BUFFER_SIZE,
+  MIC_TARGET_RATE,
+  calculateIntensity,
+  createAudioContext,
+  decodeHexAudio,
+  float32ToPcm16,
+  pcm16ToFloat32,
+  requestMicrophone,
+  resampleAudio,
+  scheduleAudioPlayback,
+} from '../utils/audio.ts'
 
 export type MessageRole = 'user' | 'gemini' | 'system' | 'thought' | 'user_voice' | 'gemini_voice'
 export interface Message {
@@ -13,50 +26,8 @@ export type CaptureConfig = {
   region?: RegionBounds
 }
 
-const isElectron = window.electronAPI !== undefined
-const wsProtocol = isElectron ? 'wss:' : window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-const wsHost = isElectron ? 'voidpilot-bcz5ilsa6q-ue.a.run.app' : window.location.host
-const API_BASE_URL = `${wsProtocol}//${wsHost}`
-const SAMPLE_RATE = 24000
-const AUDIO_BUFFER_SIZE = 512
 const MAX_FRAME_WIDTH = 1280
 const MAX_FRAME_HEIGHT = 720
-
-function pcm16ToFloat32(pcmData: Int16Array): Float32Array {
-  const floatData = new Float32Array(pcmData.length)
-  for (let i = 0; i < pcmData.length; i += 1) {
-    floatData[i] = pcmData[i] / 0x8000
-  }
-  return floatData
-}
-
-function float32ToPcm16(inputData: Float32Array): Int16Array {
-  const pcmData = new Int16Array(inputData.length)
-  for (let i = 0; i < inputData.length; i += 1) {
-    const sample = Math.max(-1, Math.min(1, inputData[i]))
-    pcmData[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff
-  }
-  return pcmData
-}
-
-function calculateIntensityFromFloat(data: Float32Array): number {
-  let maxValue = 0
-  for (let i = 0; i < data.length; i += 1) {
-    if (Math.abs(data[i]) > maxValue) maxValue = Math.abs(data[i])
-  }
-  return maxValue
-}
-
-function resampleAudio(inputData: Float32Array, sourceRate: number, targetRate: number): Float32Array {
-  if (sourceRate === targetRate) return inputData
-  const ratio = sourceRate / targetRate
-  const outputLength = Math.round(inputData.length / ratio)
-  const output = new Float32Array(outputLength)
-  for (let i = 0; i < outputLength; i += 1) {
-    output[i] = inputData[Math.round(i * ratio)]
-  }
-  return output
-}
 
 function getVideoCrop(
   videoWidth: number,
@@ -284,25 +255,11 @@ export function useGeminiLive() {
               })
             }
           } else if (data.type === 'audio') {
-            const hexMatch = data.content.match(/.{1,2}/g)
-            if (!hexMatch) return
-            const bytes = new Uint8Array(hexMatch.map((byte: string) => parseInt(byte, 16)))
-            const pcmData = new Int16Array(bytes.buffer)
-
-            if (pcmData.length > 0 && audioContextRef.current) {
+            const pcmData = decodeHexAudio(data.content)
+            if (pcmData && pcmData.length > 0 && audioContextRef.current) {
               const floatData = pcm16ToFloat32(pcmData)
-              intensityRef.current = calculateIntensityFromFloat(floatData)
-
-              const audioBuffer = audioContextRef.current.createBuffer(1, floatData.length, SAMPLE_RATE)
-              audioBuffer.getChannelData(0).set(floatData)
-              const bufferSource = audioContextRef.current.createBufferSource()
-              bufferSource.buffer = audioBuffer
-              bufferSource.connect(audioContextRef.current.destination)
-
-              const now = audioContextRef.current.currentTime
-              if (nextPlayTimeRef.current < now) nextPlayTimeRef.current = now + 0.05
-              bufferSource.start(nextPlayTimeRef.current)
-              nextPlayTimeRef.current += audioBuffer.duration
+              intensityRef.current = calculateIntensity(floatData)
+              scheduleAudioPlayback(audioContextRef.current, floatData, nextPlayTimeRef)
             }
           }
         }
@@ -331,35 +288,18 @@ export function useGeminiLive() {
           }
         })
 
-        audioContextRef.current = new (
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-        )()
-
-        try {
-          streamRef.current = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-              channelCount: 1,
-            },
-          })
-        } catch (audioError) {
-          console.warn('Failed to get standard audio stream, trying fallback without constraints:', audioError)
-          streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true })
-        }
+        audioContextRef.current = createAudioContext()
+        streamRef.current = await requestMicrophone()
 
         const source = audioContextRef.current.createMediaStreamSource(streamRef.current)
         processorRef.current = audioContextRef.current.createScriptProcessor(AUDIO_BUFFER_SIZE, 1, 1)
 
         const sourceRate = audioContextRef.current.sampleRate
-        const targetRate = 16000
         let lastInterruptTime = 0
         processorRef.current.onaudioprocess = (event) => {
           if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             const inputData = event.inputBuffer.getChannelData(0)
-            intensityRef.current = calculateIntensityFromFloat(inputData)
+            intensityRef.current = calculateIntensity(inputData)
 
             if (intensityRef.current > 0.4) {
               const now = Date.now()
@@ -371,7 +311,7 @@ export function useGeminiLive() {
               }
             }
 
-            const resampledData = resampleAudio(inputData, sourceRate, targetRate)
+            const resampledData = resampleAudio(inputData, sourceRate, MIC_TARGET_RATE)
             const pcmData = float32ToPcm16(resampledData)
             wsRef.current.send(pcmData.buffer)
           }

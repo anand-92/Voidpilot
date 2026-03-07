@@ -203,6 +203,18 @@ export default function LandingPage() {
     setActiveSection('index');
   }, [scrollTo, haptic]);
 
+  const openWalkthrough = useCallback(() => {
+    haptic.trigger('selection');
+    setIsWalkthroughOpen(true);
+  }, [haptic]);
+
+  const closeWalkthrough = useCallback(() => {
+    setIsWalkthroughOpen(false);
+  }, []);
+
+  const triggerSuccess = useCallback(() => haptic.trigger('success'), [haptic]);
+  const triggerLight = useCallback(() => haptic.trigger('light'), [haptic]);
+
   return (
     <main className="custom-cursor relative w-full h-screen overflow-hidden bg-[#060818] text-slate-100 font-sans selection:bg-sky-500/30">
       <div className="fixed top-0 left-0 w-full h-screen overflow-hidden">
@@ -245,27 +257,49 @@ export default function LandingPage() {
         <div className="absolute inset-0 w-full h-full z-10">
           <AnimatePresence mode="wait">
             {activeSection === 'index' && (
-              <IndexView key="index" onNavigate={navigateTo} onWalkthroughOpen={() => { haptic.trigger('selection'); setIsWalkthroughOpen(true); }} />
+              <IndexView key="index" onNavigate={navigateTo} onWalkthroughOpen={openWalkthrough} />
             )}
             {activeSection === 'hero' && (
-              <HeroSection key="hero" onLaunch={() => haptic.trigger('success')} />
+              <HeroSection key="hero" onLaunch={triggerSuccess} />
             )}
             {activeSection === 'capabilities' && (
-              <CapabilitiesSection key="capabilities" onCardTap={() => haptic.trigger('light')} />
+              <CapabilitiesSection key="capabilities" onCardTap={triggerLight} />
             )}
             {activeSection === 'hackathon' && (
-              <HackathonSection key="hackathon" onCardTap={() => haptic.trigger('light')} />
+              <HackathonSection key="hackathon" onCardTap={triggerLight} />
             )}
           </AnimatePresence>
         </div>
       </div>
 
-      <WalkthroughModal isOpen={isWalkthroughOpen} onClose={() => setIsWalkthroughOpen(false)} />
+      <WalkthroughModal isOpen={isWalkthroughOpen} onClose={closeWalkthrough} />
     </main>
   );
 }
 
-function IndexView({ onNavigate, onWalkthroughOpen }: { onNavigate: (section: SectionId) => void; onWalkthroughOpen: () => void }) {
+interface IndexViewProps {
+  onNavigate: (section: SectionId) => void;
+  onWalkthroughOpen: () => void;
+}
+
+const indexCards = [
+  ...sections.map((section) => ({
+    key: section.id,
+    label: section.label,
+    subtitle: section.subtitle,
+    icon: section.icon,
+    color: section.color,
+  })),
+  {
+    key: 'walkthrough' as const,
+    label: 'Talk to Voidpilot',
+    subtitle: 'Voice walkthrough agent',
+    icon: IconWalkthroughVoid,
+    color: 'violet',
+  },
+];
+
+function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
   return (
     <motion.div
       className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-4 md:px-6"
@@ -303,50 +337,32 @@ function IndexView({ onNavigate, onWalkthroughOpen }: { onNavigate: (section: Se
       </motion.p>
 
       <div className="mt-4 md:mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 max-w-4xl w-full pointer-events-auto">
-        {sections.map((section, i) => {
-          const colors = COLOR_MAP[section.color];
-          const Icon = section.icon;
+        {indexCards.map((card, i) => {
+          const colors = COLOR_MAP[card.color];
+          const Icon = card.icon;
+          const isSection = card.key !== 'walkthrough';
           return (
             <motion.button
-              key={section.id}
+              key={card.key}
               custom={i}
               variants={indexCardVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              onClick={() => onNavigate(section.id)}
-              className={`group relative rounded-2xl border ${colors.border} ${colors.bg} p-3 md:p-6 text-left backdrop-blur-xl transition-all duration-300 hover:scale-[1.04] hover:shadow-lg hover:${colors.glow} active:scale-[0.98] flex items-center gap-3 md:block`}
+              onClick={isSection ? () => onNavigate(card.key as SectionId) : onWalkthroughOpen}
+              className={`group relative rounded-2xl border ${colors.border} ${colors.bg} p-3 md:p-6 text-left backdrop-blur-xl transition-all duration-300 hover:scale-[1.04] hover:shadow-lg active:scale-[0.98] flex items-center gap-3 md:block`}
             >
               <div className={`shrink-0 inline-flex h-9 w-9 md:h-11 md:w-11 md:mb-3 items-center justify-center rounded-xl ${colors.bg} ${colors.text}`}>
                 <Icon className="h-5 w-5 md:h-6 md:w-6" />
               </div>
               <div className="min-w-0 flex-1 md:flex-none">
-                <h3 className="text-base md:text-lg font-bold text-white md:mb-1">{section.label}</h3>
-                <p className="text-xs md:text-sm text-slate-400 leading-relaxed">{section.subtitle}</p>
+                <h3 className="text-base md:text-lg font-bold text-white md:mb-1">{card.label}</h3>
+                <p className="text-xs md:text-sm text-slate-400 leading-relaxed">{card.subtitle}</p>
               </div>
               <GeminiArrowRight className={`shrink-0 h-5 w-5 ${colors.text} md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2 opacity-50 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-x-1 transition-all`} />
             </motion.button>
           );
         })}
-        <motion.button
-          key="walkthrough"
-          custom={sections.length}
-          variants={indexCardVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          onClick={onWalkthroughOpen}
-          className={`group relative rounded-2xl border ${COLOR_MAP.violet.border} ${COLOR_MAP.violet.bg} p-3 md:p-6 text-left backdrop-blur-xl transition-all duration-300 hover:scale-[1.04] hover:shadow-lg active:scale-[0.98] flex items-center gap-3 md:block`}
-        >
-          <div className={`shrink-0 inline-flex h-9 w-9 md:h-11 md:w-11 md:mb-3 items-center justify-center rounded-xl ${COLOR_MAP.violet.bg} ${COLOR_MAP.violet.text}`}>
-            <IconWalkthroughVoid className="h-5 w-5 md:h-6 md:w-6" />
-          </div>
-          <div className="min-w-0 flex-1 md:flex-none">
-            <h3 className="text-base md:text-lg font-bold text-white md:mb-1">Talk to Voidpilot</h3>
-            <p className="text-xs md:text-sm text-slate-400 leading-relaxed">Voice walkthrough agent</p>
-          </div>
-          <GeminiArrowRight className={`shrink-0 h-5 w-5 ${COLOR_MAP.violet.text} md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2 opacity-50 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-x-1 transition-all`} />
-        </motion.button>
       </div>
     </motion.div>
   );

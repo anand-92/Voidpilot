@@ -1,10 +1,31 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useWalkthroughAgent } from '../hooks/useWalkthroughAgent';
+import { useCallback, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useWalkthroughAgent } from '../hooks/useWalkthroughAgent.ts';
 
 interface WalkthroughModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+const VIOLET = 'rgba(139, 92, 246,';
+const LIGHT_VIOLET = 'rgba(196, 167, 255,';
+
+function StatusIndicator({ isConnected, isStarting }: { isConnected: boolean; isStarting: boolean }) {
+  if (isStarting) {
+    return <span className="text-violet-300">Connecting...</span>;
+  }
+  if (isConnected) {
+    return (
+      <>
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-500" />
+        </span>
+        <span className="text-violet-300">Live</span>
+      </>
+    );
+  }
+  return <span className="text-slate-500">Disconnected</span>;
 }
 
 export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalProps) {
@@ -17,7 +38,6 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
     onClose();
   }, [stop, onClose]);
 
-  // Start session when modal opens
   useEffect(() => {
     if (isOpen) {
       start().catch((err: unknown) => {
@@ -29,18 +49,16 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
     };
   }, [isOpen, start, stop]);
 
-  // Handle escape key
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape' && isOpen) {
         handleClose();
       }
-    };
+    }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleClose]);
 
-  // Canvas animation for audio-reactive orb
   useEffect(() => {
     if (!isOpen) return;
 
@@ -50,63 +68,60 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const resize = () => {
-      if (!canvas) return;
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    };
+    function resize() {
+      canvas!.width = canvas!.offsetWidth * window.devicePixelRatio;
+      canvas!.height = canvas!.offsetHeight * window.devicePixelRatio;
+      ctx!.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
     resize();
     window.addEventListener('resize', resize);
 
-    const draw = () => {
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
+    function draw() {
+      const w = canvas!.offsetWidth;
+      const h = canvas!.offsetHeight;
       const cx = w / 2;
       const cy = h / 2;
       const intensity = intensityRef.current;
 
-      ctx.clearRect(0, 0, w, h);
+      ctx!.clearRect(0, 0, w, h);
 
       const time = Date.now() / 1000;
-      const rings = 5;
+      const ringCount = 5;
 
-      for (let i = rings; i >= 0; i--) {
+      for (let i = ringCount; i >= 0; i--) {
+        const normalizedRing = i / ringCount;
         const baseRadius = 40 + i * 25;
-        const pulse = intensity * 30 * (1 - i / rings);
+        const pulse = intensity * 30 * (1 - normalizedRing);
         const breathe = Math.sin(time * 0.8 + i * 0.5) * 3;
         const radius = baseRadius + pulse + breathe;
+        const alpha = 0.08 + intensity * 0.15 * (1 - normalizedRing);
 
-        const alpha = 0.08 + intensity * 0.15 * (1 - i / rings);
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(139, 92, 246, ${alpha})`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        ctx!.beginPath();
+        ctx!.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx!.strokeStyle = `${VIOLET} ${alpha})`;
+        ctx!.lineWidth = 1.5;
+        ctx!.stroke();
       }
 
-      // Inner glow orb
       const orbRadius = 30 + intensity * 40;
-      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbRadius);
-      gradient.addColorStop(0, `rgba(139, 92, 246, ${0.3 + intensity * 0.4})`);
-      gradient.addColorStop(0.5, `rgba(139, 92, 246, ${0.1 + intensity * 0.2})`);
-      gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+      const gradient = ctx!.createRadialGradient(cx, cy, 0, cx, cy, orbRadius);
+      gradient.addColorStop(0, `${VIOLET} ${0.3 + intensity * 0.4})`);
+      gradient.addColorStop(0.5, `${VIOLET} ${0.1 + intensity * 0.2})`);
+      gradient.addColorStop(1, `${VIOLET} 0)`);
 
-      ctx.beginPath();
-      ctx.arc(cx, cy, orbRadius, 0, Math.PI * 2);
-      ctx.fillStyle = gradient;
-      ctx.fill();
+      ctx!.beginPath();
+      ctx!.arc(cx, cy, orbRadius, 0, Math.PI * 2);
+      ctx!.fillStyle = gradient;
+      ctx!.fill();
 
-      // Core dot
       const coreRadius = 4 + intensity * 8;
-      ctx.beginPath();
-      ctx.arc(cx, cy, coreRadius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(196, 167, 255, ${0.6 + intensity * 0.4})`;
-      ctx.fill();
+      ctx!.beginPath();
+      ctx!.arc(cx, cy, coreRadius, 0, Math.PI * 2);
+      ctx!.fillStyle = `${LIGHT_VIOLET} ${0.6 + intensity * 0.4})`;
+      ctx!.fill();
 
       animationRef.current = requestAnimationFrame(draw);
-    };
+    }
 
     animationRef.current = requestAnimationFrame(draw);
 
@@ -126,7 +141,6 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {/* Close button */}
           <button
             onClick={handleClose}
             className="absolute top-6 right-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white transition-all border border-white/10"
@@ -136,31 +150,15 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
             </svg>
           </button>
 
-          {/* Status */}
           <motion.div
             className="mb-8 flex items-center gap-2 text-sm font-medium"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            {isStarting && (
-              <span className="text-violet-300">Connecting...</span>
-            )}
-            {isConnected && !isStarting && (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-500" />
-                </span>
-                <span className="text-violet-300">Live</span>
-              </>
-            )}
-            {!isConnected && !isStarting && (
-              <span className="text-slate-500">Disconnected</span>
-            )}
+            <StatusIndicator isConnected={isConnected} isStarting={isStarting} />
           </motion.div>
 
-          {/* Audio-reactive canvas */}
           <motion.div
             className="relative w-80 h-80 md:w-96 md:h-96"
             initial={{ scale: 0.8, opacity: 0 }}
@@ -174,7 +172,6 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
             />
           </motion.div>
 
-          {/* Tagline */}
           <motion.p
             className="mt-6 text-sm text-slate-500 font-light"
             initial={{ opacity: 0 }}

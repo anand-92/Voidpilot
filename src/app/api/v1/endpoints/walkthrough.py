@@ -108,6 +108,7 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
 
     audio_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
     text_input_queue: asyncio.Queue[str] = asyncio.Queue()
+    video_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
 
     async def send_to_client(payload: dict) -> None:
         try:
@@ -124,7 +125,17 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
         system_prompt=SYSTEM_PROMPT,
     )
 
-    async def receive_from_client() -> None:  # noqa: C901
+    async def handle_client_message(payload: dict) -> bool:
+        """Handle a parsed JSON message. Returns True if handled."""
+        msg_type = payload.get("type")
+        if msg_type == "text":
+            content = payload.get("content", "")
+            logger.info("Walkthrough received text: %s", content)
+            await text_input_queue.put(content)
+            return True
+        return False
+
+    async def receive_from_client() -> None:
         try:
             while True:
                 message = await websocket.receive()
@@ -142,29 +153,17 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
                     payload = None
 
                 if isinstance(payload, dict):
-                    msg_type = payload.get("type")
-                    if msg_type == "text":
-                        content = payload.get("content", "")
-                        logger.info(
-                            "Walkthrough received text: %s", content
-                        )
-                        await text_input_queue.put(content)
-                        continue
-                    if msg_type == "tool_response":
-                        logger.info(
-                            "Walkthrough ignoring tool_response"
-                        )
+                    if await handle_client_message(payload):
                         continue
 
                 logger.info("Walkthrough received raw text: %s", text)
                 await text_input_queue.put(text)
-        except WebSocketDisconnect:
-            logger.info("Walkthrough client disconnected")
-        except RuntimeError as e:
-            if "disconnect" in str(e).lower():
-                logger.info(
-                    "Walkthrough receive after disconnect (normal)"
-                )
+        except (WebSocketDisconnect, RuntimeError) as e:
+            is_normal = isinstance(e, WebSocketDisconnect) or (
+                "disconnect" in str(e).lower()
+            )
+            if is_normal:
+                logger.info("Walkthrough client disconnected")
             else:
                 logger.error(
                     "RuntimeError in walkthrough receiver: %s", e
@@ -199,11 +198,8 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
     async def audio_interrupt_callback() -> None:
         await send_to_client({"type": "interrupted"})
 
-    # Dummy video queue — GeminiLive.start_session expects it
-    video_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
-
-    async def run_session() -> bool:
-        """Run one walkthrough Gemini session. Returns True to retry."""
+    async def run_session() -> None:
+        """Run one walkthrough Gemini session."""
         try:
             logger.info("Starting walkthrough Gemini session...")
             async for event in gemini_client.start_session(
@@ -219,20 +215,18 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
                     )
                     await forward_gemini_event(event)
             logger.info("Walkthrough session ended normally")
-            return True
         except Exception as e:
             logger.error("Walkthrough session error: %s", e)
             logger.error(traceback.format_exc())
             await send_to_client(
                 {"type": "error", "content": str(e)}
             )
-            return True
 
     receive_task = asyncio.create_task(receive_from_client())
     try:
         for attempt in range(MAX_RETRIES):
-            should_retry = await run_session()
-            if not should_retry or attempt >= MAX_RETRIES - 1:
+            await run_session()
+            if attempt >= MAX_RETRIES - 1:
                 break
             logger.info(
                 "Walkthrough session retry (%d/%d)...",
