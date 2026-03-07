@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
 import { GeminiArrowRight, GeminiArrowLeft } from '../components/icons/GeminiIcons';
 import { ThreeBackground } from '../components/ThreeBackground';
 import { CustomCursor } from '../components/CustomCursor';
+import { useWebHaptics } from 'web-haptics/react';
 import {
   GeminiLiveLogo,
   IconOverviewOrbit,
@@ -184,16 +185,19 @@ function useAnimatedScroll() {
 export default function LandingPage() {
   const [activeSection, setActiveSection] = useState<SectionId>('index');
   const { progress: scrollProgress, scrollTo } = useAnimatedScroll();
+  const haptic = useWebHaptics();
 
   const navigateTo = useCallback((section: SectionId) => {
+    haptic.trigger('selection');
     scrollTo(SECTION_SCROLL_MAP[section]);
     setActiveSection(section);
-  }, [scrollTo]);
+  }, [scrollTo, haptic]);
 
   const goBack = useCallback(() => {
+    haptic.trigger('light');
     scrollTo(0);
     setActiveSection('index');
-  }, [scrollTo]);
+  }, [scrollTo, haptic]);
 
   return (
     <main className="custom-cursor relative w-full h-screen overflow-hidden bg-[#060818] text-slate-100 font-sans selection:bg-sky-500/30">
@@ -240,13 +244,13 @@ export default function LandingPage() {
               <IndexView key="index" onNavigate={navigateTo} />
             )}
             {activeSection === 'hero' && (
-              <HeroSection key="hero" />
+              <HeroSection key="hero" onLaunch={() => haptic.trigger('success')} />
             )}
             {activeSection === 'capabilities' && (
-              <CapabilitiesSection key="capabilities" />
+              <CapabilitiesSection key="capabilities" onCardTap={() => haptic.trigger('light')} />
             )}
             {activeSection === 'hackathon' && (
-              <HackathonSection key="hackathon" />
+              <HackathonSection key="hackathon" onCardTap={() => haptic.trigger('light')} />
             )}
           </AnimatePresence>
         </div>
@@ -323,7 +327,7 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
   );
 }
 
-function HeroSection() {
+function HeroSection({ onLaunch }: { onLaunch: () => void }) {
   return (
     <motion.div
       className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-4 md:px-6 text-center"
@@ -347,6 +351,7 @@ function HeroSection() {
 
       <motion.a
         href="#/app"
+        onClick={onLaunch}
         className="mt-6 md:mt-10 inline-flex items-center gap-2 rounded-full bg-sky-500 px-6 md:px-8 py-2.5 md:py-3 text-sm md:text-base font-semibold text-slate-950 hover:bg-sky-400 transition-all pointer-events-auto"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.97 }}
@@ -357,7 +362,7 @@ function HeroSection() {
   );
 }
 
-function CapabilitiesSection() {
+function CapabilitiesSection({ onCardTap }: { onCardTap: () => void }) {
   return (
     <motion.div
       className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-4 md:px-6 w-full"
@@ -381,7 +386,7 @@ function CapabilitiesSection() {
               transition={{ delay: 0.2 + i * 0.1, duration: 0.5, ease: EASE }}
             >
               <EnhancedTiltCard className="pointer-events-auto">
-                <article className="group relative overflow-hidden rounded-2xl md:rounded-3xl border border-white/10 bg-slate-900/40 p-4 md:p-8 backdrop-blur-xl transition-all duration-300 hover:border-sky-500/50 hover:bg-slate-900/60 shadow-[0_0_30px_-10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_40px_-10px_rgba(14,165,233,0.4)] h-full flex items-start gap-3 md:block">
+                <article onTouchStart={onCardTap} className="group relative overflow-hidden rounded-2xl md:rounded-3xl border border-white/10 bg-slate-900/40 p-4 md:p-8 backdrop-blur-xl transition-all duration-300 hover:border-sky-500/50 hover:bg-slate-900/60 shadow-[0_0_30px_-10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_40px_-10px_rgba(14,165,233,0.4)] h-full flex items-start gap-3 md:block">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   <div className="shrink-0 inline-flex h-10 w-10 md:h-14 md:w-14 md:mb-6 items-center justify-center rounded-xl md:rounded-2xl bg-sky-500/10 text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-colors duration-300">
                     <Icon className="h-5 w-5 md:h-7 md:w-7" />
@@ -400,7 +405,7 @@ function CapabilitiesSection() {
   );
 }
 
-function HackathonSection() {
+function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
   return (
     <motion.div
       className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-6 w-full"
@@ -439,7 +444,7 @@ function HackathonSection() {
               const colors = HACKATHON_COLOR_MAP[color];
               return (
                 <EnhancedTiltCard key={title}>
-                  <div className={`group rounded-2xl border border-white/5 bg-white/[0.02] p-6 ${colors.hover} ${colors.hoverBorder} transition-all backdrop-blur-sm h-full`}>
+                  <div onTouchStart={onCardTap} className={`group rounded-2xl border border-white/5 bg-white/[0.02] p-6 ${colors.hover} ${colors.hoverBorder} transition-all backdrop-blur-sm h-full`}>
                     <div className={`mb-4 ${colors.text} ${colors.bg} w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
                       <Icon className="h-6 w-6" />
                     </div>
