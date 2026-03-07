@@ -8,6 +8,7 @@ import uuid
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.app.core.config import settings
+from src.app.services.bash_agent import run_bash_agent
 from src.app.services.gemini_audio import GeminiLive
 
 logger = logging.getLogger(__name__)
@@ -46,61 +47,40 @@ MIDSCENE_TOOL_DEF = {
     ]
 }
 
-BASH_TOOL_DEF = {
+BASH_AGENT_TOOL_DEF = {
     "function_declarations": [
         {
-            "name": "run_bash",
+            "name": "bash_agent",
             "description": (
-                "Execute a bash command on the user's local machine and"
-                " return stdout/stderr. Use this to run shell commands,"
-                " scripts, file operations, system queries, or any CLI"
-                " tool. The command runs on the user's actual computer."
-                " IMPORTANT: When you call this tool, a confirmation"
-                " popup will appear on the user's screen showing the"
-                " command. The command will NOT run until the user"
-                " approves it. After calling this tool, tell the user"
-                " what command you're about to run and ask them to"
-                " confirm — they can either click the Allow button in"
-                " the popup, or say 'yes' / 'confirm' / 'go ahead'"
-                " by voice and you should then call confirm_bash to"
-                " approve it. If the user says 'no' / 'cancel' /"
-                " 'deny', call confirm_bash with approved=false."
-                " Examples: 'ls -la ~/Desktop', 'cat ~/.zshrc',"
-                " 'touch ~/Desktop/hello.txt', 'open -a Safari'."
+                "Delegate a bash/shell task to a specialized agent"
+                " powered by Gemini 3 Flash. It will plan and"
+                " execute commands to accomplish the task. Each"
+                " command requires user confirmation before running."
+                " Describe WHAT you want done, not HOW."
+                " Examples: 'List all Python files in home',"
+                " 'Find the 5 largest files on Desktop',"
+                " 'Check which version of node is installed'."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "command": {
+                    "task": {
                         "type": "string",
                         "description": (
-                            "The bash command to execute"
-                            " (e.g., 'ls -la /tmp', 'echo hello',"
-                            " 'cat file.txt', 'mkdir ~/Desktop/test')"
+                            "Natural language description of the"
+                            " bash task to accomplish"
                         ),
-                    },
-                    "timeout": {
-                        "type": "integer",
-                        "description": (
-                            "Maximum seconds to wait for the command"
-                            " to finish. Defaults to 30. Use higher"
-                            " values for long-running commands."
-                        ),
-                    },
+                    }
                 },
-                "required": ["command"],
+                "required": ["task"],
             },
         },
         {
             "name": "confirm_bash",
             "description": (
-                "Approve or deny a pending bash command that is"
-                " waiting for user confirmation in the popup."
-                " Call this when the user verbally says 'yes',"
-                " 'confirm', 'go ahead', 'do it', 'run it' to"
-                " approve, or 'no', 'cancel', 'deny', 'stop' to"
-                " reject the pending command. Only call this when"
-                " there is a bash command waiting for confirmation."
+                "Approve or deny a pending bash command. Call when"
+                " user says 'yes'/'go ahead' to approve, or"
+                " 'no'/'cancel' to deny."
             ),
             "parameters": {
                 "type": "object",
@@ -108,8 +88,7 @@ BASH_TOOL_DEF = {
                     "approved": {
                         "type": "boolean",
                         "description": (
-                            "true if the user confirmed/approved"
-                            " the command, false if they denied it"
+                            "true=approved, false=denied"
                         ),
                     },
                 },
@@ -172,15 +151,14 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
         future = asyncio.get_running_loop().create_future()
         pending_tool_calls[call_id] = future
 
-        # Give extra time: user needs to see popup + confirm + command runs
-        effective_timeout = max(
-            TOOL_CALL_TIMEOUT * 2, float(timeout) + 120
-        )
+        # Extra time: user needs to see popup + confirm + command runs
+        effective_timeout = max(TOOL_CALL_TIMEOUT * 2, timeout + 120)
 
         try:
             logger.info(
-                f"Sending run_bash {call_id} to client for confirmation: "
-                f"{command}"
+                "Sending run_bash %s to client for confirmation: %s",
+                call_id,
+                command,
             )
             await websocket.send_json(
                 {
@@ -194,25 +172,27 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
             result = await asyncio.wait_for(
                 future, timeout=effective_timeout
             )
-            logger.info(f"run_bash result for {call_id}: {result}")
+            logger.info("run_bash result for %s: %s", call_id, result)
             return str(result)
         except TimeoutError:
             logger.error(
-                f"run_bash {call_id} timed out after {effective_timeout}s"
+                "run_bash %s timed out after %ss",
+                call_id,
+                effective_timeout,
             )
             return (
                 "Error: Command confirmation timed out — "
                 "user did not approve or deny in time"
             )
         except Exception as e:
-            logger.error(f"run_bash {call_id} failed: {e}")
+            logger.error("run_bash %s failed: %s", call_id, e)
             return f"Error: {e}"
         finally:
             pending_tool_calls.pop(call_id, None)
 
     async def confirm_bash(approved: bool) -> str:
         """Forward voice-based confirm/deny to the frontend."""
-        logger.info(f"confirm_bash called: approved={approved}")
+        logger.info("confirm_bash called: approved=%s", approved)
         try:
             await websocket.send_json(
                 {
@@ -220,23 +200,28 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
                     "approved": approved,
                 }
             )
-            return (
-                "Confirmation sent to the user's app."
-                if approved
-                else "Denial sent — the command will not run."
-            )
+            if approved:
+                return "Confirmation sent to the user's app."
+            return "Denial sent — the command will not run."
         except Exception as e:
-            logger.error(f"confirm_bash failed: {e}")
+            logger.error("confirm_bash failed: %s", e)
             return f"Error sending confirmation: {e}"
+
+    async def handle_bash_agent(task: str) -> str:
+        return await run_bash_agent(
+            task=task,
+            api_key=api_key,
+            execute_bash_fn=run_bash,
+        )
 
     gemini_client = GeminiLive(
         api_key=api_key,
         model=MODEL,
         input_sample_rate=16000,
-        tools=[MIDSCENE_TOOL_DEF, BASH_TOOL_DEF],
+        tools=[MIDSCENE_TOOL_DEF, BASH_AGENT_TOOL_DEF],
         tool_mapping={
             "execute_midscene_action": execute_midscene_action,
-            "run_bash": run_bash,
+            "bash_agent": handle_bash_agent,
             "confirm_bash": confirm_bash,
         },
     )
