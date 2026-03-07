@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from src.app.api.v1.endpoints import live
+from src.app.api.v1.endpoints import live, walkthrough
 
 api_router = APIRouter()
 
@@ -11,3 +11,6 @@ async def hello():
 
 
 api_router.include_router(live.router, prefix="/live", tags=["Gemini Live"])
+api_router.include_router(
+    walkthrough.router, prefix="/live", tags=["Walkthrough"]
+)

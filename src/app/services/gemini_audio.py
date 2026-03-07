@@ -188,11 +188,20 @@ class GeminiLive:
     """Handles the interaction with the Gemini Live API."""
 
     def __init__(
-        self, api_key, model, input_sample_rate, tools=None, tool_mapping=None
+        self,
+        api_key,
+        model,
+        input_sample_rate,
+        tools=None,
+        tool_mapping=None,
+        system_prompt=None,
     ):
         self.api_key = api_key
         self.model = model
         self.input_sample_rate = input_sample_rate
+        self.system_prompt = (
+            system_prompt or "You are a helpful desktop assistant."
+        )
         self.client = genai.Client(
             api_key=api_key, http_options={"api_version": "v1beta"}
         )
@@ -236,11 +245,7 @@ class GeminiLive:
                 )
             ),
             system_instruction=types.Content(
-                parts=[
-                    types.Part(
-                        text="You are a helpful desktop assistant."
-                    )
-                ]
+                parts=[types.Part(text=self.system_prompt)]
             ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),

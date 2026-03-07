@@ -590,6 +590,54 @@ export function CustomIconTrophy(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconWalkthroughVoid(props: SVGProps<SVGSVGElement>) {
+  return (
+    <motion.svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={props.className}
+    >
+      {/* Outer ring */}
+      <motion.circle
+        cx="12" cy="12" r="10"
+        strokeDasharray="4 4"
+        strokeOpacity="0.3"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+        style={{ originX: "12px", originY: "12px" }}
+      />
+      {/* Middle ring */}
+      <motion.circle
+        cx="12" cy="12" r="6"
+        strokeDasharray="3 3"
+        animate={{ rotate: -360 }}
+        transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+        style={{ originX: "12px", originY: "12px" }}
+      />
+      {/* Inner pulse */}
+      <motion.circle
+        cx="12" cy="12" r="3"
+        fill="currentColor"
+        fillOpacity="0.15"
+        animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+      />
+      {/* Core dot */}
+      <motion.circle
+        cx="12" cy="12" r="1.5"
+        fill="currentColor"
+        animate={{ opacity: [0.7, 1, 0.7] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+      />
+    </motion.svg>
+  );
+}
+
 export function CustomIconCode(props: SVGProps<SVGSVGElement>) {
   return (
     <motion.svg

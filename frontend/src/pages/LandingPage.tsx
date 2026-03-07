@@ -15,10 +15,12 @@ import {
   IconLiveAgent,
   IconStoryteller,
   IconUINavigator,
+  IconWalkthroughVoid,
   CustomIconDownload,
   CustomIconCode,
   CustomIconTrophy,
 } from '../components/icons/CustomIcons';
+import WalkthroughModal from '../components/WalkthroughModal';
 
 const capabilities = [
   {
@@ -57,6 +59,7 @@ const COLOR_MAP: Record<string, { bg: string; border: string; text: string; glow
   sky: { bg: 'bg-sky-500/10', border: 'border-sky-500/30', text: 'text-sky-400', glow: 'shadow-sky-500/20' },
   indigo: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/30', text: 'text-indigo-400', glow: 'shadow-indigo-500/20' },
   emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', glow: 'shadow-emerald-500/20' },
+  violet: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-400', glow: 'shadow-violet-500/20' },
 };
 
 function PulseDot() {
@@ -184,6 +187,7 @@ function useAnimatedScroll() {
 
 export default function LandingPage() {
   const [activeSection, setActiveSection] = useState<SectionId>('index');
+  const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
   const { progress: scrollProgress, scrollTo } = useAnimatedScroll();
   const haptic = useWebHaptics();
 
@@ -241,7 +245,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 w-full h-full z-10">
           <AnimatePresence mode="wait">
             {activeSection === 'index' && (
-              <IndexView key="index" onNavigate={navigateTo} />
+              <IndexView key="index" onNavigate={navigateTo} onWalkthroughOpen={() => { haptic.trigger('selection'); setIsWalkthroughOpen(true); }} />
             )}
             {activeSection === 'hero' && (
               <HeroSection key="hero" onLaunch={() => haptic.trigger('success')} />
@@ -255,11 +259,13 @@ export default function LandingPage() {
           </AnimatePresence>
         </div>
       </div>
+
+      <WalkthroughModal isOpen={isWalkthroughOpen} onClose={() => setIsWalkthroughOpen(false)} />
     </main>
   );
 }
 
-function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void }) {
+function IndexView({ onNavigate, onWalkthroughOpen }: { onNavigate: (section: SectionId) => void; onWalkthroughOpen: () => void }) {
   return (
     <motion.div
       className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-4 md:px-6"
@@ -296,7 +302,7 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
         Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
       </motion.p>
 
-      <div className="mt-4 md:mt-10 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5 max-w-3xl w-full pointer-events-auto">
+      <div className="mt-4 md:mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 max-w-4xl w-full pointer-events-auto">
         {sections.map((section, i) => {
           const colors = COLOR_MAP[section.color];
           const Icon = section.icon;
@@ -322,6 +328,25 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
             </motion.button>
           );
         })}
+        <motion.button
+          key="walkthrough"
+          custom={sections.length}
+          variants={indexCardVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          onClick={onWalkthroughOpen}
+          className={`group relative rounded-2xl border ${COLOR_MAP.violet.border} ${COLOR_MAP.violet.bg} p-3 md:p-6 text-left backdrop-blur-xl transition-all duration-300 hover:scale-[1.04] hover:shadow-lg active:scale-[0.98] flex items-center gap-3 md:block`}
+        >
+          <div className={`shrink-0 inline-flex h-9 w-9 md:h-11 md:w-11 md:mb-3 items-center justify-center rounded-xl ${COLOR_MAP.violet.bg} ${COLOR_MAP.violet.text}`}>
+            <IconWalkthroughVoid className="h-5 w-5 md:h-6 md:w-6" />
+          </div>
+          <div className="min-w-0 flex-1 md:flex-none">
+            <h3 className="text-base md:text-lg font-bold text-white md:mb-1">Talk to Voidpilot</h3>
+            <p className="text-xs md:text-sm text-slate-400 leading-relaxed">Voice walkthrough agent</p>
+          </div>
+          <GeminiArrowRight className={`shrink-0 h-5 w-5 ${COLOR_MAP.violet.text} md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2 opacity-50 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-x-1 transition-all`} />
+        </motion.button>
       </div>
     </motion.div>
   );
