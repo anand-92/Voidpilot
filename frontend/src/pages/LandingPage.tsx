@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
-import { ChevronRight, ArrowLeft } from 'lucide-react';
+import { GeminiArrowRight, GeminiArrowLeft } from '../components/icons/GeminiIcons';
 import { ThreeBackground } from '../components/ThreeBackground';
 import { CustomCursor } from '../components/CustomCursor';
 import {
@@ -210,7 +210,7 @@ export default function LandingPage() {
                     onClick={goBack}
                     className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-white/20 hover:text-white transition-all border border-white/5 pointer-events-auto"
                   >
-                    <ArrowLeft className="h-4 w-4" />
+                    <GeminiArrowLeft className="h-4 w-4" />
                     Back
                   </motion.button>
                 )}
@@ -307,7 +307,7 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
               </div>
               <h3 className="text-lg font-bold text-white mb-1">{section.label}</h3>
               <p className="text-sm text-slate-400 leading-relaxed">{section.subtitle}</p>
-              <ChevronRight className={`absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 ${colors.text} opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all`} />
+              <GeminiArrowRight className={`absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 ${colors.text} opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all`} />
             </motion.button>
           );
         })}
@@ -344,7 +344,7 @@ function HeroSection() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.97 }}
       >
-        Launch App <ChevronRight className="h-5 w-5" />
+        Launch App <GeminiArrowRight className="h-5 w-5" />
       </motion.a>
     </motion.div>
   );
@@ -417,7 +417,7 @@ function HackathonSection() {
             </div>
             <div className="flex flex-col gap-3">
               <a href="https://geminiliveagentchallenge.devpost.com" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 text-sky-400 font-semibold hover:text-sky-300 hover:gap-3 transition-all bg-sky-500/10 px-6 py-3 rounded-full border border-sky-500/20 w-full md:w-auto">
-                Register on Devpost <ChevronRight className="h-4 w-4" />
+                Register on Devpost <GeminiArrowRight className="h-4 w-4" />
               </a>
               <a href="https://github.com/anand-92/gemini-live-3d-bridge" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 text-indigo-400 font-semibold hover:bg-white/5 transition-all px-6 py-3 rounded-full border border-white/10 w-full md:w-auto">
                 View Source Code

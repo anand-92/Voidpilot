@@ -1,24 +1,24 @@
 import {
-  Activity,
-  CheckCircle2,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  MessageSquareText,
-  Mic,
-  MicOff,
-  Monitor,
-  MoveDiagonal,
-  Radio,
-  ScanSearch,
-  Send,
-  ShieldAlert,
-  Sparkles,
-  Terminal,
-  WandSparkles,
-  X,
-  Zap,
-} from 'lucide-react'
+  GeminiBolt,
+  GeminiBroadcast,
+  GeminiCaret,
+  GeminiChat,
+  GeminiCheck,
+  GeminiClose,
+  GeminiCrop,
+  GeminiDisplay,
+  GeminiIrisClosed,
+  GeminiIrisOpen,
+  GeminiMicOff,
+  GeminiMicOn,
+  GeminiPulse,
+  GeminiReticle,
+  GeminiSend,
+  GeminiShield,
+  GeminiStar,
+  GeminiTerminal,
+  GeminiWand,
+} from './components/icons/GeminiIcons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGeminiLive } from './hooks/useGeminiLive'
 import type { PendingBashRequest } from './hooks/useGeminiLive'
@@ -147,7 +147,7 @@ function BashConfirmPopup({
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-white/[0.06] bg-amber-500/[0.06] px-5 py-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
-            <ShieldAlert className="h-5 w-5 text-amber-400" />
+            <GeminiShield className="h-5 w-5 text-amber-400" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-white">Command Confirmation</h3>
@@ -160,14 +160,14 @@ function BashConfirmPopup({
             onClick={onDeny}
             className="ml-auto flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300"
           >
-            <X className="h-4 w-4" />
+            <GeminiClose className="h-4 w-4" />
           </button>
         </div>
 
         {/* Command display */}
         <div className="px-5 py-4">
           <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-            <Terminal className="h-3 w-3 text-sky-400" />
+            <GeminiTerminal className="h-3 w-3 text-sky-400" />
             Command
           </div>
           <div className="mt-2 rounded-xl border border-white/[0.08] bg-[#060818] px-4 py-3">
@@ -190,7 +190,7 @@ function BashConfirmPopup({
             onClick={onDeny}
             className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-300 transition-all hover:bg-white/[0.06]"
           >
-            <X className="h-4 w-4" />
+            <GeminiClose className="h-4 w-4" />
             Deny
           </button>
           <button
@@ -198,7 +198,7 @@ function BashConfirmPopup({
             onClick={onAllow}
             className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:brightness-110"
           >
-            <CheckCircle2 className="h-4 w-4" />
+            <GeminiCheck className="h-4 w-4" />
             Allow
           </button>
         </div>
@@ -211,7 +211,7 @@ export default function App() {
   const { isConnected, isStarting, messages, start, stop, sendText, pendingBash, confirmBash, denyBash } =
     useGeminiLive()
   const [inputText, setInputText] = useState('')
-  const [screenShareEnabled, setScreenShareEnabled] = useState(true)
+  const [screenShareEnabled, setScreenShareEnabled] = useState(false)
   const [sources, setSources] = useState<DesktopCapturerSource[]>([])
   const [selectedSourceId, setSelectedSourceId] = useState('')
   const [shareMode, setShareMode] = useState<ShareMode>('full')
@@ -227,8 +227,16 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Load displays on mount
+  // Load displays when screen sharing is enabled
   useEffect(() => {
+    if (!screenShareEnabled) {
+      setSources([])
+      setSelectedSourceId('')
+      setIsLoadingSources(true)
+      setSetupError(null)
+      return
+    }
+
     let isMounted = true
 
     async function loadSources() {
@@ -261,7 +269,7 @@ export default function App() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [screenShareEnabled])
 
   const selectedSource = useMemo(
     () => sources.find((source) => source.id === selectedSourceId) ?? null,
@@ -340,7 +348,7 @@ export default function App() {
       <header className="flex shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#0a0e1f]/80 px-5 py-3 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600">
-            <Sparkles className="h-4 w-4 text-white" />
+            <GeminiStar className="h-4 w-4 text-white" />
           </div>
           <span className="text-sm font-semibold tracking-tight text-white">
             Gemini Desktop <span className="text-sky-400">Bridge</span>
@@ -374,9 +382,9 @@ export default function App() {
                   }`}
                 >
                   {screenShareEnabled ? (
-                    <Eye className="h-4 w-4 text-sky-400" />
+                    <GeminiIrisOpen className="h-4 w-4 text-sky-400" />
                   ) : (
-                    <EyeOff className="h-4 w-4 text-slate-500" />
+                    <GeminiIrisClosed className="h-4 w-4 text-slate-500" />
                   )}
                 </div>
                 <div>
@@ -411,7 +419,7 @@ export default function App() {
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10">
-                  <Monitor className="h-4 w-4 text-sky-400" />
+                  <GeminiDisplay className="h-4 w-4 text-sky-400" />
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -424,7 +432,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              <ChevronDown
+              <GeminiCaret
                 className={`h-4 w-4 text-slate-500 transition-transform ${showDisplayPicker ? 'rotate-180' : ''}`}
               />
             </button>
@@ -476,13 +484,13 @@ export default function App() {
           {/* ── Share mode ── */}
           <section className="border-b border-white/[0.06] p-4">
             <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-              <ScanSearch className="h-3.5 w-3.5 text-orange-400" />
+              <GeminiReticle className="h-3.5 w-3.5 text-orange-400" />
               Capture mode
             </div>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { mode: 'full' as ShareMode, label: 'Full screen', icon: Monitor },
-                { mode: 'region' as ShareMode, label: 'Region', icon: MoveDiagonal },
+                { mode: 'full' as ShareMode, label: 'Full screen', icon: GeminiDisplay },
+                { mode: 'region' as ShareMode, label: 'Region', icon: GeminiCrop },
               ].map(({ mode, label, icon: Icon }) => {
                 const isActive = shareMode === mode
                 return (
@@ -517,7 +525,7 @@ export default function App() {
                     disabled={!selectedSource || isPickingRegion || isConnected}
                     className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-sky-500/20 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <WandSparkles className="h-3.5 w-3.5" />
+                    <GeminiWand className="h-3.5 w-3.5" />
                     {isPickingRegion ? 'Picking…' : selectedRegion ? 'Re-pick' : 'Select area'}
                   </button>
                 </div>
@@ -526,13 +534,13 @@ export default function App() {
           </section>
 
           <section className="flex flex-col gap-3 p-4">
-            <InfoCard icon={Activity} iconColor="text-sky-400" title="Display info">
+            <InfoCard icon={GeminiPulse} iconColor="text-sky-400" title="Display info">
               {nativeResolution && selectedSource
                 ? `${formatPixels(nativeResolution.width, nativeResolution.height)} native · ${formatPixels(selectedSource.bounds.width, selectedSource.bounds.height)} logical`
                 : 'Select a display'}
             </InfoCard>
 
-            <InfoCard icon={Radio} iconColor="text-orange-400" title="Gemini sees">
+            <InfoCard icon={GeminiBroadcast} iconColor="text-orange-400" title="Gemini sees">
               {shareMode === 'full'
                 ? selectedSource
                   ? `Full feed from ${selectedSource.name}`
@@ -542,7 +550,7 @@ export default function App() {
                   : 'Region not yet defined'}
             </InfoCard>
 
-            <InfoCard icon={Zap} iconColor="text-emerald-400" title="Midscene target">
+            <InfoCard icon={GeminiBolt} iconColor="text-emerald-400" title="Midscene target">
               {selectedSource?.name ?? 'None'}
             </InfoCard>
           </section>
@@ -565,7 +573,7 @@ export default function App() {
                 disabled={!canStart}
                 className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500 px-5 py-3.5 text-sm font-bold text-white shadow-[0_8px_32px_rgba(56,189,248,0.25)] transition-all hover:-translate-y-px hover:shadow-[0_12px_40px_rgba(56,189,248,0.35)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
-                <Mic className="h-4 w-4" />
+                <GeminiMicOn className="h-4 w-4" />
                 {isStarting ? 'Connecting…' : 'Start Live Session'}
               </button>
             ) : (
@@ -574,7 +582,7 @@ export default function App() {
                 onClick={stop}
                 className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-rose-600 px-5 py-3.5 text-sm font-bold text-white shadow-[0_8px_32px_rgba(225,29,72,0.25)] transition-all hover:bg-rose-500"
               >
-                <MicOff className="h-4 w-4" />
+                <GeminiMicOff className="h-4 w-4" />
                 End Session
               </button>
             )}
@@ -585,7 +593,7 @@ export default function App() {
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Chat header */}
           <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] bg-[#080c1c]/40 px-5 py-3">
-            <MessageSquareText className="h-4 w-4 text-sky-400" />
+            <GeminiChat className="h-4 w-4 text-sky-400" />
             <span className="text-sm font-semibold text-white">Conversation</span>
             <span className="ml-auto text-[10px] font-medium uppercase tracking-widest text-slate-500">
               {messages.length} messages
@@ -597,7 +605,7 @@ export default function App() {
             {messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
-                  <Sparkles className="h-7 w-7 text-sky-500/40" />
+                  <GeminiStar className="h-7 w-7 text-sky-500/40" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-400">No messages yet</p>
@@ -620,7 +628,7 @@ export default function App() {
           <div className="shrink-0 border-t border-white/[0.06] bg-[#080c1c]/40 px-5 py-3.5">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/40" />
+                <GeminiCheck className="h-3.5 w-3.5 text-emerald-500/40" />
                 Quick prompt
               </div>
             </div>
@@ -640,7 +648,7 @@ export default function App() {
                 disabled={!isConnected || !inputText.trim()}
                 className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-sky-600/80 text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-30"
               >
-                <Send className="h-4 w-4" />
+                <GeminiSend className="h-4 w-4" />
               </button>
             </div>
           </div>
