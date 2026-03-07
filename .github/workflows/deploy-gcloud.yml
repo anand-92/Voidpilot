@@ -13,9 +13,9 @@ jobs:
 
     env:
       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      SERVICE_NAME: gemini-live-3d-bridge
+      SERVICE_NAME: voidpilot
       REGION: us-east1
-      IMAGE_URI: gcr.io/${{ secrets.GCP_PROJECT_ID }}/gemini-live-3d-bridge
+      IMAGE_URI: gcr.io/${{ secrets.GCP_PROJECT_ID }}/voidpilot
 
     steps:
       - name: Checkout

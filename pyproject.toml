@@ -1,7 +1,7 @@
 [project]
-name = "gemini-hackathon"
+name = "voidpilot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Voidpilot — AI that sees your screen, hears your voice, and takes the wheel. Powered by Gemini Live."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

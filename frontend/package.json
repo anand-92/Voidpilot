@@ -47,8 +47,8 @@
   },
   "main": "dist-electron/main.js",
   "build": {
-    "appId": "com.geminilive.desktopassistant",
-    "productName": "Gemini Desktop Assistant",
+    "appId": "com.voidpilot.app",
+    "productName": "Voidpilot",
     "directories": {
       "output": "release"
     },

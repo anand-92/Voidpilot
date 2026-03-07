@@ -265,7 +265,7 @@ wheels = [
 ]
 
 [[package]]
-name = "gemini-hackathon"
+name = "voidpilot"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

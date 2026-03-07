@@ -1,6 +1,8 @@
-# Gemini Desktop Assistant
+# Voidpilot
 
-This project is an Electron-based desktop assistant that connects your screen and microphone directly to Gemini Live using the Gemini API.
+**AI that sees your screen, hears your voice, and takes the wheel.**
+
+Voidpilot is an Electron-based desktop assistant that connects your screen and microphone directly to Gemini Live using the Gemini API.
 
 It utilizes `@midscene/computer` to allow Gemini to execute UI actions directly on your operating system based on voice requests and screen awareness.
 

@@ -351,7 +351,7 @@ export default function App() {
             <GeminiStar className="h-4 w-4 text-white" />
           </div>
           <span className="text-sm font-semibold tracking-tight text-white">
-            Gemini Desktop <span className="text-sky-400">Bridge</span>
+            Void<span className="text-sky-400">pilot</span>
           </span>
         </div>
 

@@ -15,7 +15,7 @@ export type CaptureConfig = {
 
 const isElectron = window.electronAPI !== undefined
 const wsProtocol = isElectron ? 'wss:' : window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-const wsHost = isElectron ? 'gemini-live-3d-bridge-bcz5ilsa6q-ue.a.run.app' : window.location.host
+const wsHost = isElectron ? 'voidpilot-bcz5ilsa6q-ue.a.run.app' : window.location.host
 const API_BASE_URL = `${wsProtocol}//${wsHost}`
 const SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 512

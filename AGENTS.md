@@ -1,8 +1,8 @@
-# Gemini Desktop Assistant — Agent Instructions
+# Voidpilot — Agent Instructions
 
 ## Project Overview
 
-An Electron desktop assistant that connects your screen and microphone directly to **Gemini Live** via the Gemini API. Uses `@midscene/computer` so Gemini can execute UI actions on the host OS based on voice requests and screen awareness.
+An Electron desktop assistant (codename **Voidpilot**) that connects your screen and microphone directly to **Gemini Live** via the Gemini API. Uses `@midscene/computer` so Gemini can execute UI actions on the host OS based on voice requests and screen awareness.
 
 Also runs as a **web app** (no Electron) when deployed to Cloud Run — the React frontend is served by the FastAPI backend as static files.
 
@@ -142,7 +142,7 @@ bash dev.sh
 
 ```bash
 # Deploy via gcloud
-gcloud run deploy gemini-live-bridge \
+gcloud run deploy voidpilot \
   --source . \
   --project gen-lang-client-0579048282 \
   --region us-east1 \

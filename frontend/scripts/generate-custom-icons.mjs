@@ -5,7 +5,7 @@ const GEMINI_API_KEY = 'AIzaSyC3p64gzqUTuzeFDz7vqSiL3MIPafYTotw';
 
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-const prompt = `You are an elite SVG icon designer and React developer. Your job is to create COMPLETELY UNIQUE, custom-drawn, animated SVG icons that look like nothing in any standard icon library (Lucide, Heroicons, Phosphor, etc). These are brand icons for "Gemini Live 3D" — a futuristic AI desktop assistant with a dark theme (dark blues, cyans, indigos).
+const prompt = `You are an elite SVG icon designer and React developer. Your job is to create COMPLETELY UNIQUE, custom-drawn, animated SVG icons that look like nothing in any standard icon library (Lucide, Heroicons, Phosphor, etc). These are brand icons for "Voidpilot" — a futuristic AI desktop agent with a dark theme (dark blues, cyans, indigos).
 
 DESIGN PHILOSOPHY:
 - These icons must be UNMISTAKABLY CUSTOM. No one should look at them and think "that's from Lucide" or "that's a standard mic icon"
@@ -44,7 +44,7 @@ export function IconName(props: SVGProps<SVGSVGElement>) {
 
 NOW GENERATE THESE 10 ICONS:
 
-1. **GeminiLiveLogo** — THE brand mark for "Gemini Live 3D". A 3D wireframe gem/diamond shape (faceted with visible edges showing depth) with two animated broadcast/signal arcs pulsing outward from its right side. The gem draws itself in on mount (staggered facets). The arcs fade in and out on loop. Use viewBox="0 0 28 24" to accommodate the arcs. This is used at h-6 w-6 next to the app title. Should feel premium and unique.
+1. **GeminiLiveLogo** — THE brand mark for "Voidpilot". A 3D wireframe gem/diamond shape (faceted with visible edges showing depth) with two animated broadcast/signal arcs pulsing outward from its right side. The gem draws itself in on mount (staggered facets). The arcs fade in and out on loop. Use viewBox="0 0 28 24" to accommodate the arcs. This is used at h-6 w-6 next to the app title. Should feel premium and unique.
 
 2. **IconOverviewOrbit** — For the "Overview" index card (voice + 3D playground). NOT a standard eye or play button. Think: a central lens/node with an elliptical orbit ring around it, and two small dots tracing the orbit at different speeds. One dot is brighter than the other. The orbit ring should be tilted (rotated). The center lens pulses gently. Feels like a planetary system or electron cloud.
 

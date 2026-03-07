@@ -47,7 +47,7 @@ const SECTION_SCROLL_MAP: Record<SectionId, number> = {
 };
 
 const sections: { id: SectionId; label: string; subtitle: string; icon: typeof IconOverviewOrbit; color: string }[] = [
-  { id: 'hero', label: 'Overview', subtitle: 'Voice and 3D playground', icon: IconOverviewOrbit, color: 'sky' },
+  { id: 'hero', label: 'Overview', subtitle: 'Voice, vision, and desktop control', icon: IconOverviewOrbit, color: 'sky' },
   { id: 'capabilities', label: 'Capabilities', subtitle: 'Multimodal synergy', icon: IconCapabilitiesConverge, color: 'indigo' },
   { id: 'hackathon', label: 'Hackathon', subtitle: 'Global challenge details', icon: IconHackathonLaunch, color: 'emerald' },
 ];
@@ -222,7 +222,7 @@ export default function LandingPage() {
               </AnimatePresence>
               <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-white">
                 <GeminiLiveLogo className="h-6 w-6 text-sky-400" />
-                <span className="pointer-events-auto">Gemini <span className="text-sky-400">Live 3D</span></span>
+                <span className="pointer-events-auto">Void<span className="text-sky-400">pilot</span></span>
               </div>
             </div>
 
@@ -271,7 +271,7 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
         transition={{ delay: 0.1 }}
       >
         <PulseDot />
-        Gemini Live Interactive Demo
+        Voidpilot — Live AI Desktop Agent
       </motion.div>
 
       <motion.h1
@@ -280,7 +280,7 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.6 }}
       >
-        A live playground for <br /> <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-indigo-500">voice and 3D.</span>
+        AI that sees, hears, <br /> <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-indigo-500">and takes the wheel.</span>
       </motion.h1>
 
       <motion.p
@@ -289,7 +289,7 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
         animate={{ opacity: 1 }}
         transition={{ delay: 0.25 }}
       >
-        Talk with Gemini, steer the scene, iterate quickly, and even automate your desktop natively via Electron.
+        Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
       </motion.p>
 
       <div className="mt-4 md:mt-10 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5 max-w-3xl w-full pointer-events-auto">
@@ -334,15 +334,15 @@ function HeroSection() {
     >
       <div className="group relative mb-4 md:mb-8 inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3 md:px-5 py-1.5 md:py-2 text-[10px] md:text-xs font-medium tracking-widest text-sky-200 uppercase pointer-events-auto transition-all hover:bg-sky-500/20 hover:scale-105">
         <PulseDot />
-        Gemini Live Interactive Demo
+        Voidpilot — Live AI Desktop Agent
       </div>
 
       <h1 className="max-w-4xl text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-400 sm:text-5xl md:text-7xl drop-shadow-sm leading-tight pb-1 md:pb-2 pointer-events-auto">
-        A live playground for <br /> <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-indigo-500">voice and 3D.</span>
+        AI that sees, hears, <br /> <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-indigo-500">and takes the wheel.</span>
       </h1>
 
       <p className="mt-3 md:mt-6 max-w-2xl text-sm text-slate-300 sm:text-lg md:text-xl font-light leading-relaxed pointer-events-auto">
-        Talk with Gemini, steer the scene, iterate quickly, and even automate your desktop natively via Electron.
+        Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
       </p>
 
       <motion.a
@@ -419,7 +419,7 @@ function HackathonSection() {
               <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-sm font-semibold text-indigo-300 mb-4">
                 <CustomIconTrophy className="h-4 w-4" /> Global Challenge
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Gemini Live Agent</h2>
+              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Gemini Live Agent Challenge</h2>
               <p className="mt-4 text-xl text-slate-300 max-w-2xl leading-relaxed">
                 Redefining Interaction: From Static Chatbots to Immersive Experiences using Google's Live API.
               </p>
@@ -480,7 +480,7 @@ function HackathonSection() {
       </div>
 
       <footer className="w-full text-center text-sm text-slate-500 mt-6 relative z-20 pointer-events-auto">
-        <p>&copy; {new Date().getFullYear()} Gemini Live 3D Bridge. Built for the Google Live Agent Challenge.</p>
+        <p>&copy; {new Date().getFullYear()} Voidpilot. Built for the Gemini Live Agent Challenge.</p>
       </footer>
     </motion.div>
   );
