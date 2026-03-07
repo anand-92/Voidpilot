@@ -4,31 +4,36 @@ import { GeminiArrowRight, GeminiArrowLeft } from '../components/icons/GeminiIco
 import { ThreeBackground } from '../components/ThreeBackground';
 import { CustomCursor } from '../components/CustomCursor';
 import {
-  CustomIconMic,
-  CustomIconBox,
-  CustomIconSparkles,
+  GeminiLiveLogo,
+  IconOverviewOrbit,
+  IconCapabilitiesConverge,
+  IconHackathonLaunch,
+  IconVoiceWaveform,
+  IconScene3D,
+  IconIterationLoop,
+  IconLiveAgent,
+  IconStoryteller,
+  IconUINavigator,
   CustomIconDownload,
   CustomIconCode,
   CustomIconTrophy,
-  CustomIconGlobe,
-  CustomIconLayers
 } from '../components/icons/CustomIcons';
 
 const capabilities = [
   {
     title: 'Voice chat that feels immediate',
     description: 'Speak naturally and get responses back in real time.',
-    icon: CustomIconMic,
+    icon: IconVoiceWaveform,
   },
   {
     title: 'Prompt-driven 3D scenes',
     description: 'Type an idea and watch the scene update without leaving the session.',
-    icon: CustomIconBox,
+    icon: IconScene3D,
   },
   {
     title: 'Faster creative iteration',
     description: 'Try a direction, tweak it, and compare results while you chat.',
-    icon: CustomIconSparkles,
+    icon: IconIterationLoop,
   },
 ];
 
@@ -41,10 +46,10 @@ const SECTION_SCROLL_MAP: Record<SectionId, number> = {
   hackathon: 2,
 };
 
-const sections: { id: SectionId; label: string; subtitle: string; icon: typeof CustomIconMic; color: string }[] = [
-  { id: 'hero', label: 'Overview', subtitle: 'Voice and 3D playground', icon: CustomIconSparkles, color: 'sky' },
-  { id: 'capabilities', label: 'Capabilities', subtitle: 'Multimodal synergy', icon: CustomIconLayers, color: 'indigo' },
-  { id: 'hackathon', label: 'Hackathon', subtitle: 'Global challenge details', icon: CustomIconTrophy, color: 'emerald' },
+const sections: { id: SectionId; label: string; subtitle: string; icon: typeof IconOverviewOrbit; color: string }[] = [
+  { id: 'hero', label: 'Overview', subtitle: 'Voice and 3D playground', icon: IconOverviewOrbit, color: 'sky' },
+  { id: 'capabilities', label: 'Capabilities', subtitle: 'Multimodal synergy', icon: IconCapabilitiesConverge, color: 'indigo' },
+  { id: 'hackathon', label: 'Hackathon', subtitle: 'Global challenge details', icon: IconHackathonLaunch, color: 'emerald' },
 ];
 
 const COLOR_MAP: Record<string, { bg: string; border: string; text: string; glow: string }> = {
@@ -66,19 +71,19 @@ const hackathonCards = [
   {
     title: 'Live Agents',
     description: 'Real-time Audio/Vision interaction. Build natural conversational agents hosted on Google Cloud.',
-    icon: CustomIconMic,
+    icon: IconLiveAgent,
     color: 'indigo' as const,
   },
   {
     title: 'Creative Storyteller',
     description: 'Multimodal storytelling with interleaved text, images, audio, and video streams natively.',
-    icon: CustomIconGlobe,
+    icon: IconStoryteller,
     color: 'sky' as const,
   },
   {
     title: 'UI Navigator',
     description: 'Visual UI understanding. Agent acts as the user\'s hands, interpreting visuals and performing actions.',
-    icon: CustomIconLayers,
+    icon: IconUINavigator,
     color: 'emerald' as const,
   },
 ];
@@ -216,7 +221,7 @@ export default function LandingPage() {
                 )}
               </AnimatePresence>
               <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-white">
-                <CustomIconSparkles className="h-5 w-5 text-sky-400" />
+                <GeminiLiveLogo className="h-6 w-6 text-sky-400" />
                 <span className="pointer-events-auto">Gemini <span className="text-sky-400">Live 3D</span></span>
               </div>
             </div>
@@ -253,14 +258,14 @@ export default function LandingPage() {
 function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void }) {
   return (
     <motion.div
-      className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-6"
+      className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-4 md:px-6"
       variants={sectionVariants}
       initial="hidden"
       animate="visible"
       exit="exit"
     >
       <motion.div
-        className="mb-4 inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-5 py-2 text-xs font-medium tracking-widest text-sky-200 uppercase pointer-events-auto"
+        className="mb-2 md:mb-4 inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3 md:px-5 py-1.5 md:py-2 text-[10px] md:text-xs font-medium tracking-widest text-sky-200 uppercase pointer-events-auto"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
@@ -270,7 +275,7 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
       </motion.div>
 
       <motion.h1
-        className="max-w-4xl text-center text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-400 md:text-7xl drop-shadow-sm leading-tight pb-2 pointer-events-auto"
+        className="max-w-4xl text-center text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-400 sm:text-5xl md:text-7xl drop-shadow-sm leading-tight pb-1 md:pb-2 pointer-events-auto"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.6 }}
@@ -279,7 +284,7 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
       </motion.h1>
 
       <motion.p
-        className="mt-4 max-w-2xl text-center text-lg text-slate-300 md:text-xl font-light leading-relaxed pointer-events-auto"
+        className="mt-2 md:mt-4 max-w-2xl text-center text-sm text-slate-300 sm:text-lg md:text-xl font-light leading-relaxed pointer-events-auto"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.25 }}
@@ -287,7 +292,7 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
         Talk with Gemini, steer the scene, iterate quickly, and even automate your desktop natively via Electron.
       </motion.p>
 
-      <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-5 max-w-3xl w-full pointer-events-auto">
+      <div className="mt-4 md:mt-10 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5 max-w-3xl w-full pointer-events-auto">
         {sections.map((section, i) => {
           const colors = COLOR_MAP[section.color];
           const Icon = section.icon;
@@ -300,14 +305,16 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
               animate="visible"
               exit="exit"
               onClick={() => onNavigate(section.id)}
-              className={`group relative rounded-2xl border ${colors.border} ${colors.bg} p-6 text-left backdrop-blur-xl transition-all duration-300 hover:scale-[1.04] hover:shadow-lg hover:${colors.glow} active:scale-[0.98]`}
+              className={`group relative rounded-2xl border ${colors.border} ${colors.bg} p-3 md:p-6 text-left backdrop-blur-xl transition-all duration-300 hover:scale-[1.04] hover:shadow-lg hover:${colors.glow} active:scale-[0.98] flex items-center gap-3 md:block`}
             >
-              <div className={`mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl ${colors.bg} ${colors.text}`}>
-                <Icon className="h-6 w-6" />
+              <div className={`shrink-0 inline-flex h-9 w-9 md:h-11 md:w-11 md:mb-3 items-center justify-center rounded-xl ${colors.bg} ${colors.text}`}>
+                <Icon className="h-5 w-5 md:h-6 md:w-6" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-1">{section.label}</h3>
-              <p className="text-sm text-slate-400 leading-relaxed">{section.subtitle}</p>
-              <GeminiArrowRight className={`absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 ${colors.text} opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all`} />
+              <div className="min-w-0 flex-1 md:flex-none">
+                <h3 className="text-base md:text-lg font-bold text-white md:mb-1">{section.label}</h3>
+                <p className="text-xs md:text-sm text-slate-400 leading-relaxed">{section.subtitle}</p>
+              </div>
+              <GeminiArrowRight className={`shrink-0 h-5 w-5 ${colors.text} md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2 opacity-50 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-x-1 transition-all`} />
             </motion.button>
           );
         })}
@@ -319,28 +326,28 @@ function IndexView({ onNavigate }: { onNavigate: (section: SectionId) => void })
 function HeroSection() {
   return (
     <motion.div
-      className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-6 text-center"
+      className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-4 md:px-6 text-center"
       variants={sectionVariants}
       initial="hidden"
       animate="visible"
       exit="exit"
     >
-      <div className="group relative mb-8 inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-5 py-2 text-xs font-medium tracking-widest text-sky-200 uppercase pointer-events-auto transition-all hover:bg-sky-500/20 hover:scale-105">
+      <div className="group relative mb-4 md:mb-8 inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-3 md:px-5 py-1.5 md:py-2 text-[10px] md:text-xs font-medium tracking-widest text-sky-200 uppercase pointer-events-auto transition-all hover:bg-sky-500/20 hover:scale-105">
         <PulseDot />
         Gemini Live Interactive Demo
       </div>
 
-      <h1 className="max-w-4xl text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-400 md:text-7xl drop-shadow-sm leading-tight pb-2 pointer-events-auto">
+      <h1 className="max-w-4xl text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-400 sm:text-5xl md:text-7xl drop-shadow-sm leading-tight pb-1 md:pb-2 pointer-events-auto">
         A live playground for <br /> <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-indigo-500">voice and 3D.</span>
       </h1>
 
-      <p className="mt-6 max-w-2xl text-lg text-slate-300 md:text-xl font-light leading-relaxed pointer-events-auto">
+      <p className="mt-3 md:mt-6 max-w-2xl text-sm text-slate-300 sm:text-lg md:text-xl font-light leading-relaxed pointer-events-auto">
         Talk with Gemini, steer the scene, iterate quickly, and even automate your desktop natively via Electron.
       </p>
 
       <motion.a
         href="#/app"
-        className="mt-10 inline-flex items-center gap-2 rounded-full bg-sky-500 px-8 py-3 text-base font-semibold text-slate-950 hover:bg-sky-400 transition-all pointer-events-auto"
+        className="mt-6 md:mt-10 inline-flex items-center gap-2 rounded-full bg-sky-500 px-6 md:px-8 py-2.5 md:py-3 text-sm md:text-base font-semibold text-slate-950 hover:bg-sky-400 transition-all pointer-events-auto"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.97 }}
       >
@@ -353,19 +360,19 @@ function HeroSection() {
 function CapabilitiesSection() {
   return (
     <motion.div
-      className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-6 w-full"
+      className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-4 md:px-6 w-full"
       variants={sectionVariants}
       initial="hidden"
       animate="visible"
       exit="exit"
     >
       <div className="max-w-7xl mx-auto w-full">
-        <div className="mb-12 md:text-center pointer-events-auto">
-          <h2 className="text-3xl font-bold md:text-5xl text-white">Experience True Synergy</h2>
-          <p className="mt-4 text-slate-400 max-w-2xl mx-auto text-lg">Harness the multimodal capabilities of the Gemini model. Blend audio, vision, and contextual understanding in one fluid interface.</p>
+        <div className="mb-6 md:mb-12 md:text-center pointer-events-auto">
+          <h2 className="text-2xl font-bold sm:text-3xl md:text-5xl text-white">Experience True Synergy</h2>
+          <p className="mt-2 md:mt-4 text-slate-400 max-w-2xl mx-auto text-sm md:text-lg">Harness the multimodal capabilities of the Gemini model. Blend audio, vision, and contextual understanding in one fluid interface.</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 w-full">
+        <div className="grid grid-cols-1 gap-3 md:gap-6 md:grid-cols-3 w-full">
           {capabilities.map(({ title, description, icon: Icon }, i) => (
             <motion.div
               key={title}
@@ -374,13 +381,15 @@ function CapabilitiesSection() {
               transition={{ delay: 0.2 + i * 0.1, duration: 0.5, ease: EASE }}
             >
               <EnhancedTiltCard className="pointer-events-auto">
-                <article className="group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-900/40 p-8 backdrop-blur-xl transition-all duration-300 hover:border-sky-500/50 hover:bg-slate-900/60 shadow-[0_0_30px_-10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_40px_-10px_rgba(14,165,233,0.4)] h-full">
+                <article className="group relative overflow-hidden rounded-2xl md:rounded-3xl border border-white/10 bg-slate-900/40 p-4 md:p-8 backdrop-blur-xl transition-all duration-300 hover:border-sky-500/50 hover:bg-slate-900/60 shadow-[0_0_30px_-10px_rgba(14,165,233,0.1)] hover:shadow-[0_0_40px_-10px_rgba(14,165,233,0.4)] h-full flex items-start gap-3 md:block">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-colors duration-300">
-                    <Icon className="h-7 w-7" />
+                  <div className="shrink-0 inline-flex h-10 w-10 md:h-14 md:w-14 md:mb-6 items-center justify-center rounded-xl md:rounded-2xl bg-sky-500/10 text-sky-400 group-hover:bg-sky-500 group-hover:text-slate-950 transition-colors duration-300">
+                    <Icon className="h-5 w-5 md:h-7 md:w-7" />
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3">{title}</h3>
-                  <p className="text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors">{description}</p>
+                  <div className="min-w-0 flex-1 md:flex-none">
+                    <h3 className="text-base md:text-xl font-bold text-white mb-1 md:mb-3">{title}</h3>
+                    <p className="text-xs md:text-base text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors">{description}</p>
+                  </div>
                 </article>
               </EnhancedTiltCard>
             </motion.div>
