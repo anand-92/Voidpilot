@@ -151,7 +151,7 @@ const handleWheel = (e: WheelEvent) => {
       let target = e.target as HTMLElement | null;
       let isScrollableContainer = false;
       while (target && target !== document.body) {
-        if (target.classList.contains('overflow-y-auto') || target.classList.contains('custom-scrollbar')) {
+        if (['auto', 'scroll'].includes(window.getComputedStyle(target).overflowY)) {
             const hasScrollableContent = target.scrollHeight > target.clientHeight;
             const isAtTop = target.scrollTop === 0;
             const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 1;
