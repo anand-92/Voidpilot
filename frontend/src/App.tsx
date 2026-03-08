@@ -158,6 +158,8 @@ function BashConfirmPopup({
           <button
             type="button"
             onClick={onDeny}
+            aria-label="Close command confirmation"
+            title="Close command confirmation"
             className="ml-auto flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300"
           >
             <GeminiClose className="h-4 w-4" />
@@ -646,6 +648,8 @@ export default function App() {
                 type="button"
                 onClick={handleSend}
                 disabled={!isConnected || !inputText.trim()}
+                aria-label="Send message"
+                title="Send message"
                 className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-sky-600/80 text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <GeminiSend className="h-4 w-4" />

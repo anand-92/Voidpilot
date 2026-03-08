@@ -143,6 +143,8 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
         >
           <button
             onClick={handleClose}
+            aria-label="Close walkthrough"
+            title="Close walkthrough"
             className="absolute top-6 right-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white transition-all border border-white/10"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
