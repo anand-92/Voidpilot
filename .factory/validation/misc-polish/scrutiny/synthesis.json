@@ -1,0 +1,39 @@
+{
+  "milestone": "misc-polish",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "uv run pytest tests/ -v", "exitCode": 0 },
+    "typecheck": { "passed": true, "command": "cd frontend && npm run build", "exitCode": 0 },
+    "lint": { "passed": true, "command": "uv run ruff check src/ && cd frontend && npm run lint", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Documented icon generation pipeline limitation: generate-icons.mjs regenerates all icons nondeterministically, so adding a single icon requires a focused temporary script instead of the full pipeline.",
+      "sourceFeature": "regenerate-brainstorm-icon"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add guidance: When generating new icons, do NOT run the full generate-icons.mjs script as it regenerates all 21 icons nondeterministically. Instead, create a temporary focused script that generates only the needed icon using the same technical requirements (framer-motion, SVGProps, viewBox 0 0 24 24, currentColor, strokeWidth 1.5).",
+      "evidence": "Feature regenerate-brainstorm-icon worker correctly identified this limitation and used the alternative approach described in the feature spec. Documenting in AGENTS.md prevents future workers from wasting time.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "The generate-icons.mjs script contains a hardcoded Gemini API key. Pre-existing issue not introduced by this feature.",
+      "reason": "already-documented: .factory/library/voidpilot-knowledge.md documents 'Hardcoded fallback API key' as known tech debt. This applies to frontend scripts too. Not a new finding."
+    }
+  ],
+  "previousRound": null
+}

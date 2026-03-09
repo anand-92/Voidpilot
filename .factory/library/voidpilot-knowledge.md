@@ -41,6 +41,12 @@
 - **Image artifacts**: `brainstorm_image` messages carry `data` as a base64-encoded string. Displayed inline via `data:image/png;base64,...` URIs. For downloads, the base64 string must be decoded to binary before creating Blobs or zip entries — otherwise downloaded files will be corrupt.
 - **State**: All artifacts are held in React state (`Map<string, BrainstormArtifact>`) with no server-side storage. Client-side downloads via Blob URLs and JSZip.
 
+## Icon Generation Pipeline
+- **Script**: `frontend/scripts/generate-icons.mjs` calls Gemini to generate all icons in `GeminiIcons.tsx`.
+- **Limitation**: The script regenerates ALL icons nondeterministically (Gemini output varies per call). Adding a single icon via the full pipeline will change every existing icon's SVG paths.
+- **Workaround**: To add a new icon, create a temporary focused script that generates only the needed icon using the same technical requirements (framer-motion, SVGProps, viewBox 0 0 24 24, currentColor, strokeWidth 1.5). Place custom icons in `CustomIcons.tsx`, not `GeminiIcons.tsx`.
+- **Custom icons**: Project-specific icons (e.g., `IconBrainstorm`) live in `frontend/src/components/icons/CustomIcons.tsx`, separate from the generated set.
+
 ## Brainstorm Mode Tools (all NON_BLOCKING)
 | Tool | Scheduling | Purpose |
 |------|-----------|---------|
