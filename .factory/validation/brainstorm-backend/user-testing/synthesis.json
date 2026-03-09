@@ -1,0 +1,35 @@
+{
+  "milestone": "brainstorm-backend",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 18,
+    "passed": 18,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "BE-FW-01",
+    "BE-FW-02",
+    "BE-FW-03",
+    "BE-FW-04",
+    "BE-TH-01",
+    "BE-TH-02",
+    "BE-TH-03",
+    "BE-TH-04",
+    "BE-TH-05",
+    "BE-TH-06",
+    "BE-TH-07",
+    "BE-WS-01",
+    "BE-WS-02",
+    "BE-WS-03",
+    "BE-WS-04",
+    "BE-SR-01",
+    "BE-SR-02",
+    "BE-SR-03"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": null
+}

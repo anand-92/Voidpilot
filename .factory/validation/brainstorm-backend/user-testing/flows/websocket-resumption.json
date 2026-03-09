@@ -1,0 +1,49 @@
+{
+  "groupId": "websocket-resumption",
+  "testedAt": "2026-03-09T00:00:00Z",
+  "credentials": {
+    "account": "code-review",
+    "namespace": "brainstorm-backend"
+  },
+  "toolsUsed": ["pytest", "code-review"],
+  "assertions": {
+    "BE-WS-01": {
+      "status": "pass",
+      "evidence": "Code review: brainstorm.py defines @router.websocket('/brainstorm') endpoint. router.py includes brainstorm.router with prefix='/live', making the full path /api/v1/live/brainstorm. Test: test_brainstorm_websocket_accepts_connection uses TestClient.websocket_connect('/api/v1/live/brainstorm') — sends a text message and confirms it arrives in the GeminiLive text_input_queue. Test passes.",
+      "issues": []
+    },
+    "BE-WS-02": {
+      "status": "pass",
+      "evidence": "Code review: brainstorm.py defines BRAINSTORM_SYSTEM_PROMPT containing 'Voidpilot in Brainstorm Mode — a creative thinking partner' with artifact generation guidance (mentions save_brainstorm_artifact, generate_brainstorm_image, delegate_to_flash, and 'do NOT pause the conversation'). GeminiLive is constructed with system_prompt=BRAINSTORM_SYSTEM_PROMPT. Tests: TestSystemPrompt class (6 tests) verifies prompt content; test_brainstorm_uses_brainstorm_system_prompt captures GeminiLive constructor args and verifies system_prompt contains 'creative thinking partner' and 'Brainstorm Mode'. All pass.",
+      "issues": []
+    },
+    "BE-WS-03": {
+      "status": "pass",
+      "evidence": "Code review: brainstorm.py defines BRAINSTORM_TOOLS with exactly 3 function_declarations: save_brainstorm_artifact, generate_brainstorm_image, delegate_to_flash. GeminiLive is constructed with tools=BRAINSTORM_TOOLS and include_default_tools=False, which prevents get_weather from being added. No midscene or bash tools present. Test: test_brainstorm_registers_only_brainstorm_tools captures GeminiLive constructor args, extracts all tool names from tools kwarg and asserts they equal exactly {save_brainstorm_artifact, generate_brainstorm_image, delegate_to_flash}. Also verifies tool_mapping keys match. Test passes.",
+      "issues": []
+    },
+    "BE-WS-04": {
+      "status": "pass",
+      "evidence": "Code review: gemini_audio.py start_session constructs LiveConnectConfig with session_resumption=types.SessionResumptionConfig(handle=self.session_resumption_handle). The receive loop checks response.session_resumption_update — when update.resumable and update.new_handle, it puts a dict with type='session_resumption_update', handle=update.new_handle, resumable=update.resumable into event_queue. brainstorm.py endpoint handles 'session_config' messages to set the handle. Tests: test_brainstorm_session_resumption_config verifies endpoint processes session_config messages; test_session_resumption_config_with_handle and test_session_resumption_config_none_handle verify SessionResumptionConfig is set in LiveConnectConfig; test_session_resumption_update_yielded verifies events are yielded; test_brainstorm_forwards_resumption_events verifies endpoint forwards events to client. All pass.",
+      "issues": []
+    },
+    "BE-SR-01": {
+      "status": "pass",
+      "evidence": "Code review: GeminiLive.__init__ signature includes 'session_resumption_handle: str | None = None' parameter. The value is stored as self.session_resumption_handle. Tests: TestGeminiLiveSessionResumptionParam class (4 tests) — test_default_handle_is_none confirms default is None, test_handle_stored_when_provided confirms 'abc123' is stored, test_handle_can_be_set_after_init confirms post-init assignment works, test_existing_params_still_work confirms backward compatibility. All pass.",
+      "issues": []
+    },
+    "BE-SR-02": {
+      "status": "pass",
+      "evidence": "Code review: gemini_audio.py start_session builds config with session_resumption=types.SessionResumptionConfig(handle=self.session_resumption_handle). When handle is provided, SessionResumptionConfig(handle='resume_handle_xyz') is set; when None, SessionResumptionConfig(handle=None) is set (fresh session). Tests: test_session_resumption_config_with_handle mocks client.aio.live.connect, captures the config, and asserts config.session_resumption is SessionResumptionConfig with handle='resume_handle_xyz'. test_session_resumption_config_none_handle does the same for None handle. Both pass.",
+      "issues": []
+    },
+    "BE-SR-03": {
+      "status": "pass",
+      "evidence": "Code review: gemini_audio.py receive_loop checks 'if response.session_resumption_update:' — when update.resumable and update.new_handle, it puts {'type': 'session_resumption_update', 'handle': update.new_handle, 'resumable': update.resumable} into event_queue, which is yielded from start_session. Non-resumable updates (resumable=False) are not yielded. Tests: test_session_resumption_update_yielded mocks a response with resumable=True and new_handle='new_handle_from_gemini', confirms exactly one event with correct type/handle/resumable is yielded. test_session_resumption_update_not_yielded_when_not_resumable confirms no event when resumable=False. Both pass.",
+      "issues": []
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 7 assertions (BE-WS-01 through BE-SR-03): all 7 passed. All 33 pytest tests in test_brainstorm.py and test_session_resumption.py pass. Code review confirms WebSocket route registration, brainstorm system prompt, tool isolation (no default tools), SessionResumptionConfig in LiveConnectConfig, and session_resumption_update event handling."
+}

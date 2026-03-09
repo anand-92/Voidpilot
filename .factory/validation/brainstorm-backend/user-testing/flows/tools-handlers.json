@@ -1,0 +1,44 @@
+{
+  "groupId": "tools-handlers",
+  "testedAt": "2026-03-09T00:00:00Z",
+  "assertions": {
+    "BE-TH-01": {
+      "status": "pass",
+      "evidence": "Code review: SAVE_ARTIFACT_TOOL_DEF in brainstorm.py (line ~40) has behavior='NON_BLOCKING', name='save_brainstorm_artifact', and parameters with title (string, required), raw_ideas (string, required), filename (string, required). Test test_save_artifact_is_non_blocking and test_save_artifact_params both pass confirming the declaration.",
+      "issues": []
+    },
+    "BE-TH-02": {
+      "status": "pass",
+      "evidence": "Code review: IMAGE_TOOL_DEF in brainstorm.py (line ~65) has behavior='NON_BLOCKING', name='generate_brainstorm_image', and parameters with prompt (string, required) and label (string, required). Test test_image_tool_is_non_blocking and test_image_tool_params both pass confirming the declaration.",
+      "issues": []
+    },
+    "BE-TH-03": {
+      "status": "pass",
+      "evidence": "Code review: DELEGATE_TOOL_DEF in brainstorm.py (line ~85) has behavior='NON_BLOCKING', name='delegate_to_flash', parameters with task (string, required), context (string, required), and output_format (string, optional — has enum but NOT in required list). Tests test_delegate_tool_is_non_blocking and test_delegate_tool_params both pass.",
+      "issues": []
+    },
+    "BE-TH-04": {
+      "status": "pass",
+      "evidence": "Code review: handle_save_artifact in _make_tool_handlers returns {'result': ..., 'scheduling': 'SILENT'}. Pytest test test_save_handler_returns_silent passes, asserting result['scheduling'] == 'SILENT'.",
+      "issues": []
+    },
+    "BE-TH-05": {
+      "status": "pass",
+      "evidence": "Code review: handle_generate_image in _make_tool_handlers returns {'result': ..., 'scheduling': 'WHEN_IDLE'}. Pytest test test_image_handler_returns_when_idle passes, asserting result['scheduling'] == 'WHEN_IDLE'.",
+      "issues": []
+    },
+    "BE-TH-06": {
+      "status": "pass",
+      "evidence": "Code review: handle_delegate in _make_tool_handlers returns {'result': ..., 'scheduling': 'WHEN_IDLE'}. Pytest test test_delegate_handler_returns_when_idle passes, asserting result['scheduling'] == 'WHEN_IDLE'.",
+      "issues": []
+    },
+    "BE-TH-07": {
+      "status": "pass",
+      "evidence": "Code review: All three handlers call websocket.send_json with correct payload structures — save handler sends {type: 'brainstorm_artifact', filename, content}, image handler sends {type: 'brainstorm_image', filename, label, data (base64)}, delegate handler sends {type: 'brainstorm_artifact', filename, content}. Three pytest tests confirm: test_save_handler_pushes_artifact_via_websocket, test_image_handler_pushes_image_via_websocket, and test_delegate_handler_pushes_artifact_via_websocket all pass with mock_ws.send_json assertions.",
+      "issues": []
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["pytest", "code-review"]
+}

@@ -1,0 +1,30 @@
+{
+  "groupId": "flash-worker",
+  "testedAt": "2026-03-09T00:00:00Z",
+  "assertions": {
+    "BE-FW-01": {
+      "status": "pass",
+      "evidence": "Code review of flash_worker.py confirms: FLASH_LITE_MODEL = \"gemini-3.1-flash-lite-preview\" (line 8) and FLASH_IMAGE_MODEL = \"gemini-3.1-flash-image-preview\" (line 9). The test test_flash_worker_uses_correct_models directly asserts these constants match the expected values. All 6 tests pass.",
+      "issues": []
+    },
+    "BE-FW-02": {
+      "status": "pass",
+      "evidence": "Code review: generate_markdown (lines 24-43) constructs a prompt containing title and raw_ideas, calls client.aio.models.generate_content with model=FLASH_LITE_MODEL and the prompt as contents, returns response.text. Test test_generate_markdown mocks the API, verifies the call uses FLASH_LITE_MODEL, verifies the prompt contains both title ('My Ideas') and raw_ideas ('idea one, idea two'), and asserts the return value is the expected markdown string. Test passes.",
+      "issues": []
+    },
+    "BE-FW-03": {
+      "status": "pass",
+      "evidence": "Code review: generate_image (lines 45-71) calls client.aio.models.generate_content with model=FLASH_IMAGE_MODEL, contents=prompt, and config=GenerateContentConfig(response_modalities=['Text', 'Image']). It iterates response candidates[0].content.parts and returns part.inline_data.data for the first part with inline_data. Test test_generate_image mocks the API with a response containing both a text part (inline_data=None) and an image part (inline_data with bytes), verifies model=FLASH_IMAGE_MODEL, verifies 'Image' and 'Text' are in config.response_modalities, and asserts the returned bytes match. Additional test test_generate_image_no_image_data verifies ValueError is raised when no inline_data exists. Both tests pass.",
+      "issues": []
+    },
+    "BE-FW-04": {
+      "status": "pass",
+      "evidence": "Code review: delegate_task (lines 73-96) constructs a prompt containing task, context, and output_format, calls client.aio.models.generate_content with model=FLASH_LITE_MODEL, returns response.text. Test test_delegate_task mocks the API, verifies model=FLASH_LITE_MODEL, verifies the prompt contains the task ('Analyze market trends'), context ('We are building a SaaS product'), and output_format ('markdown_section'), and asserts the return value matches expected text. Additional test test_delegate_task_default_format verifies the default output_format='markdown_section' is used. Both tests pass.",
+      "issues": []
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["pytest", "code-review"],
+  "summary": "Tested 4 assertions: 4 passed. All FlashWorker model constants match requirements, all methods correctly call the expected models with proper arguments, and all 6 pytest tests pass successfully."
+}
