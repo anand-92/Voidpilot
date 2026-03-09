@@ -91,6 +91,7 @@ function BashConfirmPopup({
           <button
             type="button"
             onClick={onDeny}
+            aria-label="Close command confirmation"
             className="ml-auto flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300"
           >
             <GeminiClose className="h-4 w-4" />
@@ -573,12 +574,14 @@ export default function App() {
                 onKeyDown={(event) => event.key === 'Enter' && handleSend()}
                 placeholder={isConnected ? 'Type a message…' : 'Connect first to chat'}
                 disabled={!isConnected}
+                aria-label="Message input"
                 className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-sky-500/40 focus:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-40"
               />
               <button
                 type="button"
                 onClick={handleSend}
                 disabled={!isConnected || !inputText.trim()}
+                aria-label="Send message"
                 className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-sky-600/80 text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <GeminiSend className="h-4 w-4" />
