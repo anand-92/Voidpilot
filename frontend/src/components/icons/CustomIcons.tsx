@@ -638,6 +638,97 @@ export function IconWalkthroughVoid(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconBrainstorm(props: SVGProps<SVGSVGElement>) {
+  return (
+    <motion.svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={props.className}
+    >
+      {/* Brain outline */}
+      <motion.path
+        d="M 12 2 C 8 2 5 5 5 8 C 5 10 6 11.5 7 12.5 C 6 13.5 5 15 5 17 C 5 20 8 22 12 22 C 16 22 19 20 19 17 C 19 15 18 13.5 17 12.5 C 18 11.5 19 10 19 8 C 19 5 16 2 12 2 Z"
+        fill="currentColor"
+        fillOpacity="0.08"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 1.2, ease: "easeInOut" }}
+      />
+      {/* Brain center line */}
+      <motion.path
+        d="M 12 4 L 12 20"
+        strokeOpacity="0.3"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.8, delay: 0.3 }}
+      />
+      {/* Left folds */}
+      <motion.path
+        d="M 12 8 C 10 8 8 7 7 8"
+        strokeOpacity="0.5"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.6, delay: 0.5 }}
+      />
+      <motion.path
+        d="M 12 14 C 10 14 8 13 6 14"
+        strokeOpacity="0.5"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.6, delay: 0.7 }}
+      />
+      {/* Right folds */}
+      <motion.path
+        d="M 12 8 C 14 8 16 7 17 8"
+        strokeOpacity="0.5"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.6, delay: 0.6 }}
+      />
+      <motion.path
+        d="M 12 14 C 14 14 16 13 18 14"
+        strokeOpacity="0.5"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.6, delay: 0.8 }}
+      />
+      {/* Idea sparks */}
+      <motion.circle
+        cx="6"
+        cy="3"
+        r="1"
+        fill="currentColor"
+        stroke="none"
+        animate={{ scale: [0.8, 1.3, 0.8], opacity: [0.4, 1, 0.4] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.circle
+        cx="18"
+        cy="3"
+        r="1"
+        fill="currentColor"
+        stroke="none"
+        animate={{ scale: [0.8, 1.3, 0.8], opacity: [0.4, 1, 0.4] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+      />
+      <motion.circle
+        cx="12"
+        cy="1"
+        r="0.8"
+        fill="currentColor"
+        stroke="none"
+        animate={{ scale: [0.8, 1.4, 0.8], opacity: [0.3, 1, 0.3] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+      />
+    </motion.svg>
+  );
+}
+
 export function CustomIconCode(props: SVGProps<SVGSVGElement>) {
   return (
     <motion.svg

@@ -16,6 +16,7 @@ import {
   IconStoryteller,
   IconUINavigator,
   IconWalkthroughVoid,
+  IconBrainstorm,
   CustomIconDownload,
   CustomIconCode,
   CustomIconTrophy,
@@ -60,6 +61,7 @@ const COLOR_MAP: Record<string, { bg: string; border: string; text: string; glow
   indigo: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/30', text: 'text-indigo-400', glow: 'shadow-indigo-500/20' },
   emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', glow: 'shadow-emerald-500/20' },
   violet: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-400', glow: 'shadow-violet-500/20' },
+  amber: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', glow: 'shadow-amber-500/20' },
 };
 
 function PulseDot() {
@@ -297,6 +299,13 @@ const indexCards = [
     icon: IconWalkthroughVoid,
     color: 'violet',
   },
+  {
+    key: 'brainstorm' as const,
+    label: 'Brainstorm Mode',
+    subtitle: 'Voice-driven ideation',
+    icon: IconBrainstorm,
+    color: 'amber',
+  },
 ];
 
 function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
@@ -336,11 +345,19 @@ function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
         Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
       </motion.p>
 
-      <div className="mt-4 md:mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 max-w-4xl w-full pointer-events-auto">
+      <div className="mt-4 md:mt-10 grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-5 max-w-5xl w-full pointer-events-auto">
         {indexCards.map((card, i) => {
           const colors = COLOR_MAP[card.color];
           const Icon = card.icon;
-          const isSection = card.key !== 'walkthrough';
+          const handleClick = () => {
+            if (card.key === 'walkthrough') {
+              onWalkthroughOpen();
+            } else if (card.key === 'brainstorm') {
+              window.location.hash = '#/brainstorm';
+            } else {
+              onNavigate(card.key as SectionId);
+            }
+          };
           return (
             <motion.button
               key={card.key}
@@ -349,7 +366,7 @@ function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
               initial="hidden"
               animate="visible"
               exit="exit"
-              onClick={isSection ? () => onNavigate(card.key as SectionId) : onWalkthroughOpen}
+              onClick={handleClick}
               className={`group relative rounded-2xl border ${colors.border} ${colors.bg} p-3 md:p-6 text-left backdrop-blur-xl transition-all duration-300 hover:scale-[1.04] hover:shadow-lg active:scale-[0.98] flex items-center gap-3 md:block`}
             >
               <div className={`shrink-0 inline-flex h-9 w-9 md:h-11 md:w-11 md:mb-3 items-center justify-center rounded-xl ${colors.bg} ${colors.text}`}>
