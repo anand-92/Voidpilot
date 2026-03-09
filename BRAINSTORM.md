@@ -124,6 +124,7 @@ Brainstorm Mode runs on the same Gemini Live API WebSocket session the app alrea
 | **Barge-in / interruption** | User can redirect the brainstorm at any time ("wait, go back to that first idea") |
 | **Affective dialog** | Voidpilot adapts tone — encouraging when unsure, challenging when confident |
 | **Context window compression** | Already configured (trigger at 25.6k, slide to 12.8k) — enables long brainstorm sessions |
+| **Session resumption** | Must be added to brainstorm endpoint's `LiveConnectConfig` — not yet configured in the codebase. Needed to bridge WebSocket reconnections during long brainstorm sessions. |
 | **NON_BLOCKING function calling** | Artifact tools run asynchronously — Live model never pauses the conversation |
 
 **System prompt for Brainstorm Mode:**
@@ -359,9 +360,19 @@ async def handle_brainstorm_image(prompt: str, label: str) -> dict:
     }
 
 async def handle_delegate(task: str, context: str, output_format: str = "markdown_section") -> dict:
-    """NON_BLOCKING handler — Flash Lite does the thinking."""
+    """NON_BLOCKING handler — Flash Lite does the thinking and creates an artifact."""
     flash = FlashWorker(api_key)
     result = await flash.delegate_task(task, context, output_format)
+
+    # Delegation results become artifacts too — Gemini Live is just the bridge
+    filename = f"analysis-{task[:30].replace(' ', '-').lower()}.md"
+    await store_artifact(session_id, filename, result, platform)
+
+    await websocket.send_json({
+        "type": "brainstorm_artifact",
+        "filename": filename,
+        "content": result,
+    })
 
     return {
         "result": result,
@@ -372,16 +383,17 @@ async def handle_delegate(task: str, context: str, output_format: str = "markdow
 ### 5. Platform-Aware Artifact Routing
 
 ```
-Client connects → sends { type: "brainstorm_init", platform: "electron" | "web", outputDir?: string }
+Client connects to /api/v1/live/brainstorm → backend creates GeminiLive with brainstorm system prompt + tools
+Client sends { type: "platform_info", platform: "electron" | "web", outputDir?: string }
 
 Tool response arrives from Flash Lite worker → backend:
+  → push artifact payload to frontend via WebSocket (always)
   if platform == "electron":
-    → send artifact payload to frontend via WebSocket
     → frontend writes to local filesystem via Electron IPC
     → file appears in user's chosen folder immediately
   if platform == "web":
-    → store artifact in session-scoped in-memory dict
-    → push artifact event to frontend for virtual workspace display
+    → frontend holds artifact in React state for virtual workspace display
+    → all downloads (single + zip) happen client-side
 ```
 
 #### Electron Path (Local Filesystem)
@@ -445,8 +457,8 @@ Web users don't have a filesystem. The backend holds artifacts in-memory for the
 7. USER downloads:
    a) Single file → entirely CLIENT-SIDE (content is already in React state):
       └─ Create Blob from state → trigger <a download> click → no server round-trip
-   b) "Download All" → POST /api/v1/brainstorm/{session_id}/download
-      └─ Backend zips all artifacts from in-memory store → streams zip response
+   b) "Download All" → entirely CLIENT-SIDE using JSZip:
+      └─ Zip all artifacts from React state → trigger download → no server round-trip
 ```
 
 **Single-file download (client-side, zero server calls):**
@@ -481,57 +493,62 @@ await websocket.send_json({
 <img src={`data:image/png;base64,${artifact.data}`} alt={artifact.label} />
 ```
 
-**Memory management:**
+**Memory management (no server-side storage needed):**
 
 ```python
-# artifact_store lives inside the WebSocket handler scope
-async def gemini_live_ws(websocket: WebSocket):
+# Artifacts are pushed to the frontend over WebSocket as they're generated.
+# The frontend holds all artifacts in React state.
+# All downloads (single file + zip) happen entirely client-side.
+# No module-level artifact_store needed — avoids Cloud Run multi-instance issues.
+async def gemini_live_brainstorm_ws(websocket: WebSocket):
     session_id = str(uuid.uuid4())
-    artifact_store: dict[str, dict] = {}  # filename → { content, mime_type, size, updated_at }
     # ... session logic ...
-    # When WebSocket disconnects, artifact_store is garbage collected.
-    # That's fine — frontend already has all content in React state for client-side downloads.
+    # Artifacts are sent to frontend via websocket.send_json() as they arrive
+    # from Flash Lite workers. Frontend React state is the single source of truth.
 ```
 
-**"Download All" endpoint:**
+**"Download All" (client-side with JSZip — no server endpoint):**
 
-```python
-# In router.py — only needed for zip downloads
-@router.get("/brainstorm/{session_id}/download")
-async def download_all_artifacts(session_id: str):
-    artifacts = get_session_artifacts(session_id)  # from module-level dict
-    if not artifacts:
-        raise HTTPException(404, "Session not found or expired")
+Since Cloud Run can run multiple instances, a server-side zip endpoint would fail if the HTTP request routes to a different instance than the one holding the WebSocket session's artifacts. Instead, the frontend already has all artifact content in React state, so we zip entirely client-side:
 
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        for filename, artifact in artifacts.items():
-            zf.writestr(filename, artifact["content"])
-    zip_buffer.seek(0)
+```typescript
+import JSZip from 'jszip';
 
-    return StreamingResponse(
-        zip_buffer,
-        media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename=brainstorm-{session_id[:8]}.zip"},
-    )
+async function downloadAllArtifacts(artifacts: Map<string, { content: string | Uint8Array; mimeType: string }>, sessionLabel: string) {
+  const zip = new JSZip();
+  for (const [filename, artifact] of artifacts) {
+    zip.file(filename, artifact.content);
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `brainstorm-${sessionLabel}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 ```
 
-> **Note:** For the zip endpoint to work, the `artifact_store` must be accessible outside the WebSocket handler. We promote it to a module-level `dict[str, dict[str, dict]]` keyed by `session_id`, with a TTL cleanup task that removes expired sessions after 30 minutes of inactivity.
+> **Note:** This eliminates the need for a server-side zip endpoint and the module-level `artifact_store` dict. The backend only needs to push artifacts over WebSocket — no REST endpoints for download.
 
-```
-Download endpoints:
-  GET /api/v1/brainstorm/{session_id}/download  → zip of all artifacts (only endpoint needed)
-  Single files are downloaded client-side from React state — no server call required.
-```
+### 7. Routing & Endpoint
 
-### 7. Routing
+Brainstorm Mode gets its own route in `main.tsx` and its own WebSocket endpoint:
 
-Brainstorm Mode gets its own route in `main.tsx`:
+**Frontend routes** (note: currently `main.tsx` only has `/#/` → LandingPage in web mode, no `/#/app` exists yet):
 
 ```
 /#/            → LandingPage (existing)
-/#/app         → App (existing assistant mode)
 /#/brainstorm  → BrainstormPage (new — dedicated brainstorm layout)
+```
+
+**Backend WebSocket endpoint:**
+
+Brainstorm Mode uses a **separate WebSocket endpoint** (`/api/v1/live/brainstorm`) rather than sharing `/api/v1/live/ws`. This is cleaner than a `brainstorm_init` message because the current backend creates the `GeminiLive` instance (with system prompt and tools) before reading any client messages — a dynamic switch isn't possible without restructuring the handler. A dedicated endpoint keeps both code paths clean.
+
+```
+/api/v1/live/ws          → existing assistant mode (weather, midscene, bash tools)
+/api/v1/live/brainstorm  → brainstorm mode (save_brainstorm_artifact, generate_brainstorm_image, delegate_to_flash)
 ```
 
 The `BrainstormPage` component has its own layout optimized for brainstorming:
@@ -539,8 +556,6 @@ The `BrainstormPage` component has its own layout optimized for brainstorming:
 - Voice controls (mic, connect/disconnect) on the left or top
 - Conversation transcript in the center
 - Artifact workspace panel on the right (full inline preview)
-
-The WebSocket connects to the same `/api/v1/live/ws` endpoint but sends a `brainstorm_init` message on connect, which tells the backend to use the brainstorm system prompt and tool set instead of the default assistant configuration.
 
 ### 8. Frontend — UI Components
 
@@ -552,6 +567,7 @@ The `BrainstormPage` layout in Electron includes:
 - Live list of generated files with open-in-finder buttons
 - Inline markdown preview of the current brainstorm document
 - Status indicators showing when Flash Lite workers are active
+- **"Save snapshot" button** — sends a system-level text message to Gemini (e.g., `"[SYSTEM: User requested a brainstorm save. Call save_brainstorm_artifact now with all current ideas.]"`) as a manual save trigger, complementing Gemini's autonomous saves
 - No screen sharing / Midscene controls — focused brainstorm experience
 
 #### Web: Virtual Workspace Panel
@@ -559,10 +575,11 @@ The `BrainstormPage` layout in Electron includes:
 The `BrainstormPage` layout in web mode includes a right-side workspace panel with full inline preview:
 
 - File tree of all session artifacts (updates in real-time as artifacts arrive over WebSocket)
-- Markdown rendered inline via `react-markdown` for `.md` files
+- Markdown rendered inline via `react-markdown` (new dependency — must be added to `package.json`) for `.md` files
 - Images displayed inline via base64 data URIs
 - Individual download buttons per file (client-side, no server call)
-- "Download All (.zip)" button (calls backend endpoint)
+- "Download All (.zip)" button (client-side using JSZip — no server endpoint needed, avoids Cloud Run multi-instance routing issues)
+- **"Save snapshot" button** — manual trigger for Gemini to save current brainstorm state
 - File count and total size indicator
 - Warning banner: "Artifacts are stored in your session. Download before disconnecting."
 
@@ -595,7 +612,7 @@ The `BrainstormPage` layout in web mode includes a right-side workspace panel wi
 | **Google Search (grounding)** | Available as a Live API tool for mid-brainstorm fact-checking |
 | **Audio Transcription** | Already enabled — provides raw transcript that feeds artifact generation |
 | **Context Window Compression** | Already configured — enables brainstorm sessions longer than 15 minutes |
-| **Session Resumption** | `session_resumption_config` — enables "continue where we left off" |
+| **Session Resumption** | Must be added to brainstorm endpoint's `LiveConnectConfig` — enables "continue where we left off" across WebSocket reconnections |
 
 ---
 
@@ -606,18 +623,20 @@ The `BrainstormPage` layout in web mode includes a right-side workspace panel wi
 1. Build `FlashWorker` service class wrapping `gemini-3.1-flash-lite-preview`
 2. Add `save_brainstorm_artifact` tool declaration with `"behavior": "NON_BLOCKING"`
 3. Implement backend tool handler with Flash Lite delegation + `scheduling: "SILENT"`
-4. Add session-scoped in-memory `artifact_store` with module-level dict + TTL cleanup
-5. Wire up platform-aware artifact routing (Electron IPC + Web in-memory → WebSocket push)
-6. Add dedicated brainstorm system prompt (replaces default assistant prompt entirely)
-7. Create `/#/brainstorm` route with `BrainstormPage` component
-8. Build workspace panel with inline markdown preview (`react-markdown`) + client-side download
-9. Electron: add `write-brainstorm-file` IPC handler + folder picker UI
-10. Web: add "Download All (.zip)" endpoint
+4. Create **separate WebSocket endpoint** at `/api/v1/live/brainstorm` with brainstorm-specific system prompt and tools
+5. Add `session_resumption` to brainstorm endpoint's `LiveConnectConfig` (not yet configured in codebase)
+6. Wire up platform-aware artifact routing (Electron IPC + Web in-memory → WebSocket push)
+7. Add dedicated brainstorm system prompt (replaces default assistant prompt entirely)
+8. Create `/#/brainstorm` route with `BrainstormPage` component (note: `/#/app` doesn't exist yet in web mode — only `/#/` → LandingPage)
+9. Install `react-markdown` and `jszip` as new frontend dependencies
+10. Build workspace panel with inline markdown preview + client-side download (single + zip via JSZip)
+11. Add **"Save snapshot" button** — sends system-level text to Gemini as manual save trigger
+12. Electron: add `write-brainstorm-file` IPC handler + folder picker UI
 
 ### Phase 2: Image Artifacts + Delegation
 
 1. Add `generate_brainstorm_image` tool with `NON_BLOCKING` + `scheduling: "WHEN_IDLE"`
-2. Add `delegate_to_flash` general-purpose tool for analysis/synthesis tasks
+2. Add `delegate_to_flash` general-purpose tool — results are saved as artifacts in the workspace (Gemini Live is just the voice bridge; Flash Lite produces all artifacts)
 3. Flash Lite image worker using `gemini-3.1-flash-image-preview` (Nano Banana 2)
 4. Render images inline in both artifact views
 5. Show Flash Lite worker activity status in the UI
@@ -626,9 +645,8 @@ The `BrainstormPage` layout in web mode includes a right-side workspace panel wi
 
 1. Brainstorm session list — view past brainstorms (Electron: scan folder; Web: session history)
 2. Session resumption — load previous artifact as context for a new session
-3. "Download All as .zip" for web mode
-4. Export to PDF option
-5. Google Search grounding — let Gemini research mid-brainstorm via `delegate_to_flash`
+3. Export to PDF option
+4. Google Search grounding — let Gemini research mid-brainstorm via `delegate_to_flash`
 
 ---
 
@@ -638,9 +656,10 @@ The `BrainstormPage` layout in web mode includes a right-side workspace panel wi
 - **NON_BLOCKING is essential** — without it, every tool call freezes the voice conversation. All brainstorm tools must use this behavior.
 - **Flash Lite latency** — markdown generation is fast (~1-2s). Image generation is slower (~3-6s). UI should show a spinner in the artifact panel.
 - **Scheduling choice matters** — `SILENT` for routine saves prevents Gemini from awkwardly announcing "I've saved the file" every few minutes. `WHEN_IDLE` for images lets Gemini naturally mention "I've created a visual for that idea" at a conversational pause.
-- **Session duration** — with context window compression, sessions run long, but WebSocket connections are limited to ~10 minutes. Session resumption bridges reconnections.
-- **Audio + function calling reliability** — the docs note audio I/O negatively impacts function calling accuracy. The two-model split helps: Live makes simple, lightweight tool calls; Flash Lite does the complex reasoning.
-- **Web artifact memory** — in-memory storage means artifacts are lost if the server restarts. Acceptable for MVP; Phase 3 could add Cloud Storage.
+- **Session duration** — with context window compression, sessions run long, but WebSocket connections are limited to ~10 minutes. Session resumption (must be added to brainstorm endpoint's `LiveConnectConfig`) bridges reconnections.
+- **Audio + function calling reliability** — the docs note audio I/O negatively impacts function calling accuracy. The two-model split helps: Live makes simple, lightweight tool calls; Flash Lite does the complex reasoning. A manual "Save snapshot" button in the UI serves as a fallback when Gemini doesn't autonomously trigger saves.
+- **Web artifact memory** — artifacts are pushed to the frontend over WebSocket and held in React state. All downloads (single and zip) happen client-side. No server-side artifact storage needed — this avoids Cloud Run multi-instance routing issues where an HTTP request might hit a different instance than the one holding the WebSocket session.
+- **New frontend dependencies** — `react-markdown` for inline preview, `jszip` for client-side zip downloads. Neither exists in `package.json` today.
 
 ---
 
