@@ -101,6 +101,15 @@ Brainstorm Mode works in **both** deployment targets with platform-appropriate a
 
 ---
 
+## UX Decisions
+
+- **Activation**: Brainstorm Mode lives on its own route (`/#/brainstorm`) with a dedicated layout — separate from the main assistant view at `/#/app`.
+- **Artifact updates**: Flash Lite always **rewrites the full document** on each save. Simpler, and Flash Lite sees the full picture each time. The `mode` param on the tool is kept for future incremental support but MVP always does a full rewrite.
+- **Web preview**: Full inline preview from day one — rendered markdown via `react-markdown` and displayed images in the workspace panel. Not just a file list.
+- **System prompt**: Brainstorm mode **completely replaces** the assistant prompt. No weather, bash, or midscene tools — it's a focused brainstorming experience with only the brainstorm tool set.
+
+---
+
 ## How It Works (Technical Design)
 
 ### 1. Gemini Live API — The Voice Layer
@@ -144,13 +153,13 @@ All brainstorm tools use `"behavior": "NON_BLOCKING"` so the Live model never st
 
 #### Tool: `save_brainstorm_artifact`
 
-Gemini Live calls this to create or update the brainstorm markdown. The backend delegates the actual structured markdown generation to **Flash Lite**, which produces clean, well-organized content from the raw ideas Gemini Live passes along.
+Gemini Live calls this to create or update the brainstorm markdown. The backend delegates the actual structured markdown generation to **Flash Lite**, which produces clean, well-organized content from the raw ideas Gemini Live passes along. **Flash Lite always rewrites the full document** — simpler, and it sees the whole picture each time.
 
 ```json
 {
   "name": "save_brainstorm_artifact",
   "behavior": "NON_BLOCKING",
-  "description": "Create or update the brainstorm markdown document. A background worker (Flash Lite) will structure and format the content. The conversation continues uninterrupted.",
+  "description": "Create or update the brainstorm markdown document. A background worker (Flash Lite) will structure and format the content into a complete document. The conversation continues uninterrupted.",
   "parameters": {
     "type": "object",
     "properties": {
@@ -160,16 +169,11 @@ Gemini Live calls this to create or update the brainstorm markdown. The backend 
       },
       "raw_ideas": {
         "type": "string",
-        "description": "Raw ideas, themes, and decisions from the conversation so far. Flash Lite will structure this into a clean markdown document."
+        "description": "ALL ideas, themes, and decisions from the conversation so far. Flash Lite will structure the complete set into a clean markdown document, replacing any previous version."
       },
       "filename": {
         "type": "string",
         "description": "Filename for the artifact (e.g. brainstorm-app-redesign.md)"
-      },
-      "mode": {
-        "type": "string",
-        "enum": ["create", "append", "rewrite"],
-        "description": "create = new file, append = add a new section, rewrite = regenerate the full document"
       }
     },
     "required": ["title", "raw_ideas", "filename"]
@@ -252,12 +256,10 @@ class FlashWorker:
         self.model = "gemini-3.1-flash-lite-preview"
         self.image_model = "gemini-3.1-flash-image-preview"
 
-    async def generate_markdown(self, title: str, raw_ideas: str, mode: str, existing_content: str = "") -> str:
-        """Structure raw brainstorm ideas into clean markdown."""
+    async def generate_markdown(self, title: str, raw_ideas: str) -> str:
+        """Structure raw brainstorm ideas into clean markdown (full rewrite)."""
         prompt = f"""You are a brainstorm document writer.
 Title: {title}
-Mode: {mode}
-{"Existing document:\n" + existing_content if existing_content else ""}
 
 Raw ideas from the brainstorm session:
 {raw_ideas}
@@ -313,15 +315,12 @@ When Gemini Live makes a `NON_BLOCKING` tool call, the backend:
 ```python
 # In live.py tool handler
 
-async def handle_brainstorm_save(title: str, raw_ideas: str, filename: str, mode: str = "create") -> dict:
-    """NON_BLOCKING handler — Flash Lite structures the markdown."""
+async def handle_brainstorm_save(title: str, raw_ideas: str, filename: str) -> dict:
+    """NON_BLOCKING handler — Flash Lite structures the markdown (full rewrite each time)."""
     flash = FlashWorker(api_key)
 
-    # Get existing content if appending/rewriting
-    existing = artifact_store.get(session_id, filename, "")
-
-    # Flash Lite does the heavy lifting
-    markdown = await flash.generate_markdown(title, raw_ideas, mode, existing)
+    # Flash Lite rewrites the full document from scratch
+    markdown = await flash.generate_markdown(title, raw_ideas)
 
     # Store the artifact (platform-aware)
     await store_artifact(session_id, filename, markdown, platform)
@@ -405,36 +404,167 @@ writeBrainstormFile: (args: { dir: string; filename: string; content: string | B
   ipcRenderer.invoke('write-brainstorm-file', args)
 ```
 
-#### Web Path (Virtual Workspace)
+#### Web Path (Virtual Workspace) — Detailed Walkthrough
+
+Web users don't have a filesystem. The backend holds artifacts in-memory for the WebSocket session lifetime, pushes them to the frontend in real-time, and the frontend handles downloads client-side.
+
+**Step-by-step lifecycle:**
+
+```
+1. USER connects via WebSocket to /api/v1/live/ws
+   └─ Backend generates a session_id (uuid4)
+   └─ Creates session-scoped artifact store: artifact_store = {}
+
+2. USER talks → Gemini Live fires NON_BLOCKING tool call:
+   save_brainstorm_artifact(title="App Ideas", raw_ideas="...", filename="brainstorm.md")
+
+3. BACKEND receives tool call, spawns async Flash Lite worker:
+   └─ Flash Lite (gemini-3.1-flash-lite-preview) structures raw ideas → clean markdown
+   └─ Returns in ~1-2 seconds
+
+4. BACKEND stores artifact in-memory:
+   artifact_store["brainstorm.md"] = {
+       "content": "# App Ideas\n\n## Key Themes\n...",
+       "mime_type": "text/markdown",
+       "size": 2847,
+       "updated_at": "2026-03-09T14:32:01Z",
+   }
+
+5. BACKEND pushes to frontend over the existing WebSocket:
+   {
+       "type": "brainstorm_artifact",
+       "filename": "brainstorm.md",
+       "content": "# App Ideas\n\n## Key Themes\n...",
+       "mime_type": "text/markdown"
+   }
+
+6. FRONTEND receives event → updates React state → artifact appears in workspace:
+   └─ Markdown rendered inline via react-markdown
+   └─ If file already exists in state, panel live-refreshes with new content
+
+7. USER downloads:
+   a) Single file → entirely CLIENT-SIDE (content is already in React state):
+      └─ Create Blob from state → trigger <a download> click → no server round-trip
+   b) "Download All" → POST /api/v1/brainstorm/{session_id}/download
+      └─ Backend zips all artifacts from in-memory store → streams zip response
+```
+
+**Single-file download (client-side, zero server calls):**
+
+```typescript
+function downloadArtifact(filename: string, content: string | Uint8Array, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+```
+
+**Image artifacts over WebSocket (base64):**
+
+```python
+# Backend pushes image as base64
+await websocket.send_json({
+    "type": "brainstorm_image",
+    "filename": "concept-sketch.png",
+    "label": "concept sketch",
+    "data": base64.b64encode(image_bytes).decode(),
+    "mime_type": "image/png",
+})
+```
+
+```tsx
+// Frontend displays inline
+<img src={`data:image/png;base64,${artifact.data}`} alt={artifact.label} />
+```
+
+**Memory management:**
+
+```python
+# artifact_store lives inside the WebSocket handler scope
+async def gemini_live_ws(websocket: WebSocket):
+    session_id = str(uuid.uuid4())
+    artifact_store: dict[str, dict] = {}  # filename → { content, mime_type, size, updated_at }
+    # ... session logic ...
+    # When WebSocket disconnects, artifact_store is garbage collected.
+    # That's fine — frontend already has all content in React state for client-side downloads.
+```
+
+**"Download All" endpoint:**
+
+```python
+# In router.py — only needed for zip downloads
+@router.get("/brainstorm/{session_id}/download")
+async def download_all_artifacts(session_id: str):
+    artifacts = get_session_artifacts(session_id)  # from module-level dict
+    if not artifacts:
+        raise HTTPException(404, "Session not found or expired")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for filename, artifact in artifacts.items():
+            zf.writestr(filename, artifact["content"])
+    zip_buffer.seek(0)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=brainstorm-{session_id[:8]}.zip"},
+    )
+```
+
+> **Note:** For the zip endpoint to work, the `artifact_store` must be accessible outside the WebSocket handler. We promote it to a module-level `dict[str, dict[str, dict]]` keyed by `session_id`, with a TTL cleanup task that removes expired sessions after 30 minutes of inactivity.
 
 ```
 Download endpoints:
-  GET /api/v1/brainstorm/{session_id}/files/{filename}  → single file
-  GET /api/v1/brainstorm/{session_id}/download           → zip of all artifacts
+  GET /api/v1/brainstorm/{session_id}/download  → zip of all artifacts (only endpoint needed)
+  Single files are downloaded client-side from React state — no server call required.
 ```
 
-### 6. Frontend — UI Components
+### 7. Routing
+
+Brainstorm Mode gets its own route in `main.tsx`:
+
+```
+/#/            → LandingPage (existing)
+/#/app         → App (existing assistant mode)
+/#/brainstorm  → BrainstormPage (new — dedicated brainstorm layout)
+```
+
+The `BrainstormPage` component has its own layout optimized for brainstorming:
+- No screen sharing controls, no display picker, no Midscene settings
+- Voice controls (mic, connect/disconnect) on the left or top
+- Conversation transcript in the center
+- Artifact workspace panel on the right (full inline preview)
+
+The WebSocket connects to the same `/api/v1/live/ws` endpoint but sends a `brainstorm_init` message on connect, which tells the backend to use the brainstorm system prompt and tool set instead of the default assistant configuration.
+
+### 8. Frontend — UI Components
 
 #### Electron: Artifact Sidebar
 
-Extends the existing left panel in `App.tsx`:
+The `BrainstormPage` layout in Electron includes:
 
-- Folder picker (where to save artifacts)
+- Folder picker (where to save artifacts — uses Electron `dialog.showOpenDialog`)
 - Live list of generated files with open-in-finder buttons
 - Inline markdown preview of the current brainstorm document
-- Toggle to enter/exit Brainstorm Mode
 - Status indicators showing when Flash Lite workers are active
+- No screen sharing / Midscene controls — focused brainstorm experience
 
 #### Web: Virtual Workspace Panel
 
-Right-side panel:
+The `BrainstormPage` layout in web mode includes a right-side workspace panel with full inline preview:
 
-- File tree of all session artifacts
-- Markdown renderer for `.md` files (using `react-markdown`)
-- Image viewer for generated `.png` files
-- Individual download buttons per file
-- "Download All (.zip)" button
+- File tree of all session artifacts (updates in real-time as artifacts arrive over WebSocket)
+- Markdown rendered inline via `react-markdown` for `.md` files
+- Images displayed inline via base64 data URIs
+- Individual download buttons per file (client-side, no server call)
+- "Download All (.zip)" button (calls backend endpoint)
 - File count and total size indicator
+- Warning banner: "Artifacts are stored in your session. Download before disconnecting."
 
 ```
 +----------------------------------+-------------------+
@@ -476,10 +606,13 @@ Right-side panel:
 1. Build `FlashWorker` service class wrapping `gemini-3.1-flash-lite-preview`
 2. Add `save_brainstorm_artifact` tool declaration with `"behavior": "NON_BLOCKING"`
 3. Implement backend tool handler with Flash Lite delegation + `scheduling: "SILENT"`
-4. Wire up platform-aware artifact routing (Electron IPC + Web in-memory store)
-5. Add brainstorm system prompt (switchable via UI toggle)
-6. Build artifact sidebar (Electron) and virtual workspace panel (Web)
-7. Add folder picker UI for Electron, download buttons for Web
+4. Add session-scoped in-memory `artifact_store` with module-level dict + TTL cleanup
+5. Wire up platform-aware artifact routing (Electron IPC + Web in-memory → WebSocket push)
+6. Add dedicated brainstorm system prompt (replaces default assistant prompt entirely)
+7. Create `/#/brainstorm` route with `BrainstormPage` component
+8. Build workspace panel with inline markdown preview (`react-markdown`) + client-side download
+9. Electron: add `write-brainstorm-file` IPC handler + folder picker UI
+10. Web: add "Download All (.zip)" endpoint
 
 ### Phase 2: Image Artifacts + Delegation
 
