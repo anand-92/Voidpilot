@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from src.app.api.v1.endpoints import live, walkthrough
+from src.app.api.v1.endpoints import brainstorm, live, walkthrough
 
 api_router = APIRouter()
 
@@ -13,4 +13,7 @@ async def hello():
 api_router.include_router(live.router, prefix="/live", tags=["Gemini Live"])
 api_router.include_router(
     walkthrough.router, prefix="/live", tags=["Walkthrough"]
+)
+api_router.include_router(
+    brainstorm.router, prefix="/live", tags=["Brainstorm"]
 )
