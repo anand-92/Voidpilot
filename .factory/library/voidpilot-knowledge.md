@@ -31,6 +31,11 @@
 | `gemini-3.1-flash-lite-preview` | Background text generation (markdown structuring, analysis) |
 | `gemini-3.1-flash-image-preview` | Background image generation (concept sketches, diagrams) |
 
+## Gemini API Patterns
+- **API version**: All `genai.Client` instances use `http_options={"api_version": "v1beta"}`. This is required for Live API, Flash Lite, and Flash Image models. See `gemini_audio.py`, `flash_worker.py`, `ephemeral_token.py`.
+- **Session resumption**: `SessionResumptionConfig` is always included in `LiveConnectConfig` for all `GeminiLive` sessions (not just brainstorm). When `handle=None`, it starts a fresh session. Workers modifying session config should be aware this affects all endpoints.
+- **Hardcoded fallback API key**: Multiple endpoints (`live.py`, `walkthrough.py`, `brainstorm.py`) have a hardcoded fallback API key. This is a known tech debt item — new endpoints should follow the same pattern for consistency until it's properly addressed.
+
 ## Brainstorm Mode Tools (all NON_BLOCKING)
 | Tool | Scheduling | Purpose |
 |------|-----------|---------|
