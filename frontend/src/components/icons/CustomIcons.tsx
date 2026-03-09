@@ -650,80 +650,92 @@ export function IconBrainstorm(props: SVGProps<SVGSVGElement>) {
       strokeLinejoin="round"
       className={props.className}
     >
-      {/* Brain outline */}
+      {/* Idea Sparks (Radiating above) */}
       <motion.path
-        d="M 12 2 C 8 2 5 5 5 8 C 5 10 6 11.5 7 12.5 C 6 13.5 5 15 5 17 C 5 20 8 22 12 22 C 16 22 19 20 19 17 C 19 15 18 13.5 17 12.5 C 18 11.5 19 10 19 8 C 19 5 16 2 12 2 Z"
-        fill="currentColor"
-        fillOpacity="0.08"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 1.2, ease: "easeInOut" }}
-      />
-      {/* Brain center line */}
-      <motion.path
-        d="M 12 4 L 12 20"
-        strokeOpacity="0.3"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.8, delay: 0.3 }}
-      />
-      {/* Left folds */}
-      <motion.path
-        d="M 12 8 C 10 8 8 7 7 8"
-        strokeOpacity="0.5"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.6, delay: 0.5 }}
-      />
-      <motion.path
-        d="M 12 14 C 10 14 8 13 6 14"
-        strokeOpacity="0.5"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.6, delay: 0.7 }}
-      />
-      {/* Right folds */}
-      <motion.path
-        d="M 12 8 C 14 8 16 7 17 8"
-        strokeOpacity="0.5"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.6, delay: 0.6 }}
-      />
-      <motion.path
-        d="M 12 14 C 14 14 16 13 18 14"
-        strokeOpacity="0.5"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.6, delay: 0.8 }}
-      />
-      {/* Idea sparks */}
-      <motion.circle
-        cx="6"
-        cy="3"
-        r="1"
-        fill="currentColor"
-        stroke="none"
-        animate={{ scale: [0.8, 1.3, 0.8], opacity: [0.4, 1, 0.4] }}
+        d="M12 1.5v2"
+        animate={{ opacity: [0.2, 1, 0.2], y: [1, -1, 1] }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
       />
+      <motion.path
+        d="M7.5 3.5l1.5 1.5"
+        animate={{ opacity: [0.2, 1, 0.2], x: [1, -1, 1], y: [1, -1, 1] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+      />
+      <motion.path
+        d="M16.5 3.5l-1.5 1.5"
+        animate={{ opacity: [0.2, 1, 0.2], x: [-1, 1, -1], y: [1, -1, 1] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+      />
+
+      {/* Brain Silhouette Hemispheres */}
+      <path d="M12 20C8.5 20 5 18 5 14C5 11 6.5 8.5 9 7.5C9.5 5.5 10.5 5 12 5" />
+      <path d="M12 20C15.5 20 19 18 19 14C19 11 17.5 8.5 15 7.5C14.5 5.5 13.5 5 12 5" />
+
+      {/* Center Fissure */}
+      <path d="M12 6v13" strokeOpacity="0.3" />
+
+      {/* Internal Neural Pathways (Futuristic Folds) */}
+      <motion.path
+        d="M12 9H8.5L6.5 11"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+      />
+      <motion.path
+        d="M12 14H9L7 16"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 0.4 }}
+      />
+      <motion.path
+        d="M12 9H15.5L17.5 11"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 0.2 }}
+      />
+      <motion.path
+        d="M12 14H15L17 16"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 0.6 }}
+      />
+
+      {/* Pulsing Synaptic Sparks */}
       <motion.circle
-        cx="18"
-        cy="3"
+        cx="6.5"
+        cy="11"
         r="1"
         fill="currentColor"
         stroke="none"
-        animate={{ scale: [0.8, 1.3, 0.8], opacity: [0.4, 1, 0.4] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+        animate={{ scale: [1, 1.6, 1], opacity: [0.3, 1, 0.3] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.circle
-        cx="12"
-        cy="1"
-        r="0.8"
+        cx="7"
+        cy="16"
+        r="1"
         fill="currentColor"
         stroke="none"
-        animate={{ scale: [0.8, 1.4, 0.8], opacity: [0.3, 1, 0.3] }}
-        transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+        animate={{ scale: [1, 1.6, 1], opacity: [0.3, 1, 0.3] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+      />
+      <motion.circle
+        cx="17.5"
+        cy="11"
+        r="1"
+        fill="currentColor"
+        stroke="none"
+        animate={{ scale: [1, 1.6, 1], opacity: [0.3, 1, 0.3] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+      />
+      <motion.circle
+        cx="17"
+        cy="16"
+        r="1"
+        fill="currentColor"
+        stroke="none"
+        animate={{ scale: [1, 1.6, 1], opacity: [0.3, 1, 0.3] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
       />
     </motion.svg>
   );
