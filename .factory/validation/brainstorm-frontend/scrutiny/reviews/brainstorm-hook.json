@@ -1,0 +1,56 @@
+{
+  "featureId": "brainstorm-hook",
+  "reviewedAt": "2026-03-09T08:15:00.000Z",
+  "commitId": "7926967",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The useGeminiBrainstorm hook is a clean, well-structured implementation that correctly follows the patterns established by useGeminiLive.ts while staying focused on brainstorm-specific concerns. Audio utilities are properly reused from utils/audio.ts (all 8 relevant functions imported, zero duplication). The hook handles all required message types (brainstorm_artifact, brainstorm_image, text, audio, session_resumption_update, interrupted, tool_call), manages artifact state via Map<string, BrainstormArtifact>, exposes the full required API, and correctly implements session resumption. No coding convention violations found — no eslint-disable, no || used for defaults. useGeminiLive.ts was not modified (confirmed via git show). The only file changed is the new hook itself (239 lines added).",
+    "issues": [
+      {
+        "file": "frontend/src/hooks/useGeminiBrainstorm.ts",
+        "line": 98,
+        "severity": "non_blocking",
+        "description": "JSON.parse in ws.onmessage has no try-catch. If the server sends malformed JSON (e.g. during a connection error or partial message), the hook will throw an unhandled exception. useGeminiLive.ts has the same pattern, so this is a pre-existing concern rather than a regression, but worth noting."
+      },
+      {
+        "file": "frontend/src/hooks/useGeminiBrainstorm.ts",
+        "line": 131,
+        "severity": "non_blocking",
+        "description": "The 'interrupted' handler resets nextPlayTimeRef to 0, but doesn't stop any currently-playing AudioBufferSourceNodes. Queued audio buffers will still play out. Same pattern as useGeminiLive, so not a regression — just inherited behavior."
+      },
+      {
+        "file": "frontend/src/hooks/useGeminiBrainstorm.ts",
+        "line": 144,
+        "severity": "non_blocking",
+        "description": "The WebSocket open-wait Promise (lines 144-152) overwrites ws.onopen with a wrapper that calls the original. This is fragile — if the WebSocket opens between assigning the handlers (line 91) and reaching this Promise (line 144), ws.readyState would already be OPEN and the early resolve handles it, but if there's a race where onopen fires during the handler setup, the promise could hang. Low risk in practice but could use ws.addEventListener('open', ...) instead for cleaner composition."
+      },
+      {
+        "file": "frontend/src/hooks/useGeminiBrainstorm.ts",
+        "line": 120,
+        "severity": "non_blocking",
+        "description": "The intensityRef is updated both in the audio playback handler (line 125, output audio intensity) and in the mic capture handler (line 179, input audio intensity). This means the ref rapidly alternates between representing microphone input intensity and speaker output intensity. For a VU meter, this could show flickering between user voice and Gemini voice levels. The feature description says 'mic intensity for VU meter' but the implementation also overwrites it with playback intensity. Not blocking since useGeminiLive has the same pattern."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker created the hook file without any unit tests, citing 'no test framework configured for frontend'. The skill (fullstack-worker) acknowledges this in step 2: 'Frontend: No test framework configured — validation is via build + lint + code review.' This is accurate for the current project state — there's no vitest or jest in frontend/package.json. However, the AGENTS.md also says 'Frontend: No test framework configured — validation is via build + lint + code review.' This means there's no path for frontend hooks to get automated testing. If frontend complexity grows (e.g., more hooks, state management), adding vitest would be valuable.",
+      "evidence": "frontend/package.json has no vitest/jest dependency. Skill step 2 explicitly skips frontend tests. Handoff confirms this rationale."
+    },
+    {
+      "area": "conventions",
+      "observation": "Both useGeminiLive.ts and useGeminiBrainstorm.ts use the deprecated ScriptProcessorNode API for audio processing. The Web Audio API documentation recommends AudioWorkletNode instead. This isn't a regression (the new hook correctly follows the existing pattern), but as the codebase grows more hooks using this pattern, a shared AudioWorklet processor could be extracted to utils/audio.ts.",
+      "evidence": "useGeminiBrainstorm.ts:168 createScriptProcessor, useGeminiLive.ts same pattern. MDN marks ScriptProcessorNode as deprecated."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The voidpilot-knowledge.md library file already documents the brainstorm endpoint, models, and tools pattern — the worker did not need to discover this. The worker's approach was well-informed by existing documentation. No new knowledge gaps identified.",
+      "evidence": ".factory/library/voidpilot-knowledge.md covers brainstorm tools, models, and API patterns."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. The useGeminiBrainstorm hook is a solid implementation that fulfills all 5 validation assertions (FE-HK-01 through FE-HK-05). It correctly reuses all audio utilities from utils/audio.ts without duplication, imports Message/MessageRole types from useGeminiLive.ts without modifying it, handles all 7 WebSocket message types, manages artifact state via Map, implements session resumption, and exposes the complete API surface (isConnected, isStarting, messages, artifacts, isGenerating, start, stop, sendText, sendSnapshot, intensityRef). No coding convention violations. Four non-blocking issues noted — all are inherited patterns from the existing useGeminiLive hook rather than new regressions. Single file changed: 239 lines added."
+}

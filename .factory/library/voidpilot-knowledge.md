@@ -36,6 +36,11 @@
 - **Session resumption**: `SessionResumptionConfig` is always included in `LiveConnectConfig` for all `GeminiLive` sessions (not just brainstorm). When `handle=None`, it starts a fresh session. Workers modifying session config should be aware this affects all endpoints.
 - **Hardcoded fallback API key**: Multiple endpoints (`live.py`, `walkthrough.py`, `brainstorm.py`) have a hardcoded fallback API key. This is a known tech debt item — new endpoints should follow the same pattern for consistency until it's properly addressed.
 
+## Frontend Artifact Content Format
+- **Markdown artifacts**: `brainstorm_artifact` messages carry `content` as raw markdown text (UTF-8 string). Rendered inline via react-markdown, downloadable as-is.
+- **Image artifacts**: `brainstorm_image` messages carry `data` as a base64-encoded string. Displayed inline via `data:image/png;base64,...` URIs. For downloads, the base64 string must be decoded to binary before creating Blobs or zip entries — otherwise downloaded files will be corrupt.
+- **State**: All artifacts are held in React state (`Map<string, BrainstormArtifact>`) with no server-side storage. Client-side downloads via Blob URLs and JSZip.
+
 ## Brainstorm Mode Tools (all NON_BLOCKING)
 | Tool | Scheduling | Purpose |
 |------|-----------|---------|
