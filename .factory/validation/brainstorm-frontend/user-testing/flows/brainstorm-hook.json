@@ -1,0 +1,182 @@
+{
+  "groupId": "brainstorm-hook",
+  "testedAt": "2026-03-09T04:15:00Z",
+  "credentials": {
+    "account": "code-review",
+    "namespace": "brainstorm-hook"
+  },
+  "toolsUsed": ["Read", "Grep"],
+  "assertions": [
+    {
+      "id": "FE-HK-01",
+      "title": "Hook connects to /api/v1/live/brainstorm WebSocket",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read useGeminiBrainstorm.ts imports",
+          "expected": "API_BASE_URL imported from utils/audio.ts",
+          "observed": "API_BASE_URL imported from '../utils/audio.ts'"
+        },
+        {
+          "action": "Check WebSocket URL construction in start()",
+          "expected": "WebSocket URL targets /api/v1/live/brainstorm",
+          "observed": "new WebSocket(`${API_BASE_URL}/api/v1/live/brainstorm`) — correctly targets brainstorm endpoint"
+        },
+        {
+          "action": "Verify API_BASE_URL in utils/audio.ts",
+          "expected": "Constructs ws(s)://host base URL",
+          "observed": "API_BASE_URL = `${wsProtocol}//${wsHost}` — protocol-aware WebSocket base URL"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "network": "N/A (code review)",
+        "codeLocations": [
+          "frontend/src/hooks/useGeminiBrainstorm.ts: line ~75: `const ws = new WebSocket(`${API_BASE_URL}/api/v1/live/brainstorm`)`",
+          "frontend/src/utils/audio.ts: line ~10: `export const API_BASE_URL = `${wsProtocol}//${wsHost}``"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-HK-02",
+      "title": "Hook handles brainstorm_artifact messages",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read ws.onmessage handler for brainstorm_artifact type",
+          "expected": "Handler checks data.type === 'brainstorm_artifact' and updates artifact state with filename and content",
+          "observed": "Handler at line ~82: if (data.type === 'brainstorm_artifact') calls upsertArtifact(data.filename, { filename: data.filename, content: data.content, mimeType: 'text/markdown', updatedAt: new Date().toISOString() })"
+        },
+        {
+          "action": "Verify upsertArtifact function updates Map state",
+          "expected": "Function sets artifact by filename key in artifacts Map",
+          "observed": "upsertArtifact creates new Map from prev, calls next.set(filename, artifact), returns next — correctly uses immutable Map update"
+        },
+        {
+          "action": "Verify artifacts state type",
+          "expected": "Map<string, BrainstormArtifact> state",
+          "observed": "useState<Map<string, BrainstormArtifact>>(new Map()) — correct type with filename key"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "network": "N/A (code review)",
+        "codeLocations": [
+          "frontend/src/hooks/useGeminiBrainstorm.ts: onmessage handler — `if (data.type === 'brainstorm_artifact')` branch",
+          "frontend/src/hooks/useGeminiBrainstorm.ts: upsertArtifact function — Map.set(filename, artifact)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-HK-03",
+      "title": "Hook handles brainstorm_image messages",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read ws.onmessage handler for brainstorm_image type",
+          "expected": "Handler checks data.type === 'brainstorm_image' and stores base64 image data in artifact state",
+          "observed": "Handler at line ~90: `else if (data.type === 'brainstorm_image')` calls upsertArtifact(data.filename, { filename: data.filename, content: data.data, mimeType: 'image/png', label: data.label, updatedAt: ... })"
+        },
+        {
+          "action": "Verify image data is stored as content field",
+          "expected": "data.data (base64) stored in content property",
+          "observed": "content: data.data — base64 image data stored correctly"
+        },
+        {
+          "action": "Verify mimeType is set to image/png",
+          "expected": "mimeType: 'image/png'",
+          "observed": "mimeType: 'image/png' — correct"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "network": "N/A (code review)",
+        "codeLocations": [
+          "frontend/src/hooks/useGeminiBrainstorm.ts: onmessage handler — `else if (data.type === 'brainstorm_image')` branch",
+          "frontend/src/hooks/useGeminiBrainstorm.ts: BrainstormArtifact type — content field stores base64 data"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-HK-04",
+      "title": "Hook manages session resumption tokens",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check for session handle ref",
+          "expected": "A ref stores the resumption handle",
+          "observed": "sessionHandleRef = useRef<string | null>(null) — declared at line ~32"
+        },
+        {
+          "action": "Check onmessage handler for session_resumption_update",
+          "expected": "Handler stores incoming handle in ref",
+          "observed": "else if (data.type === 'session_resumption_update') { if (data.handle) { sessionHandleRef.current = data.handle } } — stores new handle"
+        },
+        {
+          "action": "Check reconnection sends stored handle",
+          "expected": "On WebSocket open, send stored handle if available",
+          "observed": "ws.onopen: if (sessionHandleRef.current) { ws.send(JSON.stringify({ type: 'session_config', handle: sessionHandleRef.current })) } — sends handle on reconnect"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "network": "N/A (code review)",
+        "codeLocations": [
+          "frontend/src/hooks/useGeminiBrainstorm.ts: sessionHandleRef declaration",
+          "frontend/src/hooks/useGeminiBrainstorm.ts: onmessage 'session_resumption_update' handler",
+          "frontend/src/hooks/useGeminiBrainstorm.ts: onopen handler sends session_config with handle"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-HK-05",
+      "title": "Hook provides audio capture and playback",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check imports from utils/audio.ts",
+          "expected": "Hook imports shared audio utilities (createAudioContext, requestMicrophone, float32ToPcm16, pcm16ToFloat32, etc.)",
+          "observed": "Imports: API_BASE_URL, AUDIO_BUFFER_SIZE, MIC_TARGET_RATE, calculateIntensity, createAudioContext, decodeHexAudio, float32ToPcm16, pcm16ToFloat32, requestMicrophone, resampleAudio, scheduleAudioPlayback — all from '../utils/audio.ts'"
+        },
+        {
+          "action": "Verify audio capture setup in start()",
+          "expected": "Uses createAudioContext, requestMicrophone, ScriptProcessorNode with float32ToPcm16 and resampleAudio",
+          "observed": "start() calls: audioContextRef.current = createAudioContext(); streamRef.current = await requestMicrophone(); creates ScriptProcessorNode with AUDIO_BUFFER_SIZE; onaudioprocess uses resampleAudio(inputData, sourceRate, MIC_TARGET_RATE) and float32ToPcm16(resampledData), sends pcmData.buffer over WebSocket"
+        },
+        {
+          "action": "Verify audio playback in onmessage",
+          "expected": "Uses decodeHexAudio, pcm16ToFloat32, scheduleAudioPlayback for incoming audio",
+          "observed": "onmessage audio handler: decodeHexAudio(data.content) → pcm16ToFloat32(pcmData) → calculateIntensity(floatData) → scheduleAudioPlayback(audioContextRef.current, floatData, nextPlayTimeRef)"
+        },
+        {
+          "action": "Confirm no audio code duplication",
+          "expected": "All audio functions imported, not re-implemented",
+          "observed": "No audio encoding/decoding/resampling code in the hook file — all delegated to utils/audio.ts imports"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "network": "N/A (code review)",
+        "codeLocations": [
+          "frontend/src/hooks/useGeminiBrainstorm.ts: lines 2-13 — import block from '../utils/audio.ts'",
+          "frontend/src/hooks/useGeminiBrainstorm.ts: start() — audio setup using createAudioContext, requestMicrophone, ScriptProcessorNode",
+          "frontend/src/hooks/useGeminiBrainstorm.ts: onmessage 'audio' handler — decodeHexAudio, pcm16ToFloat32, scheduleAudioPlayback",
+          "frontend/src/utils/audio.ts: all imported functions defined here"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: all 5 passed. The useGeminiBrainstorm hook correctly connects to /api/v1/live/brainstorm, handles brainstorm_artifact and brainstorm_image messages with proper state updates, manages session resumption tokens (store on receive, send on reconnect), and reuses all audio utilities from utils/audio.ts without duplication."
+}

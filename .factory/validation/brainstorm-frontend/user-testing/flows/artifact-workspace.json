@@ -1,0 +1,231 @@
+{
+  "groupId": "artifact-workspace",
+  "testedAt": "2026-03-09T00:00:00.000Z",
+  "credentials": {
+    "account": "code-review",
+    "namespace": "artifact-workspace"
+  },
+  "toolsUsed": ["Read", "Grep"],
+  "assertions": [
+    {
+      "id": "FE-AW-01",
+      "title": "Artifacts appear in workspace as they arrive",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read useGeminiBrainstorm.ts onmessage handler",
+          "expected": "brainstorm_artifact and brainstorm_image messages update artifact state",
+          "observed": "ws.onmessage handles 'brainstorm_artifact' (calls upsertArtifact with filename, content, mimeType 'text/markdown') and 'brainstorm_image' (calls upsertArtifact with filename, data, mimeType 'image/png', label). upsertArtifact calls setArtifacts with a new Map, triggering React re-render."
+        },
+        {
+          "action": "Read BrainstormPage.tsx artifact list rendering",
+          "expected": "Workspace panel renders artifact entries from hook state",
+          "observed": "const artifactList = Array.from(artifacts.entries()) converts the Map to an array. artifactList.map() renders ArtifactRow components for each artifact in the right panel workspace. React re-renders on state change, so artifacts appear in real-time as they arrive."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReferences": [
+          "useGeminiBrainstorm.ts: ws.onmessage handler for 'brainstorm_artifact' and 'brainstorm_image' types",
+          "useGeminiBrainstorm.ts: upsertArtifact callback uses setArtifacts with new Map(prev).set(filename, artifact)",
+          "BrainstormPage.tsx: const artifactList = Array.from(artifacts.entries())",
+          "BrainstormPage.tsx: artifactList.map(([filename, artifact]) => <ArtifactRow .../>)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-AW-02",
+      "title": "Markdown files render inline via react-markdown",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify react-markdown import in BrainstormPage.tsx",
+          "expected": "ReactMarkdown is imported from 'react-markdown'",
+          "observed": "Line 2: import ReactMarkdown from 'react-markdown'"
+        },
+        {
+          "action": "Verify ArtifactPreview uses ReactMarkdown for non-image artifacts",
+          "expected": "Markdown content is rendered via ReactMarkdown component",
+          "observed": "ArtifactPreview checks if artifact.mimeType === 'image/png'; for non-image artifacts, renders <ReactMarkdown>{artifact.content}</ReactMarkdown> inside a styled div with prose-invert classes for dark theme formatting."
+        },
+        {
+          "action": "Verify react-markdown in package.json",
+          "expected": "react-markdown listed as dependency",
+          "observed": "package.json dependencies: \"react-markdown\": \"^10.1.0\""
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx line 2: import ReactMarkdown from 'react-markdown'",
+          "BrainstormPage.tsx ArtifactPreview: <ReactMarkdown>{artifact.content}</ReactMarkdown> with prose-invert styling",
+          "package.json: \"react-markdown\": \"^10.1.0\""
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-AW-03",
+      "title": "Images display inline as base64 data URIs",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify ArtifactPreview renders images as base64 data URIs",
+          "expected": "img tag with src='data:image/png;base64,...' pattern",
+          "observed": "ArtifactPreview checks artifact.mimeType === 'image/png', then renders: <img src={`data:image/png;base64,${artifact.content}`} alt={artifact.label ?? artifact.filename} className='max-h-80 w-full rounded-lg object-contain' />"
+        },
+        {
+          "action": "Verify hook stores base64 data from WebSocket message",
+          "expected": "brainstorm_image handler stores raw base64 string",
+          "observed": "useGeminiBrainstorm.ts onmessage: for type 'brainstorm_image', calls upsertArtifact with content: data.data (base64 string from server), mimeType: 'image/png'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx ArtifactPreview: <img src={`data:image/png;base64,${artifact.content}`} .../>",
+          "useGeminiBrainstorm.ts: upsertArtifact(data.filename, { content: data.data, mimeType: 'image/png', ... })"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-AW-04",
+      "title": "Individual file download works client-side",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify downloadSingleArtifact function creates Blob from state",
+          "expected": "Function creates Blob from artifact content without server request",
+          "observed": "downloadSingleArtifact: for images, decodes base64 via atob(), creates Uint8Array, creates Blob([bytes], { type: artifact.mimeType }). For text, creates Blob([artifact.content], { type: artifact.mimeType })."
+        },
+        {
+          "action": "Verify downloadBlob triggers anchor click download",
+          "expected": "Creates object URL and triggers download via anchor element",
+          "observed": "downloadBlob: URL.createObjectURL(blob), creates <a> element, sets a.href = url, a.download = filename, appends to body, calls a.click(), removes element, revokes URL. Entirely client-side."
+        },
+        {
+          "action": "Verify download button in ArtifactRow uses this function",
+          "expected": "ArtifactRow has download button calling downloadSingleArtifact",
+          "observed": "ArtifactRow renders a button with onClick: (e) => { e.stopPropagation(); downloadSingleArtifact(artifact) } — triggers individual download."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx downloadSingleArtifact: creates Blob from atob()/Uint8Array (images) or Blob([content]) (text)",
+          "BrainstormPage.tsx downloadBlob: URL.createObjectURL → <a>.download → click → revokeObjectURL",
+          "BrainstormPage.tsx ArtifactRow: download button onClick calls downloadSingleArtifact(artifact)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-AW-05",
+      "title": "Download All creates zip via JSZip client-side",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify JSZip import",
+          "expected": "JSZip imported from 'jszip'",
+          "observed": "Line 3: import JSZip from 'jszip'"
+        },
+        {
+          "action": "Verify downloadAllArtifacts function uses JSZip",
+          "expected": "Creates zip from all artifacts, generates blob, triggers download",
+          "observed": "downloadAllArtifacts: creates new JSZip(), iterates all artifacts from Map, adds each via zip.file(filename, ...) — binary Uint8Array for images (decoded from base64 via atob), raw text for others. Generates blob via zip.generateAsync({ type: 'blob' }), triggers download via downloadBlob(blob, 'brainstorm-artifacts.zip')."
+        },
+        {
+          "action": "Verify Download All button wired to this function",
+          "expected": "Button calls downloadAllArtifacts with artifacts Map",
+          "observed": "Bottom of workspace panel: <button onClick={() => downloadAllArtifacts(artifacts)}>Download All ({artifactList.length} files)</button> — rendered when artifactList.length > 0."
+        },
+        {
+          "action": "Verify jszip in package.json",
+          "expected": "jszip listed as dependency",
+          "observed": "package.json dependencies: \"jszip\": \"^3.10.1\""
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx line 3: import JSZip from 'jszip'",
+          "BrainstormPage.tsx downloadAllArtifacts: new JSZip(), zip.file() for each artifact, zip.generateAsync({ type: 'blob' }), downloadBlob(blob, 'brainstorm-artifacts.zip')",
+          "BrainstormPage.tsx: Download All button onClick={() => downloadAllArtifacts(artifacts)}",
+          "package.json: \"jszip\": \"^3.10.1\""
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-AW-06",
+      "title": "Flash Lite activity spinner visible during generation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify isGenerating state management in hook",
+          "expected": "isGenerating set true on tool_call, false on artifact arrival",
+          "observed": "useGeminiBrainstorm.ts: const [isGenerating, setIsGenerating] = useState(false). In ws.onmessage: 'tool_call' type → setIsGenerating(true); 'brainstorm_artifact' and 'brainstorm_image' types → setIsGenerating(false). Also reset to false in stop()."
+        },
+        {
+          "action": "Verify ActivitySpinner component exists and is rendered conditionally",
+          "expected": "Spinner UI shown when isGenerating is true",
+          "observed": "ActivitySpinner component renders a spinning SVG (animate-spin class) with 'Generating artifact…' text in an indigo-styled pill. In BrainstormPage: {isGenerating && (<div className='mx-4 mt-3'><ActivitySpinner /></div>)} — shown in workspace panel between the warning banner and the file list."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReferences": [
+          "useGeminiBrainstorm.ts: setIsGenerating(true) on 'tool_call', setIsGenerating(false) on 'brainstorm_artifact'/'brainstorm_image'",
+          "BrainstormPage.tsx ActivitySpinner: SVG with animate-spin class + 'Generating artifact…' text",
+          "BrainstormPage.tsx: {isGenerating && <ActivitySpinner />} conditional render in workspace panel"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-AW-07",
+      "title": "File count and total size indicator displayed",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify stats calculation in BrainstormPage",
+          "expected": "File count and total size computed from artifacts",
+          "observed": "const artifactList = Array.from(artifacts.entries()); const totalSize = artifactList.reduce((acc, [, artifact]) => acc + getArtifactSize(artifact), 0). getArtifactSize: for images, calculates real binary size as Math.floor(content.length * 3 / 4); for text, uses new Blob([content]).size."
+        },
+        {
+          "action": "Verify stats display in workspace header",
+          "expected": "File count and formatted size shown in workspace panel header",
+          "observed": "In workspace header div: {artifactList.length > 0 && (<span className='...'>{artifactList.length} {artifactList.length === 1 ? 'file' : 'files'} · {formatFileSize(totalSize)}</span>)}. formatFileSize: converts bytes to 'B', 'KB', or 'MB' with 1 decimal place."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx: artifactList.length for file count, totalSize via reduce + getArtifactSize",
+          "BrainstormPage.tsx: formatFileSize helper converts bytes to human-readable B/KB/MB",
+          "BrainstormPage.tsx workspace header: '{count} files · {size}' display, conditionally shown when artifacts > 0"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 7 assertions: 7 passed, 0 failed. All artifact workspace panel features are correctly implemented — real-time artifact rendering from hook state (FE-AW-01), ReactMarkdown for .md files (FE-AW-02), base64 data URI img tags for images (FE-AW-03), client-side Blob+anchor download for individual files (FE-AW-04), JSZip-based Download All (FE-AW-05), conditional ActivitySpinner tied to isGenerating state (FE-AW-06), and file count + size stats in workspace header (FE-AW-07)."
+}

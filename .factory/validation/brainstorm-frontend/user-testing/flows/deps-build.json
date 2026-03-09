@@ -1,0 +1,128 @@
+{
+  "groupId": "deps-build",
+  "testedAt": "2026-03-09T00:00:00.000Z",
+  "credentials": {
+    "account": "N/A (code review + build verification)",
+    "namespace": "N/A"
+  },
+  "toolsUsed": ["Read", "Grep", "Execute"],
+  "assertions": [
+    {
+      "id": "CC-DB-01",
+      "title": "react-markdown installed as frontend dependency",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read frontend/package.json",
+          "expected": "react-markdown appears in dependencies section",
+          "observed": "Found \"react-markdown\": \"^10.1.0\" in dependencies"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "network": "N/A",
+        "codeReview": "frontend/package.json dependencies contains \"react-markdown\": \"^10.1.0\""
+      },
+      "issues": null
+    },
+    {
+      "id": "CC-DB-02",
+      "title": "jszip installed as frontend dependency",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read frontend/package.json",
+          "expected": "jszip appears in dependencies section",
+          "observed": "Found \"jszip\": \"^3.10.1\" in dependencies"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "network": "N/A",
+        "codeReview": "frontend/package.json dependencies contains \"jszip\": \"^3.10.1\""
+      },
+      "issues": null
+    },
+    {
+      "id": "CC-DB-03",
+      "title": "Frontend builds successfully with new dependencies",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `cd frontend && npm run build`",
+          "expected": "Exit code 0, build artifacts created",
+          "observed": "Exit code 0. tsc -b succeeded, vite build produced dist/index.html (0.46 kB), dist/assets/index-DBPh7nzS.css (57.01 kB), dist/assets/index-DlYzfnp6.js (1179.91 kB). 621 modules transformed. Electron builds also succeeded."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A",
+        "network": "N/A",
+        "buildOutput": "tsc -b && vite build completed with exit code 0. 621 modules transformed. 3 output files: index.html, index-DBPh7nzS.css, index-DlYzfnp6.js. Chunk size warning (>500kB) is informational only."
+      },
+      "issues": null
+    },
+    {
+      "id": "CC-DB-04",
+      "title": "Python linting passes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `uv run ruff check src/`",
+          "expected": "Exit code 0, 'All checks passed!'",
+          "observed": "Exit code 0, output: 'All checks passed!'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A",
+        "network": "N/A",
+        "commandOutput": "uv run ruff check src/ → exit 0, 'All checks passed!'"
+      },
+      "issues": null
+    },
+    {
+      "id": "CC-DB-05",
+      "title": "All Python tests pass",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `uv run pytest tests/ -v`",
+          "expected": "Exit code 0, all tests passed",
+          "observed": "Exit code 0, 53 tests passed in 40.54s. Tests include brainstorm (23), flash_worker (6), live (1), midscene (1), session_resumption (9), tool_scheduling (7), walkthrough (1), and dummy (1)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A",
+        "network": "N/A",
+        "commandOutput": "uv run pytest tests/ -v → exit 0, '53 passed in 40.54s'. All brainstorm-related tests (test_brainstorm.py, test_flash_worker.py, test_session_resumption.py, test_tool_scheduling_fixes.py) passed."
+      },
+      "issues": null
+    },
+    {
+      "id": "CC-DB-06",
+      "title": "Frontend linting passes (no new errors)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `cd frontend && npm run lint`",
+          "expected": "Exit code 0, 0 errors (pre-existing warnings OK)",
+          "observed": "Exit code 0. 0 errors, 3 warnings. All 3 warnings are pre-existing in useGeminiLive.ts (react-hooks/exhaustive-deps) — none from brainstorm code."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A",
+        "network": "N/A",
+        "commandOutput": "npm run lint → exit 0, '3 problems (0 errors, 3 warnings)'. All warnings in useGeminiLive.ts lines 433, 450, 456 — pre-existing react-hooks/exhaustive-deps warnings, not from brainstorm code."
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 assertions: 6 passed, 0 failed. react-markdown (^10.1.0) and jszip (^3.10.1) confirmed in frontend/package.json dependencies. All 4 build/lint/test commands independently re-executed and passed: ruff check (0 issues), pytest (53 passed), npm run build (621 modules, exit 0), npm run lint (0 errors, 3 pre-existing warnings)."
+}

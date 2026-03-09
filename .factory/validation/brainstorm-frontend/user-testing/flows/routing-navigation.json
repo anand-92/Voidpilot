@@ -1,0 +1,101 @@
+{
+  "groupId": "routing-navigation",
+  "testedAt": "2026-03-09T00:00:00Z",
+  "credentials": {
+    "account": "code-review",
+    "namespace": "routing-navigation"
+  },
+  "toolsUsed": ["Read", "Grep", "Glob"],
+  "assertions": [
+    {
+      "id": "FE-RN-01",
+      "title": "BrainstormPage route exists at /#/brainstorm",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read frontend/src/main.tsx to inspect route definitions",
+          "expected": "A <Route> for path '/brainstorm' rendering BrainstormPage component exists within HashRouter",
+          "observed": "Line 7 imports BrainstormPage from './pages/BrainstormPage.tsx'. Both Electron and web route blocks contain <Route path=\"/brainstorm\" element={<BrainstormPage />} />. HashRouter wraps all routes, so this renders at /#/brainstorm."
+        },
+        {
+          "action": "Verify BrainstormPage.tsx file exists at import path",
+          "expected": "frontend/src/pages/BrainstormPage.tsx exists on disk",
+          "observed": "Glob confirmed file exists at frontend/src/pages/BrainstormPage.tsx"
+        },
+        {
+          "action": "Check catchall route does not shadow /brainstorm",
+          "expected": "The wildcard <Route path=\"*\"> comes after /brainstorm, so /brainstorm matches first",
+          "observed": "In both Electron and web blocks, <Route path=\"/brainstorm\" ... /> appears before <Route path=\"*\" element={<Navigate to=\"/\" replace />} />"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReview": "main.tsx line 7: import BrainstormPage from './pages/BrainstormPage.tsx'; Electron block line 17: <Route path=\"/brainstorm\" element={<BrainstormPage />} />; Web block line 23: <Route path=\"/brainstorm\" element={<BrainstormPage />} />"
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-RN-02",
+      "title": "Landing page has Brainstorm Mode navigation card",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read frontend/src/pages/LandingPage.tsx and inspect indexCards array",
+          "expected": "An entry with key 'brainstorm' in the indexCards array with label 'Brainstorm Mode' targeting /#/brainstorm",
+          "observed": "indexCards array contains: { key: 'brainstorm', label: 'Brainstorm Mode', subtitle: 'Voice-driven ideation', icon: IconBrainstorm, color: 'amber' }"
+        },
+        {
+          "action": "Verify click handler navigates to /#/brainstorm",
+          "expected": "Clicking the brainstorm card sets window.location.hash to '#/brainstorm'",
+          "observed": "In IndexView's handleClick: if (card.key === 'brainstorm') { window.location.hash = '#/brainstorm'; }"
+        },
+        {
+          "action": "Verify IconBrainstorm import exists",
+          "expected": "IconBrainstorm is imported from icons module",
+          "observed": "Line 13 imports IconBrainstorm from '../components/icons/CustomIcons'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReview": "LandingPage.tsx indexCards array includes { key: 'brainstorm', label: 'Brainstorm Mode', subtitle: 'Voice-driven ideation', icon: IconBrainstorm, color: 'amber' }. IndexView handleClick: window.location.hash = '#/brainstorm' for brainstorm card."
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-RN-03",
+      "title": "Route is accessible in both web and Electron modes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read main.tsx and inspect Electron conditional route block",
+          "expected": "The isElectron===true branch includes <Route path='/brainstorm' element={<BrainstormPage />} />",
+          "observed": "Lines 15-19 (Electron block): <Route path=\"/\" element={<App />} />, <Route path=\"/brainstorm\" element={<BrainstormPage />} />, <Route path=\"*\" element={<Navigate to=\"/\" replace />} />"
+        },
+        {
+          "action": "Read main.tsx and inspect web (non-Electron) conditional route block",
+          "expected": "The isElectron===false branch includes <Route path='/brainstorm' element={<BrainstormPage />} />",
+          "observed": "Lines 21-25 (web block): <Route path=\"/\" element={<LandingPage />} />, <Route path=\"/brainstorm\" element={<BrainstormPage />} />, <Route path=\"*\" element={<Navigate to=\"/\" replace />} />"
+        },
+        {
+          "action": "Confirm both blocks use the same BrainstormPage component",
+          "expected": "Both use <BrainstormPage /> from the single import",
+          "observed": "Both blocks reference the same BrainstormPage component imported at line 7"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (code review)",
+        "network": "n/a (code review)",
+        "codeReview": "main.tsx uses isElectron ternary to define two route blocks. Both blocks identically include: <Route path=\"/brainstorm\" element={<BrainstormPage />} />. Electron detection: const isElectron = /electron/i.test(navigator.userAgent.toLowerCase()) || window.electronAPI !== undefined;"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions: 3 passed, 0 failed. All routing and navigation assertions for the brainstorm-frontend milestone are confirmed via code review. The /#/brainstorm route is properly registered in both Electron and web mode (FE-RN-01, FE-RN-03), and the LandingPage includes a Brainstorm Mode card navigating to it (FE-RN-02)."
+}

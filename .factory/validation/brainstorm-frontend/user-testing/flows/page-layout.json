@@ -1,0 +1,160 @@
+{
+  "groupId": "page-layout",
+  "testedAt": "2026-03-09T00:00:00.000Z",
+  "credentials": {
+    "account": "code-review",
+    "namespace": "page-layout"
+  },
+  "toolsUsed": ["Read", "Grep"],
+  "assertions": [
+    {
+      "id": "FE-BP-01",
+      "title": "BrainstormPage has split layout (conversation + workspace)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read BrainstormPage.tsx JSX structure",
+          "expected": "Top-level layout uses flex/grid with two main panels",
+          "observed": "The <main> uses `flex h-screen flex-col` with a <header> and a body <div> with `flex min-h-0 flex-1`. The body div contains two children: Left Panel (flex-[3], ~60%) for Conversation and Right Panel (flex-[2], ~40%) for Artifact Workspace."
+        },
+        {
+          "action": "Verify left panel contains conversation area",
+          "expected": "Left panel has chat messages, input, and voice controls",
+          "observed": "Left panel (flex-[3]) has: Chat header with 'Conversation' label, scrollable messages area rendering MessageBubble components, and an input bar with text input + action buttons (connect/disconnect, save snapshot)."
+        },
+        {
+          "action": "Verify right panel contains artifact workspace",
+          "expected": "Right panel has workspace header and artifact list",
+          "observed": "Right panel (flex-[2]) has: Workspace header with 'Workspace' label + file count/size stats, session warning banner, activity spinner (conditional), artifact file list with ArtifactRow components, inline preview area, and Download All button."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx line 283: `<div className=\"flex min-h-0 flex-1\">` — body split container",
+          "BrainstormPage.tsx line 285: `<div className=\"flex min-w-0 flex-[3] flex-col border-r border-white/[0.06]\">` — left conversation panel (~60%)",
+          "BrainstormPage.tsx line 349: `<div className=\"flex min-w-0 flex-[2] flex-col bg-[#080c1c]/60\">` — right workspace panel (~40%)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-BP-02",
+      "title": "Voice controls present (mic, connect/disconnect)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Search BrainstormPage.tsx for connect button",
+          "expected": "A connect/start button with mic icon and state management",
+          "observed": "Found connect button (lines ~320-329): conditional rendering based on `!isConnected`. When disconnected, renders 'Start Brainstorm' button with GeminiMicOn icon, onClick={handleConnect}, disabled={isStarting}. Shows 'Connecting…' text when isStarting is true. Uses gradient styling with shadow."
+        },
+        {
+          "action": "Search BrainstormPage.tsx for disconnect button",
+          "expected": "A disconnect/stop button visible when connected",
+          "observed": "Found disconnect button (lines ~330-337): renders when `isConnected` is true. Shows 'End Session' with GeminiMicOff icon, onClick={stop}. Red/rose styled button."
+        },
+        {
+          "action": "Verify state management for connect/disconnect",
+          "expected": "Hook provides isConnected, isStarting, start, stop",
+          "observed": "useGeminiBrainstorm hook destructured at top: `{ isConnected, isStarting, messages, artifacts, isGenerating, start, stop, sendText, sendSnapshot }`. The hook manages WebSocket connection, audio context, microphone stream, and proper cleanup on stop()."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx: Connect button uses GeminiMicOn icon, disabled={isStarting}, onClick={handleConnect}",
+          "BrainstormPage.tsx: Disconnect button uses GeminiMicOff icon, onClick={stop}, shown when isConnected",
+          "useGeminiBrainstorm.ts: start() creates WebSocket to /api/v1/live/brainstorm, sets up audio capture; stop() cleans up all resources"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-BP-03",
+      "title": "No screen sharing or Midscene controls",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Grep BrainstormPage.tsx for screen sharing terms",
+          "expected": "No matches for screen share, display picker, region selector, Midscene",
+          "observed": "Grep for 'screen.?share|display.?picker|midscene|region.?select|desktopCapturer|screen.?capture' returned zero matches."
+        },
+        {
+          "action": "Grep BrainstormPage.tsx for any screen/midscene/display/capture references",
+          "expected": "No relevant UI control references",
+          "observed": "Broader grep for 'screen|midscene|display|region|capture' returned only one match: line 273 `h-screen` which is a CSS class, not a UI control. No screen sharing, Midscene, or display picker components exist."
+        },
+        {
+          "action": "Review imports for screen/Midscene related components",
+          "expected": "No imports of screen capture or Midscene components",
+          "observed": "Imports are: React hooks, ReactMarkdown, JSZip, useGeminiBrainstorm, BrainstormArtifact type, Gemini icon components (Chat, MicOn, MicOff, Send, Star), IconBrainstorm, and SharedUI components (StatusChip, MessageBubble). No screen sharing or Midscene imports."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx imports: only useGeminiBrainstorm hook (not useGeminiLive), no electron/midscene/screen imports",
+          "Grep results: zero matches for screen share, display picker, midscene, region selector, desktop capturer"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-SS-01",
+      "title": "Save snapshot button sends system text to Gemini",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Find Save Snapshot button in BrainstormPage.tsx",
+          "expected": "Button with onClick handler that sends system text",
+          "observed": "Found 'Save Snapshot' button (lines ~340-348) with onClick={sendSnapshot}, disabled={!isConnected}, styled with amber colors and GeminiStar icon."
+        },
+        {
+          "action": "Review sendSnapshot implementation in useGeminiBrainstorm hook",
+          "expected": "Sends system-level text message via WebSocket",
+          "observed": "useGeminiBrainstorm.ts sendSnapshot callback: checks WebSocket is open, then sends JSON `{ type: 'text', content: '[SYSTEM: User requested a brainstorm save. Call save_brainstorm_artifact now with all current ideas.]' }`. This matches the validation contract exactly."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx: `<button ... onClick={sendSnapshot} disabled={!isConnected}>` with GeminiStar icon and 'Save Snapshot' text",
+          "useGeminiBrainstorm.ts sendSnapshot: `wsRef.current.send(JSON.stringify({ type: 'text', content: '[SYSTEM: User requested a brainstorm save. Call save_brainstorm_artifact now with all current ideas.]' }))`"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "FE-SS-02",
+      "title": "Session warning banner displayed",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Search BrainstormPage.tsx for warning banner",
+          "expected": "A visible warning about session-scoped artifacts and downloading before disconnect",
+          "observed": "Found session warning banner in the right workspace panel (lines ~358-365). It's a <div> with amber styling (border-amber-500/20 bg-amber-500/10 text-amber-300), contains a warning triangle SVG icon, and displays the text: 'Artifacts are stored in your session. Download before disconnecting.'"
+        },
+        {
+          "action": "Verify banner is always visible (not conditional)",
+          "expected": "Banner renders unconditionally in the workspace panel",
+          "observed": "The warning banner div is rendered directly inside the right panel without any conditional wrapper. It is always visible regardless of connection state or artifact count."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (code review)",
+        "codeReferences": [
+          "BrainstormPage.tsx: `<div className=\"mx-4 mt-3 flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-300\">` with warning icon SVG and text 'Artifacts are stored in your session. Download before disconnecting.'"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed, 0 failed. BrainstormPage.tsx has a proper 2-column flex layout (60/40 split), connect/disconnect buttons with mic icons and state management, zero screen sharing or Midscene references, a Save Snapshot button that sends the correct system text via WebSocket, and an always-visible session warning banner."
+}
