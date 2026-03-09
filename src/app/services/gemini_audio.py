@@ -151,6 +151,7 @@ async def _get_current_weather(
 
 _WEATHER_TOOL_DECL = {
     "name": "get_weather",
+    "behavior": "NON_BLOCKING",
     "description": (
         "Get the current weather or forecast for a location in"
         " Fahrenheit. Use this when the user asks about weather."
@@ -382,7 +383,10 @@ class GeminiLive:
                             types.FunctionResponse(
                                 name=fc.name,
                                 id=fc.id,
-                                response={"result": result},
+                                response={
+                                    "result": result,
+                                    "scheduling": "WHEN_IDLE",
+                                },
                             )
                         )
                         await event_queue.put(

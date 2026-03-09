@@ -23,6 +23,7 @@ MIDSCENE_TOOL_DEF = {
     "function_declarations": [
         {
             "name": "execute_midscene_action",
+            "behavior": "NON_BLOCKING",
             "description": (
                 "Execute a UI action on the user's desktop using"
                 " Midscene.js. Use this to click buttons, type"
@@ -51,6 +52,7 @@ BASH_AGENT_TOOL_DEF = {
     "function_declarations": [
         {
             "name": "bash_agent",
+            "behavior": "NON_BLOCKING",
             "description": (
                 "Delegate a bash/shell task to a specialized agent"
                 " powered by Gemini 3 Flash. It will plan and"
@@ -77,6 +79,7 @@ BASH_AGENT_TOOL_DEF = {
         },
         {
             "name": "confirm_bash",
+            "behavior": "NON_BLOCKING",
             "description": (
                 "Approve or deny a pending bash command. Call when"
                 " user says 'yes'/'go ahead' to approve, or"
