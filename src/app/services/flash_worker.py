@@ -40,7 +40,7 @@ class FlashWorker:
             model=FLASH_LITE_MODEL,
             contents=prompt,
         )
-        return response.text
+        return response.text or ""
 
     async def generate_image(self, prompt: str) -> bytes:
         """Call Flash Image model and extract inline_data bytes."""
@@ -55,6 +55,10 @@ class FlashWorker:
                 response_modalities=["Text", "Image"],
             ),
         )
+
+        if not response.candidates:
+            msg = "No candidates in Flash Image response"
+            raise ValueError(msg)
 
         for part in response.candidates[0].content.parts:
             if part.inline_data:
@@ -86,4 +90,4 @@ class FlashWorker:
             model=FLASH_LITE_MODEL,
             contents=prompt,
         )
-        return response.text
+        return response.text or ""

@@ -197,6 +197,7 @@ class GeminiLive:
         tool_mapping=None,
         system_prompt=None,
         session_resumption_handle: str | None = None,
+        include_default_tools: bool = True,
     ):
         self.api_key = api_key
         self.model = model
@@ -209,26 +210,33 @@ class GeminiLive:
             api_key=api_key, http_options={"api_version": "v1beta"}
         )
 
-        default_tools = [
-            {"function_declarations": [_WEATHER_TOOL_DECL]}
-        ]
+        if include_default_tools:
+            self.tools = [
+                {"function_declarations": [_WEATHER_TOOL_DECL]}
+            ]
+            self.tool_mapping = {"get_weather": get_weather}
+        else:
+            self.tools = []
+            self.tool_mapping = {}
 
-        self.tools = default_tools
         if tools:
             for tool_def in tools:
                 if (
                     isinstance(tool_def, dict)
                     and "function_declarations" in tool_def
                 ):
-                    self.tools[0]["function_declarations"].extend(
-                        tool_def["function_declarations"]
-                    )
+                    if self.tools:
+                        self.tools[0][
+                            "function_declarations"
+                        ].extend(
+                            tool_def["function_declarations"]
+                        )
+                    else:
+                        self.tools.append(tool_def)
                 else:
                     self.tools.append(tool_def)
 
-        self.tool_mapping = {"get_weather": get_weather} | (
-            tool_mapping or {}
-        )
+        self.tool_mapping |= tool_mapping or {}
 
     async def start_session(  # noqa: C901
         self,
@@ -379,18 +387,32 @@ class GeminiLive:
                             logger.error(traceback.format_exc())
                             result = f"Error: {e}"
 
+                        # Extract scheduling and result from
+                        # handler response. Dict handlers can
+                        # specify scheduling; string results
+                        # default to WHEN_IDLE.
+                        scheduling = "WHEN_IDLE"
+                        result_str = result
+                        if isinstance(result, dict):
+                            scheduling = result.get(
+                                "scheduling", "WHEN_IDLE"
+                            )
+                            result_str = result.get(
+                                "result", str(result)
+                            )
+
                         logger.info(
                             "Tool %s result: %.200s...",
                             fc.name,
-                            result,
+                            result_str,
                         )
                         function_responses.append(
                             types.FunctionResponse(
                                 name=fc.name,
                                 id=fc.id,
                                 response={
-                                    "result": result,
-                                    "scheduling": "WHEN_IDLE",
+                                    "result": result_str,
+                                    "scheduling": scheduling,
                                 },
                             )
                         )

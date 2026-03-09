@@ -275,6 +275,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
         tools=BRAINSTORM_TOOLS,
         tool_mapping=tool_mapping,
         system_prompt=BRAINSTORM_SYSTEM_PROMPT,
+        include_default_tools=False,
     )
 
     async def send_to_client(payload: dict) -> None:
