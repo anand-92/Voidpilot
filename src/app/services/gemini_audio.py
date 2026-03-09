@@ -196,6 +196,7 @@ class GeminiLive:
         tools=None,
         tool_mapping=None,
         system_prompt=None,
+        session_resumption_handle: str | None = None,
     ):
         self.api_key = api_key
         self.model = model
@@ -203,6 +204,7 @@ class GeminiLive:
         self.system_prompt = (
             system_prompt or "You are a helpful desktop assistant."
         )
+        self.session_resumption_handle = session_resumption_handle
         self.client = genai.Client(
             api_key=api_key, http_options={"api_version": "v1beta"}
         )
@@ -256,6 +258,9 @@ class GeminiLive:
                 sliding_window=types.SlidingWindow(
                     target_tokens=12800
                 ),
+            ),
+            session_resumption=types.SessionResumptionConfig(
+                handle=self.session_resumption_handle,
             ),
         )
 
@@ -418,6 +423,21 @@ class GeminiLive:
                                 await _handle_tool_call(
                                     response.tool_call
                                 )
+                            if response.session_resumption_update:
+                                update = (
+                                    response.session_resumption_update
+                                )
+                                if (
+                                    update.resumable
+                                    and update.new_handle
+                                ):
+                                    await event_queue.put(
+                                        {
+                                            "type": "session_resumption_update",
+                                            "handle": update.new_handle,
+                                            "resumable": update.resumable,
+                                        }
+                                    )
                     except asyncio.CancelledError:
                         logger.info("Receive loop cancelled")
                         await event_queue.put(None)

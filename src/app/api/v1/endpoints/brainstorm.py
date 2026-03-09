@@ -266,8 +266,6 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
     video_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
     text_input_queue: asyncio.Queue[str] = asyncio.Queue()
 
-    session_resumption_handle: str | None = None
-
     tool_mapping = _make_tool_handlers(websocket, api_key)
 
     gemini_client = GeminiLive(
@@ -287,7 +285,6 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
 
     async def handle_client_message(payload: dict) -> bool:
         """Handle a parsed JSON message. Returns True if handled."""
-        nonlocal session_resumption_handle
         msg_type = payload.get("type")
 
         if msg_type == "text":
@@ -299,7 +296,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
         if msg_type == "session_config":
             handle = payload.get("handle")
             if handle:
-                session_resumption_handle = handle
+                gemini_client.session_resumption_handle = handle
                 logger.info(
                     "Brainstorm received resumption handle"
                 )
