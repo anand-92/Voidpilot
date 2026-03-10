@@ -186,7 +186,7 @@ function ArtifactRow({
 
   return (
     <div
-      className={`group flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-all ${
+      className={`group flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-all focus-visible:border-sky-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 ${
         isSelected
           ? 'border-sky-500/30 bg-sky-500/10'
           : 'border-white/[0.06] bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]'
@@ -195,6 +195,7 @@ function ArtifactRow({
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}
       role="button"
       tabIndex={0}
+      aria-label={`Select ${artifact.filename}`}
     >
       {isImage ? (
         <ImageIcon className="h-4 w-4 shrink-0 text-violet-400" />
@@ -211,8 +212,8 @@ function ArtifactRow({
           e.stopPropagation()
           downloadSingleArtifact(artifact)
         }}
-        aria-label="Download artifact"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 opacity-0 transition-all hover:bg-white/[0.06] hover:text-slate-300 group-hover:opacity-100"
+        aria-label={`Download ${artifact.filename}`}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 opacity-0 transition-all hover:bg-white/[0.06] hover:text-slate-300 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 group-hover:opacity-100"
         title="Download"
       >
         <DownloadIcon className="h-3.5 w-3.5" />
