@@ -3,9 +3,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.app.services.flash_worker import (
+    DEFAULT_FLASH_TEXT_MODEL_KEY,
     FLASH_IMAGE_MODEL,
+    FLASH_LITE_CONFIG,
     FLASH_LITE_MODEL,
+    FLASH_MODEL,
+    FLASH_PRO_MODEL,
+    PLAIN_TEXT_CONFIG,
     FlashWorker,
+    resolve_flash_text_model,
 )
 
 
@@ -51,6 +57,53 @@ async def test_generate_markdown(mock_client):
     prompt = call_args.kwargs["contents"]
     assert "My Ideas" in prompt
     assert "idea one, idea two" in prompt
+    assert call_args.kwargs["config"] is FLASH_LITE_CONFIG
+    assert call_args.kwargs["config"].tools
+    assert (
+        call_args.kwargs["config"].tools[0].google_search
+        is not None
+    )
+
+
+def test_resolve_flash_text_model_defaults_to_flash_lite():
+    option = resolve_flash_text_model(None)
+    assert option.api_model == FLASH_LITE_MODEL
+
+    fallback = resolve_flash_text_model('not-a-real-model')
+    assert fallback.api_model == FLASH_LITE_MODEL
+
+
+@pytest.mark.asyncio
+async def test_generate_markdown_uses_selected_flash_model(mock_client):
+    mock_response = MagicMock()
+    mock_response.text = 'Structured output'
+    mock_client["generate_content"].return_value = mock_response
+
+    worker = FlashWorker(api_key='test_key', text_model_key='gemini-3-flash')
+    result = await worker.generate_markdown(title='Ideas', raw_ideas='idea one')
+
+    assert result == 'Structured output'
+    call_args = mock_client["generate_content"].call_args
+    assert call_args.kwargs['model'] == FLASH_MODEL
+    assert call_args.kwargs['config'] is FLASH_LITE_CONFIG
+
+
+@pytest.mark.asyncio
+async def test_generate_markdown_retries_without_grounding(mock_client):
+    mock_response = MagicMock()
+    mock_response.text = 'Fallback output'
+    mock_client["generate_content"].side_effect = [RuntimeError('google_search unsupported'), mock_response]
+
+    worker = FlashWorker(api_key='test_key', text_model_key='gemini-3.1-pro')
+    result = await worker.generate_markdown(title='Ideas', raw_ideas='idea one')
+
+    assert result == 'Fallback output'
+    first_call = mock_client["generate_content"].call_args_list[0]
+    second_call = mock_client["generate_content"].call_args_list[1]
+    assert first_call.kwargs['model'] == FLASH_PRO_MODEL
+    assert first_call.kwargs['config'] is FLASH_LITE_CONFIG
+    assert second_call.kwargs['model'] == FLASH_PRO_MODEL
+    assert second_call.kwargs['config'] is PLAIN_TEXT_CONFIG
 
 
 @pytest.mark.asyncio
@@ -139,6 +192,12 @@ async def test_delegate_task(mock_client):
     assert "Analyze market trends" in prompt
     assert "We are building a SaaS product" in prompt
     assert "markdown_section" in prompt
+    assert call_args.kwargs["config"] is FLASH_LITE_CONFIG
+    assert call_args.kwargs["config"].tools
+    assert (
+        call_args.kwargs["config"].tools[0].google_search
+        is not None
+    )
 
 
 @pytest.mark.asyncio
@@ -164,7 +223,9 @@ async def test_delegate_task_default_format(mock_client):
 
 @pytest.mark.asyncio
 async def test_flash_worker_uses_correct_models(mock_client):
-    """FlashWorker uses gemini-3.1-flash-lite-preview for text
-    and gemini-3.1-flash-image-preview for images."""
-    assert FLASH_LITE_MODEL == "gemini-3.1-flash-lite-preview"
-    assert FLASH_IMAGE_MODEL == "gemini-3.1-flash-image-preview"
+    """FlashWorker exposes the supported text/image model IDs."""
+    assert DEFAULT_FLASH_TEXT_MODEL_KEY == 'gemini-3.1-flash-lite'
+    assert FLASH_LITE_MODEL == 'gemini-3.1-flash-lite-preview'
+    assert FLASH_MODEL == 'gemini-3-flash-preview'
+    assert FLASH_PRO_MODEL == 'gemini-3.1-pro-preview'
+    assert FLASH_IMAGE_MODEL == 'gemini-3.1-flash-image-preview'

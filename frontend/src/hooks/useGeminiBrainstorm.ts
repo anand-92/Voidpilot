@@ -14,6 +14,18 @@ import {
 } from '../utils/audio.ts'
 import type { Message, MessageRole } from './useGeminiLive.ts'
 
+export const BRAINSTORM_FLASH_MODEL_OPTIONS = [
+  { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite' },
+  { value: 'gemini-3-flash', label: 'Gemini 3 Flash' },
+  { value: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro' },
+] as const
+
+export type BrainstormFlashModel =
+  (typeof BRAINSTORM_FLASH_MODEL_OPTIONS)[number]['value']
+
+const DEFAULT_BRAINSTORM_FLASH_MODEL: BrainstormFlashModel =
+  'gemini-3.1-flash-lite'
+
 export type BrainstormArtifact = {
   filename: string
   content: string // markdown text or base64 image data
@@ -28,6 +40,9 @@ export function useGeminiBrainstorm() {
   const [messages, setMessages] = useState<Message[]>([])
   const [artifacts, setArtifacts] = useState<Map<string, BrainstormArtifact>>(new Map())
   const [isGenerating, setIsGenerating] = useState(false)
+  const [selectedFlashModel, setSelectedFlashModel] = useState<BrainstormFlashModel>(
+    DEFAULT_BRAINSTORM_FLASH_MODEL,
+  )
   const intensityRef = useRef(0)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -94,10 +109,13 @@ export function useGeminiBrainstorm() {
         setIsConnected(true)
         addMessage('Connected to Brainstorm Mode', 'system')
 
-        // Send session resumption handle if available
-        if (sessionHandleRef.current) {
-          ws.send(JSON.stringify({ type: 'session_config', handle: sessionHandleRef.current }))
-        }
+        ws.send(
+          JSON.stringify({
+            type: 'session_config',
+            handle: sessionHandleRef.current,
+            flash_model: selectedFlashModel,
+          }),
+        )
       }
 
       ws.onmessage = (event) => {
@@ -195,7 +213,7 @@ export function useGeminiBrainstorm() {
     } finally {
       setIsStarting(false)
     }
-  }, [addMessage, stop, upsertArtifact])
+  }, [addMessage, selectedFlashModel, stop, upsertArtifact])
 
   const sendText = useCallback(
     (text: string) => {
@@ -231,6 +249,8 @@ export function useGeminiBrainstorm() {
     artifacts,
     isGenerating,
     intensityRef,
+    selectedFlashModel,
+    setSelectedFlashModel,
     start,
     stop,
     sendText,

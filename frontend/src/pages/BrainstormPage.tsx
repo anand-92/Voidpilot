@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback, type Dispatch, type RefObject, type SetStateAction } from 'react'
 import ReactMarkdown from 'react-markdown'
 import JSZip from 'jszip'
-import { useGeminiBrainstorm } from '../hooks/useGeminiBrainstorm'
-import type { BrainstormArtifact } from '../hooks/useGeminiBrainstorm'
+import { BRAINSTORM_FLASH_MODEL_OPTIONS, useGeminiBrainstorm } from '../hooks/useGeminiBrainstorm'
+import type { BrainstormArtifact, BrainstormFlashModel } from '../hooks/useGeminiBrainstorm'
 import {
   GeminiChat,
   GeminiMicOn,
@@ -234,6 +234,8 @@ type BrainstormSharedProps = {
   inputText: string
   selectedArtifact: string | null
   currentArtifact: BrainstormArtifact | null
+  selectedFlashModel: BrainstormFlashModel
+  setSelectedFlashModel: Dispatch<SetStateAction<BrainstormFlashModel>>
   messagesEndRef: RefObject<HTMLDivElement | null>
   setInputText: (value: string) => void
   setSelectedArtifact: Dispatch<SetStateAction<string | null>>
@@ -254,6 +256,8 @@ function BrainstormDesktopLayout({
   inputText,
   selectedArtifact,
   currentArtifact,
+  selectedFlashModel,
+  setSelectedFlashModel,
   messagesEndRef,
   setInputText,
   setSelectedArtifact,
@@ -340,8 +344,26 @@ function BrainstormDesktopLayout({
               </button>
             </div>
 
-            {/* Action buttons row */}
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+              <label className="flex min-h-11 flex-col justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-medium text-slate-300">
+                <span className="mb-1 text-[10px] uppercase tracking-[0.2em] text-slate-500">Flash worker model</span>
+                <select
+                  value={selectedFlashModel}
+                  onChange={(event) => setSelectedFlashModel(event.target.value as BrainstormFlashModel)}
+                  disabled={isConnected || isStarting}
+                  aria-label="Flash worker model"
+                  className="min-h-11 cursor-pointer rounded-lg border border-white/[0.08] bg-[#0b1120] px-3 text-sm text-white outline-none transition-colors focus:border-sky-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {BRAINSTORM_FLASH_MODEL_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {/* Action buttons row */}
+              <div className="flex items-center gap-3">
               {/* Connect / Disconnect */}
               {!isConnected ? (
                 <button
@@ -484,6 +506,8 @@ function BrainstormMobileLayout({
   inputText,
   selectedArtifact,
   currentArtifact,
+  selectedFlashModel,
+  setSelectedFlashModel,
   messagesEndRef,
   setInputText,
   setSelectedArtifact,
@@ -557,7 +581,25 @@ function BrainstormMobileLayout({
         {activeTab === 'chat' ? (
           <>
             <section className="shrink-0 rounded-3xl border border-white/[0.06] bg-white/[0.03] p-4 shadow-[0_20px_60px_rgba(2,6,23,0.35)]">
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+                <label className="order-2 flex min-h-12 flex-col justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-xs font-medium text-slate-300 lg:order-1">
+                  <span className="mb-1 text-[10px] uppercase tracking-[0.2em] text-slate-500">Flash worker model</span>
+                  <select
+                    value={selectedFlashModel}
+                    onChange={(event) => setSelectedFlashModel(event.target.value as BrainstormFlashModel)}
+                    disabled={isConnected || isStarting}
+                    aria-label="Flash worker model"
+                    className="min-h-11 cursor-pointer rounded-xl border border-white/[0.08] bg-[#0b1120] px-3 text-sm text-white outline-none transition-colors focus:border-sky-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {BRAINSTORM_FLASH_MODEL_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="order-1 flex flex-col gap-3 sm:flex-row lg:order-2">
                 {!isConnected ? (
                   <button
                     type="button"
@@ -743,6 +785,8 @@ export default function BrainstormPage() {
     messages,
     artifacts,
     isGenerating,
+    selectedFlashModel,
+    setSelectedFlashModel,
     start,
     stop,
     sendText,
@@ -809,6 +853,8 @@ export default function BrainstormPage() {
     inputText,
     selectedArtifact,
     currentArtifact,
+    selectedFlashModel,
+    setSelectedFlashModel,
     messagesEndRef,
     setInputText,
     setSelectedArtifact,

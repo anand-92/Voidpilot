@@ -13,6 +13,7 @@ from src.app.api.v1.endpoints.brainstorm import (
     IMAGE_TOOL_DEF,
     SAVE_ARTIFACT_TOOL_DEF,
 )
+from src.app.services.flash_worker import FLASH_MODEL
 from src.app.main import app
 
 
@@ -218,6 +219,34 @@ async def test_delegate_handler_returns_when_idle():
 
     assert result["scheduling"] == "WHEN_IDLE"
     assert "result" in result
+
+
+@pytest.mark.asyncio
+async def test_make_tool_handlers_uses_selected_flash_model():
+    from src.app.api.v1.endpoints.brainstorm import (
+        _make_tool_handlers,
+    )
+
+    mock_ws = AsyncMock()
+
+    with patch(
+        'src.app.api.v1.endpoints.brainstorm.FlashWorker'
+    ) as MockFW:
+        mock_fw = AsyncMock()
+        mock_fw.delegate_task.return_value = 'Done'
+        MockFW.return_value = mock_fw
+
+        handlers = _make_tool_handlers(
+            mock_ws, 'test_key', text_model_key='gemini-3-flash'
+        )
+        await handlers['delegate_to_flash'](
+            task='Analyze trends',
+            context='SaaS product',
+        )
+
+    MockFW.assert_called_once_with(
+        api_key='test_key', text_model_key='gemini-3-flash'
+    )
 
 
 # ── WebSocket artifact push tests ────────────────────────────────
@@ -473,6 +502,43 @@ async def test_brainstorm_registers_only_brainstorm_tools():
         "save_brainstorm_artifact",
         "generate_brainstorm_image",
         "delegate_to_flash",
+    }
+
+
+@pytest.mark.asyncio
+async def test_brainstorm_session_config_selects_flash_model():
+    mock_settings = MagicMock()
+    mock_settings.GOOGLE_API_KEY = 'test_key'
+
+    with (
+        patch('src.app.api.v1.endpoints.brainstorm.settings', mock_settings),
+        patch('src.app.api.v1.endpoints.brainstorm.GeminiLive') as MockGeminiLive,
+        patch('src.app.api.v1.endpoints.brainstorm.FlashWorker') as MockFlashWorker,
+    ):
+        mock_gemini_instance = AsyncMock()
+        MockGeminiLive.return_value = mock_gemini_instance
+
+        async def mock_start_session(*args, **kwargs):
+            yield {'type': 'turn_complete'}
+
+        mock_gemini_instance.start_session = mock_start_session
+
+        client = TestClient(app)
+        with client.websocket_connect('/api/v1/live/brainstorm') as websocket:
+            websocket.send_text(
+                json.dumps(
+                    {
+                        'type': 'session_config',
+                        'flash_model': 'gemini-3-flash',
+                    }
+                )
+            )
+            time.sleep(0.5)
+
+    assert MockFlashWorker.call_count >= 2
+    assert MockFlashWorker.call_args.kwargs == {
+        'api_key': 'test_key',
+        'text_model_key': 'gemini-3-flash',
     }
 
 

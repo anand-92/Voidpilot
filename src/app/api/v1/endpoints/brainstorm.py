@@ -7,7 +7,12 @@ import traceback
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.app.core.config import settings
-from src.app.services.flash_worker import FlashWorker
+from src.app.services.flash_worker import (
+    DEFAULT_FLASH_TEXT_MODEL_KEY,
+    FLASH_TEXT_MODEL_OPTIONS,
+    FlashWorker,
+    resolve_flash_text_model,
+)
 from src.app.services.gemini_audio import GeminiLive
 
 logger = logging.getLogger(__name__)
@@ -147,10 +152,16 @@ BRAINSTORM_TOOLS = [
 # ── Tool handler factories ───────────────────────────────────────
 
 
-def _make_tool_handlers(websocket: WebSocket, api_key: str):
+def _make_tool_handlers(
+    websocket: WebSocket,
+    api_key: str,
+    text_model_key: str = DEFAULT_FLASH_TEXT_MODEL_KEY,
+):
     """Create brainstorm tool handler functions bound to a
     specific WebSocket and API key."""
-    flash = FlashWorker(api_key=api_key)
+    flash = FlashWorker(
+        api_key=api_key, text_model_key=text_model_key
+    )
 
     async def handle_save_artifact(
         title: str, raw_ideas: str, filename: str
@@ -267,6 +278,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
     text_input_queue: asyncio.Queue[str] = asyncio.Queue()
 
     tool_mapping = _make_tool_handlers(websocket, api_key)
+    selected_text_model_key = DEFAULT_FLASH_TEXT_MODEL_KEY
 
     gemini_client = GeminiLive(
         api_key=api_key,
@@ -301,6 +313,31 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 logger.info(
                     "Brainstorm received resumption handle"
                 )
+
+            requested_model_key = payload.get("flash_model")
+            resolved_model = resolve_flash_text_model(
+                requested_model_key
+            )
+            selected_text_model_key = next(
+                (
+                    key
+                    for key, option in FLASH_TEXT_MODEL_OPTIONS.items()
+                    if option == resolved_model
+                ),
+                DEFAULT_FLASH_TEXT_MODEL_KEY,
+            )
+            tool_mapping.clear()
+            tool_mapping.update(
+                _make_tool_handlers(
+                    websocket,
+                    api_key,
+                    text_model_key=selected_text_model_key,
+                )
+            )
+            logger.info(
+                "Brainstorm selected flash worker model: %s",
+                resolved_model.api_model,
+            )
             return True
 
         return False
