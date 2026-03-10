@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, type Dispatch, type RefObject, type SetStateAction } from 'react'
 import ReactMarkdown from 'react-markdown'
 import JSZip from 'jszip'
 import { useGeminiBrainstorm } from '../hooks/useGeminiBrainstorm'
@@ -176,10 +176,12 @@ function ArtifactRow({
   artifact,
   isSelected,
   onSelect,
+  downloadButtonClassName,
 }: {
   artifact: BrainstormArtifact
   isSelected: boolean
   onSelect: () => void
+  downloadButtonClassName?: string
 }) {
   const isImage = artifact.mimeType === 'image/png'
   const size = getArtifactSize(artifact)
@@ -212,7 +214,7 @@ function ArtifactRow({
           downloadSingleArtifact(artifact)
         }}
         aria-label="Download artifact"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 opacity-0 transition-all hover:bg-white/[0.06] hover:text-slate-300 group-hover:opacity-100"
+        className={downloadButtonClassName ?? 'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 opacity-0 transition-all hover:bg-white/[0.06] hover:text-slate-300 group-hover:opacity-100'}
         title="Download"
       >
         <DownloadIcon className="h-3.5 w-3.5" />
@@ -221,55 +223,45 @@ function ArtifactRow({
   )
 }
 
-/* ─── Main BrainstormPage ──────────────────────────────────────────── */
+type BrainstormSharedProps = {
+  isConnected: boolean
+  isStarting: boolean
+  messages: Array<{ role: string; content: string }>
+  artifacts: Map<string, BrainstormArtifact>
+  artifactList: Array<[string, BrainstormArtifact]>
+  totalSize: number
+  isGenerating: boolean
+  inputText: string
+  selectedArtifact: string | null
+  currentArtifact: BrainstormArtifact | null
+  messagesEndRef: RefObject<HTMLDivElement | null>
+  setInputText: (value: string) => void
+  setSelectedArtifact: Dispatch<SetStateAction<string | null>>
+  handleSend: () => void
+  handleConnect: () => Promise<void>
+  stop: () => void
+  sendSnapshot: () => void
+}
 
-export default function BrainstormPage() {
-  const {
-    isConnected,
-    isStarting,
-    messages,
-    artifacts,
-    isGenerating,
-    start,
-    stop,
-    sendText,
-    sendSnapshot,
-  } = useGeminiBrainstorm()
-
-  const [inputText, setInputText] = useState('')
-  const [selectedArtifact, setSelectedArtifact] = useState<string | null>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  // Auto-scroll chat
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  const handleSend = useCallback(() => {
-    if (inputText.trim()) {
-      sendText(inputText)
-      setInputText('')
-    }
-  }, [inputText, sendText])
-
-  const handleConnect = useCallback(async () => {
-    try {
-      await start()
-    } catch {
-      // Error is handled inside the hook (addMessage)
-    }
-  }, [start])
-
-  // Workspace stats
-  const artifactList = Array.from(artifacts.entries())
-  const totalSize = artifactList.reduce(
-    (acc, [, artifact]) => acc + getArtifactSize(artifact),
-    0,
-  )
-
-  const currentArtifact =
-    selectedArtifact !== null ? artifacts.get(selectedArtifact) ?? null : null
-
+function BrainstormDesktopLayout({
+  isConnected,
+  isStarting,
+  messages,
+  artifacts,
+  artifactList,
+  totalSize,
+  isGenerating,
+  inputText,
+  selectedArtifact,
+  currentArtifact,
+  messagesEndRef,
+  setInputText,
+  setSelectedArtifact,
+  handleSend,
+  handleConnect,
+  stop,
+  sendSnapshot,
+}: BrainstormSharedProps) {
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#060818] text-slate-100">
       {/* ═══════ Top bar ═══════ */}
@@ -478,5 +470,357 @@ export default function BrainstormPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+function BrainstormMobileLayout({
+  isConnected,
+  isStarting,
+  messages,
+  artifacts,
+  artifactList,
+  totalSize,
+  isGenerating,
+  inputText,
+  selectedArtifact,
+  currentArtifact,
+  messagesEndRef,
+  setInputText,
+  setSelectedArtifact,
+  handleSend,
+  handleConnect,
+  stop,
+  sendSnapshot,
+}: BrainstormSharedProps) {
+  const [activeTab, setActiveTab] = useState<'chat' | 'workspace'>('chat')
+
+  useEffect(() => {
+    if (artifactList.length > 0) {
+      setSelectedArtifact((prev) => prev ?? artifactList[0][0])
+    }
+  }, [artifactList, setSelectedArtifact])
+
+  return (
+    <main className="flex min-h-dvh flex-col bg-[#060818] text-slate-100">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-white/[0.06] bg-[#0a0e1f]/95 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-[0_12px_32px_rgba(249,115,22,0.25)]">
+                <IconBrainstorm className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400/80">
+                  Brainstorm
+                </p>
+                <h1 className="truncate text-lg font-semibold text-white">Mobile workspace</h1>
+              </div>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-400">
+              Chat, save snapshots, and review artifacts without the desktop split view.
+            </p>
+          </div>
+          <StatusChip isConnected={isConnected} isStarting={isStarting} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('chat')}
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-[1rem] px-4 text-sm font-semibold transition-colors ${
+              activeTab === 'chat'
+                ? 'bg-sky-500/20 text-sky-200'
+                : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+            }`}
+          >
+            <GeminiChat className="h-4 w-4" />
+            Chat
+            <span className="text-xs text-slate-500">{messages.length}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('workspace')}
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-[1rem] px-4 text-sm font-semibold transition-colors ${
+              activeTab === 'workspace'
+                ? 'bg-violet-500/20 text-violet-200'
+                : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+            }`}
+          >
+            <FileIcon className="h-4 w-4" />
+            Workspace
+            <span className="text-xs text-slate-500">{artifactList.length}</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="flex flex-1 flex-col overflow-hidden px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4">
+        {activeTab === 'chat' ? (
+          <>
+            <section className="shrink-0 rounded-3xl border border-white/[0.06] bg-white/[0.03] p-4 shadow-[0_20px_60px_rgba(2,6,23,0.35)]">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {!isConnected ? (
+                  <button
+                    type="button"
+                    onClick={handleConnect}
+                    disabled={isStarting}
+                    className="flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500 px-5 py-3 text-sm font-bold text-white shadow-[0_8px_32px_rgba(56,189,248,0.25)] transition-all hover:-translate-y-px hover:shadow-[0_12px_40px_rgba(56,189,248,0.35)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                  >
+                    <GeminiMicOn className="h-4 w-4" />
+                    {isStarting ? 'Connecting…' : 'Start Brainstorm'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={stop}
+                    className="flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2.5 rounded-2xl bg-rose-600 px-5 py-3 text-sm font-bold text-white shadow-[0_8px_32px_rgba(225,29,72,0.25)] transition-all hover:bg-rose-500"
+                  >
+                    <GeminiMicOff className="h-4 w-4" />
+                    End Session
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={sendSnapshot}
+                  disabled={!isConnected}
+                  className="flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-300 transition-all hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <GeminiStar className="h-4 w-4" />
+                  Save Snapshot
+                </button>
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-white/[0.06] bg-[#080c1c]/70 p-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={inputText}
+                    onChange={(event) => setInputText(event.target.value)}
+                    onKeyDown={(event) => event.key === 'Enter' && handleSend()}
+                    placeholder={isConnected ? 'Type a message…' : 'Connect first to chat'}
+                    disabled={!isConnected}
+                    aria-label="Message input"
+                    className="min-h-11 flex-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-base text-white outline-none transition-colors placeholder:text-slate-600 focus:border-sky-500/40 focus:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-40"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={!isConnected || !inputText.trim()}
+                    aria-label="Send message"
+                    className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-sky-600/80 text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <GeminiSend className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section className="mt-4 flex min-h-0 flex-1 flex-col rounded-3xl border border-white/[0.06] bg-[#080c1c]/60 shadow-[0_20px_60px_rgba(2,6,23,0.35)]">
+              <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-4 py-4">
+                <GeminiChat className="h-4 w-4 text-amber-400" />
+                <span className="text-sm font-semibold text-white">Conversation</span>
+                <span className="ml-auto text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                  {messages.length} messages
+                </span>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+                {messages.length === 0 ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-4 py-10 text-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
+                      <IconBrainstorm className="h-7 w-7 text-amber-500/40" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-400">Ready to brainstorm</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">
+                        Connect and start talking. Gemini will help shape ideas and create assets.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {messages.map((message, index) => (
+                      <MessageBubble key={index} role={message.role} content={message.content} />
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        ) : (
+          <section className="flex min-h-0 flex-1 flex-col rounded-3xl border border-white/[0.06] bg-[#080c1c]/60 shadow-[0_20px_60px_rgba(2,6,23,0.35)]">
+            <div className="shrink-0 border-b border-white/[0.06] px-4 py-4">
+              <div className="flex items-center gap-2">
+                <FileIcon className="h-4 w-4 text-sky-400" />
+                <span className="text-sm font-semibold text-white">Workspace</span>
+                {artifactList.length > 0 && (
+                  <span className="ml-auto text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                    {artifactList.length} {artifactList.length === 1 ? 'file' : 'files'} · {formatFileSize(totalSize)}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-300">
+                Artifacts stay in this session only. Download anything you want to keep before disconnecting.
+              </div>
+
+              {isGenerating && (
+                <div className="mt-3">
+                  <ActivitySpinner />
+                </div>
+              )}
+
+              {artifactList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => downloadAllArtifacts(artifacts)}
+                  className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-sky-500/20 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-300 transition-all hover:bg-sky-500/20"
+                >
+                  <DownloadIcon className="h-4 w-4" />
+                  Download All ({artifactList.length} {artifactList.length === 1 ? 'file' : 'files'})
+                </button>
+              )}
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              {artifactList.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center gap-4 py-10 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
+                    <GeminiStar className="h-6 w-6 text-sky-500/30" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-400">No artifacts yet</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      Save snapshots or ask Gemini to generate files and previews.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    {artifactList.map(([filename, artifact]) => (
+                      <ArtifactRow
+                        key={filename}
+                        artifact={artifact}
+                        isSelected={selectedArtifact === filename}
+                        onSelect={() =>
+                          setSelectedArtifact((prev) => (prev === filename ? null : filename))
+                        }
+                        downloadButtonClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.05] text-slate-300 transition-all hover:bg-white/[0.08]"
+                      />
+                    ))}
+                  </div>
+
+                  {currentArtifact ? (
+                    <div>
+                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        Preview — {currentArtifact.filename}
+                      </div>
+                      <ArtifactPreview artifact={currentArtifact} />
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] px-4 py-6 text-center text-sm leading-6 text-slate-500">
+                      Tap an artifact to preview it here.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
+    </main>
+  )
+}
+
+/* ─── Main BrainstormPage ──────────────────────────────────────────── */
+
+export default function BrainstormPage() {
+  const {
+    isConnected,
+    isStarting,
+    messages,
+    artifacts,
+    isGenerating,
+    start,
+    stop,
+    sendText,
+    sendSnapshot,
+  } = useGeminiBrainstorm()
+
+  const [inputText, setInputText] = useState('')
+  const [selectedArtifact, setSelectedArtifact] = useState<string | null>(null)
+  const [isMobileLayout, setIsMobileLayout] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-width: 1024px)')
+
+    const updateLayoutMode = () => {
+      const touchPoints = typeof navigator.maxTouchPoints === 'number' ? navigator.maxTouchPoints : 0
+      const mobileUserAgent = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent)
+      setIsMobileLayout(mediaQuery.matches || (mobileUserAgent && touchPoints > 0))
+    }
+
+    updateLayoutMode()
+    mediaQuery.addEventListener('change', updateLayoutMode)
+
+    return () => mediaQuery.removeEventListener('change', updateLayoutMode)
+  }, [])
+
+  // Auto-scroll chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const handleSend = useCallback(() => {
+    if (inputText.trim()) {
+      sendText(inputText)
+      setInputText('')
+    }
+  }, [inputText, sendText])
+
+  const handleConnect = useCallback(async () => {
+    try {
+      await start()
+    } catch {
+      // Error is handled inside the hook (addMessage)
+    }
+  }, [start])
+
+  const artifactList = Array.from(artifacts.entries())
+  const totalSize = artifactList.reduce(
+    (acc, [, artifact]) => acc + getArtifactSize(artifact),
+    0,
+  )
+
+  const currentArtifact =
+    selectedArtifact !== null ? artifacts.get(selectedArtifact) ?? null : null
+
+  const sharedProps: BrainstormSharedProps = {
+    isConnected,
+    isStarting,
+    messages,
+    artifacts,
+    artifactList,
+    totalSize,
+    isGenerating,
+    inputText,
+    selectedArtifact,
+    currentArtifact,
+    messagesEndRef,
+    setInputText,
+    setSelectedArtifact,
+    handleSend,
+    handleConnect,
+    stop,
+    sendSnapshot,
+  }
+
+  return isMobileLayout ? (
+    <BrainstormMobileLayout {...sharedProps} />
+  ) : (
+    <BrainstormDesktopLayout {...sharedProps} />
   )
 }
