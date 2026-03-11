@@ -1,15 +1,16 @@
 import asyncio
 import base64
-import json
 import logging
 import traceback
 import uuid
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket
 
 from src.app.core.config import settings
 from src.app.services.bash_agent import run_bash_agent
 from src.app.services.gemini_audio import GeminiLive
+from src.app.services.tool_defs import BASH_AGENT_TOOL_DEF, MIDSCENE_TOOL_DEF
+from src.app.services.ws_manager import WebSocketManager
 
 logger = logging.getLogger(__name__)
 
@@ -19,66 +20,6 @@ MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 MAX_RETRIES = 3
 TOOL_CALL_TIMEOUT = 60.0
 
-MIDSCENE_TOOL_DEF = {
-    "function_declarations": [
-        {
-            "name": "execute_midscene_action",
-            "behavior": "NON_BLOCKING",
-            "description": (
-                "Execute a UI action on the user's desktop using"
-                " Midscene.js. Use this to click buttons, type"
-                " text, or navigate the UI."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "description": (
-                            "The Midscene action prompt to execute"
-                            " (e.g., 'Click the Login button',"
-                            ' \'Type "hello" into the search'
-                            " bar')."
-                        ),
-                    }
-                },
-                "required": ["action"],
-            },
-        }
-    ]
-}
-
-BASH_AGENT_TOOL_DEF = {
-    "function_declarations": [
-        {
-            "name": "bash_agent",
-            "behavior": "NON_BLOCKING",
-            "description": (
-                "Delegate a bash/shell task to a specialized agent"
-                " powered by Gemini 3 Flash. It will plan and"
-                " execute commands to accomplish the task. Each"
-                " command requires user confirmation before running."
-                " Describe WHAT you want done, not HOW."
-                " Examples: 'List all Python files in home',"
-                " 'Find the 5 largest files on Desktop',"
-                " 'Check which version of node is installed'."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "task": {
-                        "type": "string",
-                        "description": (
-                            "Natural language description of the"
-                            " bash task to accomplish"
-                        ),
-                    }
-                },
-                "required": ["task"],
-            },
-        }
-    ]
-}
 
 
 @router.websocket("/live")
@@ -89,19 +30,8 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
 
     api_key = settings.GOOGLE_API_KEY or "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
 
-    audio_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
-    video_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
-    text_input_queue: asyncio.Queue[str] = asyncio.Queue()
+    manager = WebSocketManager(websocket, "Live")
     pending_tool_calls: dict[str, asyncio.Future] = {}
-
-    async def send_to_client(payload: dict) -> None:
-        try:
-            from starlette.websockets import WebSocketState
-
-            if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_json(payload)
-        except Exception as e:
-            logger.error(f"Error sending to client: {e}")
 
     async def execute_midscene_action(action: str) -> str:
         call_id = str(uuid.uuid4())
@@ -110,7 +40,7 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
 
         try:
             logger.info(f"Sending tool call {call_id} to client: {action}")
-            await websocket.send_json(
+            await manager.send_to_client(
                 {
                     "type": "tool_call",
                     "name": "execute_midscene_action",
@@ -136,7 +66,6 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
         future = asyncio.get_running_loop().create_future()
         pending_tool_calls[call_id] = future
 
-        # Extra time: user needs to see popup + confirm + command runs
         effective_timeout = max(TOOL_CALL_TIMEOUT * 2, timeout + 120)
 
         try:
@@ -145,7 +74,7 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
                 call_id,
                 command,
             )
-            await websocket.send_json(
+            await manager.send_to_client(
                 {
                     "type": "tool_call",
                     "name": "run_bash",
@@ -192,7 +121,6 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
     )
 
     async def handle_client_message(payload: dict) -> bool:
-        """Handle a parsed JSON message. Returns True if handled."""
         msg_type = payload.get("type")
 
         if msg_type == "image":
@@ -202,7 +130,7 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
                 return True
             logger.info(f"Received image: {len(content)} base64 chars")
             try:
-                await video_input_queue.put(base64.b64decode(content))
+                await manager.video_input_queue.put(base64.b64decode(content))
             except Exception as e:
                 logger.error(f"Failed to decode base64 image: {e}")
             return True
@@ -210,7 +138,7 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
         if msg_type == "text":
             content = payload.get("content", "")
             logger.info(f"Received text: {content}")
-            await text_input_queue.put(content)
+            await manager.text_input_queue.put(content)
             return True
 
         if msg_type == "tool_response":
@@ -230,92 +158,30 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
 
         return False
 
-    async def receive_from_client() -> None:  # noqa: C901
-        try:
-            while True:
-                message = await websocket.receive()
-                if "bytes" in message:
-                    await audio_input_queue.put(message["bytes"])
-                    continue
-
-                text = message.get("text")
-                if not text:
-                    continue
-
-                try:
-                    payload = json.loads(text)
-                except json.JSONDecodeError:
-                    payload = None
-
-                if isinstance(payload, dict):
-                    if await handle_client_message(payload):
-                        continue
-
-                logger.info(f"Received raw text: {text}")
-                await text_input_queue.put(text)
-        except WebSocketDisconnect:
-            logger.info("Client disconnected")
-        except RuntimeError as e:
-            if "disconnect" in str(e).lower():
-                logger.info("Receive after disconnect (normal)")
-            else:
-                logger.error(f"RuntimeError in receiver: {e}")
-                logger.error(traceback.format_exc())
-        except Exception as e:
-            logger.error(f"Error receiving from client: {e}")
-            logger.error(traceback.format_exc())
-
-    async def forward_gemini_event(event: dict) -> None:
-        event_type = event.get("type")
-        if event_type in ("user", "gemini"):
-            await send_to_client(
-                {
-                    "type": "text",
-                    "role": event_type,
-                    "content": event.get("text", event.get("content", "")),
-                }
-            )
-        elif event_type == "tool_call":
-            await send_to_client(
-                {
-                    "type": "tool_call",
-                    "name": event.get("name"),
-                    "args": event.get("args"),
-                    "result": event.get("result"),
-                }
-            )
-        else:
-            await send_to_client(event)
-
-    async def audio_output_callback(data: bytes) -> None:
-        await send_to_client({"type": "audio", "content": data.hex()})
-
-    async def audio_interrupt_callback() -> None:
-        await send_to_client({"type": "interrupted"})
-
     async def run_session() -> bool:
-        """Run one Gemini session. Returns True if retry allowed."""
         try:
             logger.info("Starting Gemini session...")
             async for event in gemini_client.start_session(
-                audio_input_queue=audio_input_queue,
-                video_input_queue=video_input_queue,
-                text_input_queue=text_input_queue,
-                audio_output_callback=audio_output_callback,
-                audio_interrupt_callback=audio_interrupt_callback,
+                audio_input_queue=manager.audio_input_queue,
+                video_input_queue=manager.video_input_queue,
+                text_input_queue=manager.text_input_queue,
+                audio_output_callback=manager.audio_output_callback,
+                audio_interrupt_callback=manager.audio_interrupt_callback,
             ):
                 if event:
                     logger.debug(f"Gemini event: {event['type']}")
-                    await forward_gemini_event(event)
+                    await manager.forward_gemini_event(event)
             logger.info("Gemini session ended normally")
             return True
         except Exception as e:
             logger.error(f"Gemini session error: {e}")
             logger.error(traceback.format_exc())
-            await send_to_client({"type": "error", "content": str(e)})
+            await manager.send_to_client({"type": "error", "content": str(e)})
             return True
 
-    receive_task = asyncio.create_task(receive_from_client())
+    receive_task = asyncio.create_task(
+        manager.receive_from_client(handle_client_message)
+    )
     try:
         for attempt in range(MAX_RETRIES):
             should_retry = await run_session()
@@ -330,7 +196,6 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
             await websocket.close()
         except Exception:
             pass
-
 
 @router.websocket("/ping")
 async def ping_pong(websocket: WebSocket):
