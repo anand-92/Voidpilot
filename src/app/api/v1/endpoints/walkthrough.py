@@ -112,7 +112,9 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
 
     async def send_to_client(payload: dict) -> None:
         try:
-            await websocket.send_json(payload)
+            from starlette.websockets import WebSocketState
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json(payload)
         except Exception as e:
             logger.error("Error sending to client: %s", e)
 

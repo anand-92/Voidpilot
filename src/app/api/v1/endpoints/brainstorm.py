@@ -171,13 +171,15 @@ def _make_tool_handlers(
             markdown = await flash.generate_markdown(
                 title=title, raw_ideas=raw_ideas
             )
-            await websocket.send_json(
-                {
-                    "type": "brainstorm_artifact",
-                    "filename": filename,
-                    "content": markdown,
-                }
-            )
+            from starlette.websockets import WebSocketState
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json(
+                    {
+                        "type": "brainstorm_artifact",
+                        "filename": filename,
+                        "content": markdown,
+                    }
+                )
             return {
                 "result": f"Artifact '{filename}' saved.",
                 "scheduling": "SILENT",
@@ -199,14 +201,16 @@ def _make_tool_handlers(
             filename = (
                 label.lower().replace(" ", "_") + ".png"
             )
-            await websocket.send_json(
-                {
-                    "type": "brainstorm_image",
-                    "filename": filename,
-                    "label": label,
-                    "data": b64_data,
-                }
-            )
+            from starlette.websockets import WebSocketState
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json(
+                    {
+                        "type": "brainstorm_image",
+                        "filename": filename,
+                        "label": label,
+                        "data": b64_data,
+                    }
+                )
             return {
                 "result": f"Image '{label}' generated.",
                 "scheduling": "WHEN_IDLE",
@@ -233,13 +237,15 @@ def _make_tool_handlers(
             filename = (
                 task[:30].lower().replace(" ", "_") + ".md"
             )
-            await websocket.send_json(
-                {
-                    "type": "brainstorm_artifact",
-                    "filename": filename,
-                    "content": result_text,
-                }
-            )
+            from starlette.websockets import WebSocketState
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json(
+                    {
+                        "type": "brainstorm_artifact",
+                        "filename": filename,
+                        "content": result_text,
+                    }
+                )
             return {
                 "result": result_text[:200],
                 "scheduling": "WHEN_IDLE",
@@ -292,7 +298,9 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
 
     async def send_to_client(payload: dict) -> None:
         try:
-            await websocket.send_json(payload)
+            from starlette.websockets import WebSocketState
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json(payload)
         except Exception as e:
             logger.error("Error sending to client: %s", e)
 
