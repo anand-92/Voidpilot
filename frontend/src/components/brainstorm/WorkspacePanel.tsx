@@ -1,8 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { Download, FileText, TriangleAlert } from 'lucide-react'
+import { Download, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { MagicCard } from '@/components/ui/magic-card'
@@ -54,13 +53,6 @@ export function WorkspacePanel({
               </Badge>
             )}
           </div>
-
-          <Alert className="mt-3 rounded-2xl border-amber-500/15 bg-amber-500/[0.06] px-4 py-3">
-            <TriangleAlert className="size-4 text-amber-300" />
-            <AlertDescription className="text-sm leading-6 text-amber-300">
-              Artifacts stay in this session only. Download anything you want to keep before disconnecting.
-            </AlertDescription>
-          </Alert>
 
           {isGenerating && (
             <div className="mt-3">

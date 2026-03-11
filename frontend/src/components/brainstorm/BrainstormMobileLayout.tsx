@@ -71,14 +71,14 @@ export function BrainstormMobileLayout({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 w-full">
           <TabsList
             className={cn(
-              'flex w-full rounded-2xl border border-white/[0.05] bg-stone-900/60 p-0 h-auto overflow-hidden',
+              'flex w-full rounded-[14px] border border-white/[0.05] bg-stone-900/60 p-0 h-auto overflow-hidden',
             )}
           >
             <TabsTrigger
               value="chat"
               className={cn(
-                'flex flex-1 min-h-11 items-center justify-center gap-2 rounded-none px-4 py-2 text-sm font-semibold transition-colors',
-                'data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-200',
+                'flex flex-1 min-h-[56px] py-4 !h-auto !border-none data-active:shadow-none items-center justify-center gap-2 rounded-none px-4 text-sm font-semibold transition-colors',
+                'data-active:bg-amber-500/15 data-active:text-amber-200 dark:data-active:bg-amber-500/15 dark:data-active:text-amber-200',
                 'text-stone-500 hover:bg-white/[0.04] hover:text-stone-300',
               )}
             >
@@ -94,8 +94,8 @@ export function BrainstormMobileLayout({
             <TabsTrigger
               value="workspace"
               className={cn(
-                'flex flex-1 min-h-11 items-center justify-center gap-2 rounded-none px-4 py-2 text-sm font-semibold transition-colors',
-                'data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-200',
+                'flex flex-1 min-h-[56px] py-4 !h-auto !border-none data-active:shadow-none items-center justify-center gap-2 rounded-none px-4 text-sm font-semibold transition-colors',
+                'data-active:bg-amber-500/15 data-active:text-amber-200 dark:data-active:bg-amber-500/15 dark:data-active:text-amber-200',
                 'text-stone-500 hover:bg-white/[0.04] hover:text-stone-300',
               )}
             >
