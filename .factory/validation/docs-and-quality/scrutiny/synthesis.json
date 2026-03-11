@@ -27,17 +27,10 @@
   },
   "blockingIssues": [],
   "appliedUpdates": [],
-  "suggestedGuidanceUpdates": [
-    {
-      "target": "AGENTS.md",
-      "suggestion": "Restore the Conventions section detailing Ruff rules, Pytest asyncio_mode, absolute imports, and ESLint flat config that was inadvertently removed during the rewrite.",
-      "evidence": "git show 494708f reveals the deletion of ## Conventions from AGENTS.md in feature docs-and-quality-sweep.",
-      "isSystemic": false
-    }
-  ],
+  "suggestedGuidanceUpdates": [],
   "rejectedObservations": [
     {
-      "observation": "The worker wrote AGENTS.md by first generating a python script update_agents_md.py containing the markdown text using the Create tool, running it, and then deleting the script. This suggests a potential workaround for file encoding or multiline escaping issues with the Create tool on Windows.",
+      "observation": "Worker created temporary custom Python scripts to edit files instead of using the provided Edit tool.",
       "reason": "worker-specific workaround, no need to codify in guidance"
     }
   ],
