@@ -34,8 +34,8 @@ _RUN_BASH_TOOL = types.Tool(
         types.FunctionDeclaration(
             name="run_bash",
             description=(
-                "Execute a bash command on the user's macOS"
-                " machine and return stdout/stderr. User sees a"
+                "Execute a bash command on the user's machine"
+                " and return stdout/stderr. User sees a"
                 " confirmation popup before execution."
             ),
             parameters=types.Schema(
@@ -86,18 +86,24 @@ async def run_bash_agent(
     for turn in range(MAX_TURNS):
         logger.info("Bash agent turn %d for task: %s", turn, task)
 
-        response = await client.aio.models.generate_content(
-            model=BASH_AGENT_MODEL,
-            contents=contents,
-            config=config,
-        )
+        try:
+            response = await client.aio.models.generate_content(
+                model=BASH_AGENT_MODEL,
+                contents=contents,
+                config=config,
+            )
+        except Exception as e:
+            logger.exception("Bash agent LLM call failed")
+            return f"Agent failed due to LLM error: {e}"
 
         if not response.function_calls:
             return response.text or "Agent completed without output."
 
         # Preserve thought signatures (mandatory for Gemini 3 FC)
-        if response.candidates and response.candidates[0].content:
-            contents.append(response.candidates[0].content)
+        candidates = getattr(response, "candidates", []) or []
+        first_candidate = next(iter(candidates), None)
+        if first_candidate and getattr(first_candidate, "content", None):
+            contents.append(first_candidate.content)
 
         function_parts = []
         for fc in response.function_calls:
@@ -106,7 +112,12 @@ async def run_bash_agent(
             timeout = args.get("timeout", 30)
 
             logger.info("Bash agent turn %d calling: %s", turn, command)
-            result = await execute_bash_fn(command=command, timeout=timeout)
+            try:
+                result = await execute_bash_fn(command=command, timeout=timeout)
+            except Exception as e:
+                logger.exception("Bash command execution failed")
+                result = f"Command execution failed: {e}"
+
             function_parts.append(
                 types.Part.from_function_response(
                     name=fc.name or "",
