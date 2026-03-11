@@ -68,17 +68,17 @@ export function BrainstormMobileLayout({
           <StatusChip isConnected={isConnected} isStarting={isStarting} />
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 w-full">
           <TabsList
             className={cn(
-              'grid w-full grid-cols-2 gap-2 rounded-2xl border border-white/[0.05] bg-stone-900/60 p-1',
+              'flex w-full rounded-2xl border border-white/[0.05] bg-stone-900/60 p-1 h-auto',
             )}
           >
             <TabsTrigger
               value="chat"
               className={cn(
-                'flex min-h-11 items-center justify-center gap-2 rounded-[1rem] px-4 text-sm font-semibold transition-colors',
-                'data-[active]:bg-amber-500/15 data-[active]:text-amber-200',
+                'flex flex-1 min-h-11 items-center justify-center gap-2 rounded-[1rem] px-4 text-sm font-semibold transition-colors',
+                'data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-200',
                 'text-stone-500 hover:bg-white/[0.04] hover:text-stone-300',
               )}
             >
@@ -94,8 +94,8 @@ export function BrainstormMobileLayout({
             <TabsTrigger
               value="workspace"
               className={cn(
-                'flex min-h-11 items-center justify-center gap-2 rounded-[1rem] px-4 text-sm font-semibold transition-colors',
-                'data-[active]:bg-amber-500/15 data-[active]:text-amber-200',
+                'flex flex-1 min-h-11 items-center justify-center gap-2 rounded-[1rem] px-4 text-sm font-semibold transition-colors',
+                'data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-200',
                 'text-stone-500 hover:bg-white/[0.04] hover:text-stone-300',
               )}
             >
