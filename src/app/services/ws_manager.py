@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import traceback
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
@@ -33,7 +33,9 @@ class WebSocketManager:
     async def audio_interrupt_callback(self) -> None:
         await self.send_to_client({"type": "interrupted"})
 
-    async def receive_from_client(self, handle_client_message_fn: Callable | None = None) -> None:
+    async def receive_from_client(
+        self, handle_client_message_fn: Callable | None = None
+    ) -> None:
         """Continuous loop to receive from client and route to queues."""
         try:
             while True:
@@ -53,7 +55,9 @@ class WebSocketManager:
                     pass
 
                 if isinstance(payload, dict):
-                    if handle_client_message_fn and await handle_client_message_fn(payload):
+                    if handle_client_message_fn and await handle_client_message_fn(
+                        payload
+                    ):
                         continue
 
                 logger.info(f"{self.name} received raw text: {text}")
