@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 
 from src.app.api.v1.endpoints.brainstorm import (
     BRAINSTORM_SYSTEM_PROMPT,
+)
+from src.app.services.tool_defs import (
     BRAINSTORM_TOOLS,
     DELEGATE_TOOL_DEF,
     IMAGE_TOOL_DEF,

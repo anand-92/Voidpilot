@@ -1,0 +1,75 @@
+{
+  "groupId": "backend-tests",
+  "testedAt": "2026-03-11T03:21:08Z",
+  "credentials": {
+    "account": "N/A",
+    "namespace": "default"
+  },
+  "toolsUsed": ["powershell", "curl", "pytest"],
+  "assertions": [
+    {
+      "id": "VAL-API-001",
+      "title": "Backend starts and healthcheck passes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000`",
+          "expected": "Backend starts on port 8000",
+          "observed": "Backend started successfully"
+        },
+        {
+          "action": "Call `curl http://localhost:8000/health`",
+          "expected": "Returns `{\"status\":\"ok\"}`",
+          "observed": "Returned `{\"status\":\"ok\"}`"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": "curl returned `{\"status\":\"ok\"}`",
+        "network": "GET http://localhost:8000/health -> 200 OK"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-002",
+      "title": "Test suite passes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `uv run pytest tests/ -v`",
+          "expected": "All tests pass without failures",
+          "observed": "58 passed in 48.45s"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": "58 passed in 48.45s",
+        "network": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-001",
+      "title": "Full stack starts successfully",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Start backend with `uv run uvicorn` and frontend with `npm run dev` concurrently",
+          "expected": "Both services start without hanging or crashing",
+          "observed": "Both services started successfully"
+        },
+        {
+          "action": "Fetch from both backend and frontend HTTP ports",
+          "expected": "Both return HTTP 200 OK",
+          "observed": "Backend `/health` returned `{\"status\":\"ok\"}`, Frontend `/` returned `HTTP/1.1 200 OK`"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": "curl requests succeeded with HTTP 200 OK on both ports",
+        "network": "GET http://127.0.0.1:8000/health -> 200 OK, GET http://127.0.0.1:5173/ -> 200 OK"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions: 3 passed. Backend health check, test suite, and concurrent full-stack startup all behaved as expected."
+}

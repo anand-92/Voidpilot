@@ -11,7 +11,6 @@ import {
   GeminiMicOff,
   GeminiMicOn,
   GeminiSend,
-  GeminiStar,
 } from '../icons/GeminiIcons'
 import { cn } from '@/lib/utils'
 

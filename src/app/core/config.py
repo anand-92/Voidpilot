@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,7 +9,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Modern Python Backend"
     API_V1_STR: str = "/api/v1"
-    GOOGLE_API_KEY: str = ""
+    GOOGLE_API_KEY: str | None = Field(default=None)
 
 
 settings = Settings()

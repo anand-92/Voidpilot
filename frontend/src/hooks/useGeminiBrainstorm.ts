@@ -245,7 +245,7 @@ export function useGeminiBrainstorm() {
     } finally {
       setIsStarting(false)
     }
-  }, [addMessage, selectedFlashModel, stop, upsertArtifact])
+  }, [addMessage, selectedFlashModel, stop, upsertArtifact, startToolCallTurn])
 
   const sendText = useCallback(
     (text: string) => {

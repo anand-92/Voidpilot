@@ -9,6 +9,14 @@ Voidpilot is a Gemini Live assistant with two runtimes:
 
 The backend relays Gemini Live audio/video/text streams. Desktop mode adds screen capture, region selection, Midscene automation, and approval-gated shell execution.
 
+
+## UI Architecture
+
+- **shadcn/ui**: Used as the primary component library (Radix primitives + Tailwind).
+- **framer-motion**: Used for animations and layout transitions.
+- **Tailwind v4**: Used for styling. Note the specific v4 patterns if applicable.
+- **Components**: The UI is divided into semantic components like `ScreenSharePanel`, `ChatArea`, and modular landing page sections to avoid god-components.
+
 ## Stack
 
 - **Backend**: FastAPI, Python 3.12+, `google-genai`, `pydantic-settings`
@@ -50,6 +58,13 @@ Frontend routing is **runtime-dependent**:
 - In browser/web: `/` -> `LandingPage`, `/brainstorm` -> `BrainstormPage`
 - There is currently **no `/app` route**
 
+
+## IPC Boundaries
+
+- **`frontend/preload.ts`**: The exclusive bridge exposing `window.electron` and `window.bash` to the React renderer.
+- **Node Integration**: Disabled globally in the main browser window for security. Only explicitly enabled in the `region-selector` overlay where `contextIsolation: false` is intentionally used.
+- **`run-bash`**: The shell execution IPC event requires a native main process confirmation dialog (`dialog.showMessageBox` in `main.ts`). **Do not** attempt to render this confirmation securely in the web layer.
+
 ## Architecture Notes That Matter
 
 - The backend mounts `frontend/dist` at `/` only when that directory exists.
@@ -63,6 +78,15 @@ Frontend routing is **runtime-dependent**:
 - Midscene is interruptible by loud user speech and physical mouse movement during planning.
 - Electron `run-bash` executes commands through `/bin/bash` with explicit user approval. Treat this as Unix-shell-specific behavior.
 - The region-selector overlay intentionally uses `nodeIntegration: true` and `contextIsolation: false`. Do not broaden that pattern elsewhere without a strong reason.
+
+
+## Environment Setup
+
+Create a `.env` file in the repository root containing at least:
+```env
+GOOGLE_API_KEY=your_api_key_here
+```
+This is required by `pydantic-settings` via `src/app/core/config.py`. Missing or empty strings will cause validation failures at boot.
 
 ## Development Commands
 
@@ -81,9 +105,13 @@ cd frontend && npm run build:electron
 # combined dev helper (bash-oriented)
 bash dev.sh
 
-# tests / lint
+# tests / lint / type checking
 uv run pytest tests/ -v
 uv run ruff check src/
+uv run mypy src/
+
+# frontend e2e smoke test (Playwright)
+cd frontend && npx playwright test tests/electron.spec.ts
 ```
 
 Notes:

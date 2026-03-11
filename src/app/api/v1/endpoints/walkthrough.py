@@ -1,12 +1,12 @@
 import asyncio
-import json
 import logging
 import traceback
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket
 
 from src.app.core.config import settings
 from src.app.services.gemini_audio import GeminiLive
+from src.app.services.ws_manager import WebSocketManager
 
 logger = logging.getLogger(__name__)
 
@@ -96,25 +96,14 @@ Avoid overly long responses.
 
 
 @router.websocket("/walkthrough")
-async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
+async def walkthrough_ws(websocket: WebSocket):
     """WebSocket endpoint for Voidpilot walkthrough voice agent."""
     logger.info("New walkthrough WebSocket connection request")
     await websocket.accept()
 
     api_key = settings.GOOGLE_API_KEY or "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
 
-    audio_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
-    text_input_queue: asyncio.Queue[str] = asyncio.Queue()
-    video_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
-
-    async def send_to_client(payload: dict) -> None:
-        try:
-            from starlette.websockets import WebSocketState
-
-            if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_json(payload)
-        except Exception as e:
-            logger.error("Error sending to client: %s", e)
+    manager = WebSocketManager(websocket, "Walkthrough")
 
     gemini_client = GeminiLive(
         api_key=api_key,
@@ -126,91 +115,36 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
     )
 
     async def handle_client_message(payload: dict) -> bool:
-        """Handle a parsed JSON message. Returns True if handled."""
         msg_type = payload.get("type")
         if msg_type == "text":
             content = payload.get("content", "")
             logger.info("Walkthrough received text: %s", content)
-            await text_input_queue.put(content)
+            await manager.text_input_queue.put(content)
             return True
         return False
 
-    async def receive_from_client() -> None:
-        try:
-            while True:
-                message = await websocket.receive()
-                if "bytes" in message:
-                    await audio_input_queue.put(message["bytes"])
-                    continue
-
-                text = message.get("text")
-                if not text:
-                    continue
-
-                try:
-                    payload = json.loads(text)
-                except json.JSONDecodeError:
-                    payload = None
-
-                if isinstance(payload, dict):
-                    if await handle_client_message(payload):
-                        continue
-
-                logger.info("Walkthrough received raw text: %s", text)
-                await text_input_queue.put(text)
-        except (WebSocketDisconnect, RuntimeError) as e:
-            is_normal = isinstance(e, WebSocketDisconnect) or (
-                "disconnect" in str(e).lower()
-            )
-            if is_normal:
-                logger.info("Walkthrough client disconnected")
-            else:
-                logger.error("RuntimeError in walkthrough receiver: %s", e)
-                logger.error(traceback.format_exc())
-        except Exception as e:
-            logger.error("Error receiving from walkthrough client: %s", e)
-            logger.error(traceback.format_exc())
-
-    async def forward_gemini_event(event: dict) -> None:
-        event_type = event.get("type")
-        if event_type in ("user", "gemini"):
-            await send_to_client(
-                {
-                    "type": "text",
-                    "role": event_type,
-                    "content": event.get("text", event.get("content", "")),
-                }
-            )
-        else:
-            await send_to_client(event)
-
-    async def audio_output_callback(data: bytes) -> None:
-        await send_to_client({"type": "audio", "content": data.hex()})
-
-    async def audio_interrupt_callback() -> None:
-        await send_to_client({"type": "interrupted"})
-
     async def run_session() -> None:
-        """Run one walkthrough Gemini session."""
         try:
             logger.info("Starting walkthrough Gemini session...")
             async for event in gemini_client.start_session(
-                audio_input_queue=audio_input_queue,
-                video_input_queue=video_input_queue,
-                text_input_queue=text_input_queue,
-                audio_output_callback=audio_output_callback,
-                audio_interrupt_callback=audio_interrupt_callback,
+                audio_input_queue=manager.audio_input_queue,
+                video_input_queue=manager.video_input_queue,
+                text_input_queue=manager.text_input_queue,
+                audio_output_callback=manager.audio_output_callback,
+                audio_interrupt_callback=manager.audio_interrupt_callback,
             ):
                 if event:
                     logger.debug("Walkthrough event: %s", event["type"])
-                    await forward_gemini_event(event)
+                    await manager.forward_gemini_event(event)
             logger.info("Walkthrough session ended normally")
         except Exception as e:
             logger.error("Walkthrough session error: %s", e)
             logger.error(traceback.format_exc())
-            await send_to_client({"type": "error", "content": str(e)})
+            await manager.send_to_client({"type": "error", "content": str(e)})
 
-    receive_task = asyncio.create_task(receive_from_client())
+    receive_task = asyncio.create_task(
+        manager.receive_from_client(handle_client_message)
+    )
     try:
         for attempt in range(MAX_RETRIES):
             await run_session()

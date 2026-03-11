@@ -1,2 +1,21 @@
-# Voidpilot services — not started during this mission (code-only, no runtime validation)
-services: []
+commands:
+  install: uv sync && cd frontend && npm install
+  typecheck: uv run mypy src/
+  build: cd frontend && npm run build
+  test: uv run pytest tests/
+  lint: uv run ruff check src/ && cd frontend && npm run lint
+
+services:
+  api:
+    start: PORT=8000 uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000
+    stop: lsof -ti :8000 | xargs kill
+    healthcheck: curl -sf http://localhost:8000/health
+    port: 8000
+    depends_on: []
+
+  web:
+    start: PORT=5173 cd frontend && npm run dev -- --port 5173
+    stop: lsof -ti :5173 | xargs kill
+    healthcheck: curl -sf http://localhost:5173
+    port: 5173
+    depends_on: [api]

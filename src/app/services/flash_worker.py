@@ -118,13 +118,20 @@ class FlashWorker:
             ),
         )
 
-        if not response.candidates:
+        candidates = getattr(response, "candidates", []) or []
+        first_candidate = next(iter(candidates), None)
+
+        if not first_candidate:
             msg = "No candidates in Flash Image response"
             raise ValueError(msg)
 
-        for part in response.candidates[0].content.parts:
-            if part.inline_data:
-                return part.inline_data.data
+        content = getattr(first_candidate, "content", None)
+        parts = getattr(content, "parts", []) or []
+
+        for part in parts:
+            inline_data = getattr(part, "inline_data", None)
+            if inline_data and getattr(inline_data, "data", None):
+                return inline_data.data
 
         msg = "No image data in Flash Image response"
         raise ValueError(msg)

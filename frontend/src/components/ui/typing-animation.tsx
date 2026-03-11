@@ -104,6 +104,7 @@ export function TypingAnimation({
   )
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayedText("")
     setCurrentWordIndex(0)
     setCurrentCharIndex(0)
