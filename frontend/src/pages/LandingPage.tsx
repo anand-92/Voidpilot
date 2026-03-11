@@ -48,7 +48,7 @@ export default function LandingPage() {
 
   return (
     <main
-      className={`${isWalkthroughOpen ? '' : 'custom-cursor '}relative h-screen w-full overflow-hidden bg-[#0c0a09] font-sans text-stone-100 selection:bg-amber-500/30`}
+      className={`${isWalkthroughOpen ? '' : 'custom-cursor '}relative h-screen w-full overflow-hidden bg-black font-sans text-stone-100 selection:bg-amber-500/30`}
     >
       <div className="fixed top-0 left-0 w-full h-screen overflow-hidden">
         <ThreeBackground scrollProgress={scrollProgress} />

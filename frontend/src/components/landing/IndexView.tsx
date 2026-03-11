@@ -94,7 +94,7 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
           <SparklesText
             className="max-w-4xl text-center text-3xl font-extrabold tracking-tight sm:text-5xl md:text-7xl leading-tight pb-1 md:pb-2"
             colors={{ first: '#d97706', second: '#fbbf24' }}
-            sparklesCount={6}
+            sparklesCount={0}
           >
             AI that sees, hears, and takes the wheel.
           </SparklesText>
@@ -128,9 +128,10 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
               initial="hidden"
               animate="visible"
               exit="exit"
+              className="h-full"
             >
               <MagicCard
-                className="rounded-2xl"
+                className="h-full rounded-2xl"
                 gradientColor="#1c1917"
                 gradientFrom="#d97706"
                 gradientTo="#92400e"
@@ -138,14 +139,14 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
               >
                 <button
                   onClick={handleClick}
-                  className={`group relative w-full rounded-2xl p-3 md:p-6 text-left transition-all duration-300 flex items-center gap-3 md:block`}
+                  className={`group relative flex h-full w-full items-center gap-3 rounded-2xl p-3 text-left transition-all duration-300 md:block md:min-h-[250px] md:p-6`}
                 >
                   <div className={`shrink-0 inline-flex h-9 w-9 md:h-11 md:w-11 md:mb-3 items-center justify-center rounded-xl ${colors?.bg} ${colors?.text}`}>
                     <Icon className="h-5 w-5 md:h-6 md:w-6" />
                   </div>
-                  <div className="min-w-0 flex-1 md:flex-none">
-                    <h3 className="text-base md:text-lg font-bold text-white md:mb-1">{card.label}</h3>
-                    <p className="text-xs md:text-sm text-stone-500 leading-relaxed">{card.subtitle}</p>
+                  <div className="min-w-0 flex-1 md:flex md:min-h-[128px] md:flex-col md:justify-between">
+                    <h3 className="text-base font-bold text-white md:mb-1 md:min-h-[56px] md:text-lg">{card.label}</h3>
+                    <p className="text-xs leading-relaxed text-stone-500 md:min-h-[72px] md:text-sm">{card.subtitle}</p>
                   </div>
                   <GeminiArrowRight className={`shrink-0 h-5 w-5 ${colors?.text} md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2 opacity-50 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-x-1 transition-all`} />
                 </button>

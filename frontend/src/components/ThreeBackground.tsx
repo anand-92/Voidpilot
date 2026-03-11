@@ -34,7 +34,7 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
         const renderer = rendererRef.current;
         const s = sceneRef.current;
         if (!renderer || !s) return;
-        const { scene, camera, clock, coreGroup, coreMesh, cageMesh, nodesGroup, nodes, linesMesh, gridMat, maxLines, nodeCount } = s;
+        const { scene, camera, clock, coreGroup, coreMesh, cageMesh, gridMat } = s;
 
         renderer.setAnimationLoop(() => {
             const time = clock.getElapsedTime();
@@ -51,27 +51,6 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
             const px = mouseRef.current.x * 0.001, py = mouseRef.current.y * 0.001;
             coreGroup.position.x += (px * 2 - coreGroup.position.x) * 0.05;
             coreGroup.position.y += (-py * 2 - coreGroup.position.y) * 0.05;
-
-            let lIdx = 0;
-            const posArr = linesMesh.geometry.attributes.position.array as Float32Array;
-            for (let i = 0; i < nodeCount; i++) {
-                const n = nodes[i];
-                n.angle += n.speed;
-                n.mesh.position.set(Math.cos(n.angle) * n.radius, n.yOffset + Math.sin(time * 2 + i) * 0.5, Math.sin(n.angle) * n.radius);
-                n.mesh.rotation.x += 0.02;
-                n.mesh.rotation.y += 0.02;
-                for (let j = i + 1; j < nodeCount; j++) {
-                    if (lIdx >= maxLines * 6 - 6) break;
-                    const o = nodes[j];
-                    if (n.mesh.position.distanceTo(o.mesh.position) < 4.5) {
-                        posArr[lIdx++] = n.mesh.position.x; posArr[lIdx++] = n.mesh.position.y; posArr[lIdx++] = n.mesh.position.z;
-                        posArr[lIdx++] = o.mesh.position.x; posArr[lIdx++] = o.mesh.position.y; posArr[lIdx++] = o.mesh.position.z;
-                    }
-                }
-            }
-            for (let i = lIdx; i < maxLines * 6; i++) posArr[i] = 0;
-            linesMesh.geometry.attributes.position.needsUpdate = true;
-            nodesGroup.rotation.y = time * 0.05;
 
             // Smooth camera follow with faster lerp for responsiveness
             camera.position.x += (tp.camX - camera.position.x) * 0.06;
@@ -119,11 +98,11 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
         rendererRef.current = renderer;
 
         // --- Lights ---
-        scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-        const p1 = new THREE.PointLight(0x38bdf8, 2, 50);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const p1 = new THREE.PointLight(0x38bdf8, 4, 50);
         p1.position.set(5, 5, 5);
         scene.add(p1);
-        const p2 = new THREE.PointLight(0x818cf8, 2, 50);
+        const p2 = new THREE.PointLight(0x818cf8, 3, 50);
         p2.position.set(-5, -5, 2);
         scene.add(p2);
 
@@ -133,48 +112,26 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
         const coreMesh = new THREE.Mesh(
             new THREE.IcosahedronGeometry(1.5, 1),
             new THREE.MeshPhysicalMaterial({
-                color: 0x38bdf8, metalness: 0.2, roughness: 0.1,
+                color: 0x60a5fa, metalness: 0.2, roughness: 0.1,
                 transmission: 0.9, thickness: 0.5,
-                emissive: 0x0284c7, emissiveIntensity: 0.5
+                emissive: 0x38bdf8, emissiveIntensity: 1
             })
         );
         coreGroup.add(coreMesh);
         const cageMesh = new THREE.Mesh(
             new THREE.IcosahedronGeometry(1.8, 1),
-            new THREE.MeshBasicMaterial({ color: 0x818cf8, wireframe: true, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending })
+            new THREE.MeshBasicMaterial({ color: 0xa5b4fc, wireframe: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending })
         );
         coreGroup.add(cageMesh);
 
-        // --- Nodes ---
-        const nodesGroup = new THREE.Group();
-        scene.add(nodesGroup);
-        const nodeCount = 40;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const nodes: any[] = [];
-        const nodeGeo = new THREE.OctahedronGeometry(0.08, 0);
-        const nodeMat = new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
-        for (let i = 0; i < nodeCount; i++) {
-            const mesh = new THREE.Mesh(nodeGeo, nodeMat);
-            const radius = 2.5 + Math.random() * 6;
-            const speed = (Math.random() - 0.5) * 0.015;
-            const angle = Math.random() * Math.PI * 2;
-            const yOffset = (Math.random() - 0.5) * 10;
-            mesh.position.set(Math.cos(angle) * radius, yOffset, Math.sin(angle) * radius);
-            nodesGroup.add(mesh);
-            nodes.push({ mesh, radius, speed, angle, yOffset });
-        }
-
-        // --- Lines ---
-        const maxLines = 1000;
-        const lineGeo = new THREE.BufferGeometry();
-        const linePositions = new Float32Array(maxLines * 6);
-        lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
-        const linesMesh = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending }));
-        scene.add(linesMesh);
+        // --- Core Light (makes act like a bulb) ---
+        const coreLight = new THREE.PointLight(0x38bdf8, 8, 30);
+        coreLight.position.set(0, 0, 0);
+        coreGroup.add(coreLight);
 
         // --- Grid Floor ---
         const gridMat = new THREE.ShaderMaterial({
-            uniforms: { time: { value: 0 }, color1: { value: new THREE.Color('#0ea5e9') }, color2: { value: new THREE.Color('#6366f1') } },
+            uniforms: { time: { value: 0 }, color1: { value: new THREE.Color('#38bdf8') }, color2: { value: new THREE.Color('#818cf8') } },
             vertexShader: `
                 uniform float time; varying vec2 vUv; varying vec3 vPosition;
                 vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
@@ -222,8 +179,13 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
         gridMesh.position.set(0, -4, -5);
         scene.add(gridMesh);
 
+        // --- Grid Light (lights up the floor lines) ---
+        const gridLight = new THREE.PointLight(0x38bdf8, 6, 25);
+        gridLight.position.set(0, -3, 0);
+        scene.add(gridLight);
+
         const clock = new THREE.Clock();
-        sceneRef.current = { scene, camera, clock, coreGroup, coreMesh, cageMesh, nodesGroup, nodes, linesMesh, gridMat, maxLines, nodeCount };
+        sceneRef.current = { scene, camera, clock, coreGroup, coreMesh, cageMesh, gridMat };
 
         mouseRef.current.halfW = window.innerWidth / 2;
         mouseRef.current.halfH = window.innerHeight / 2;
