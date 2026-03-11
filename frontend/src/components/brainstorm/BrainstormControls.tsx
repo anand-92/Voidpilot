@@ -53,61 +53,53 @@ export function BrainstormControls({
   if (isMobile) {
     return (
       <>
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
-          <label className="order-2 flex min-h-12 flex-col justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 text-xs font-medium text-stone-300 lg:order-1 relative overflow-hidden">
-            <span className="mb-1 text-[10px] uppercase tracking-[0.2em] text-stone-600 relative z-10">Flash worker model</span>
+        <div className="flex items-center gap-2">
+          <div className="relative overflow-hidden rounded-2xl border border-white/[0.05] bg-white/[0.02]">
             {selectedFlashModel === 'gemini-3.1-pro' && (
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 blur-xl animate-pulse" />
             )}
             {selectedFlashModel === 'gemini-3-flash' && (
               <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 blur-xl animate-pulse" />
             )}
-            <select
-              value={selectedFlashModel}
-              onChange={(event) => setSelectedFlashModel(event.target.value as BrainstormFlashModel)}
+            <button
+              onClick={handleModelToggle}
               disabled={isConnected || isStarting}
-              aria-label="Flash worker model"
+              aria-label="Toggle flash worker model"
               className={cn(
-                "min-h-11 cursor-pointer rounded-xl border border-white/[0.06] bg-stone-950/50 px-3 text-sm font-bold tracking-wide outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
-                selectedFlashModel === 'gemini-3.1-pro' ? "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)] border-blue-500/30" : "",
-                selectedFlashModel === 'gemini-3-flash' ? "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] border-amber-500/30" : "",
-                selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium" : ""
+                "min-h-12 w-[80px] flex items-center justify-center cursor-pointer px-2 text-xs font-bold tracking-wider outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
+                selectedFlashModel === 'gemini-3.1-pro' ? "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "",
+                selectedFlashModel === 'gemini-3-flash' ? "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" : "",
+                selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium hover:bg-white/[0.04]" : ""
               )}
             >
-              {BRAINSTORM_FLASH_MODEL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value} className="bg-stone-900 text-stone-300 font-medium drop-shadow-none">
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="order-1 flex flex-col gap-3 sm:flex-row lg:order-2">
-            {!isConnected ? (
-              <ShimmerButton
-                onClick={handleConnect}
-                disabled={isStarting}
-                shimmerColor="#fbbf24"
-                shimmerDuration="2.5s"
-                background="linear-gradient(135deg, #d97706, #b45309)"
-                borderRadius="16px"
-                className="flex min-h-12 flex-1 items-center justify-center gap-2.5 px-5 py-3 text-sm font-bold text-stone-950 shadow-[0_8px_32px_rgba(217,119,6,0.25)] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <GeminiMicOn className="size-4" />
-                {isStarting ? 'Connecting…' : 'Start Brainstorm'}
-              </ShimmerButton>
-            ) : (
-              <PulsatingButton
-                onClick={stop}
-                pulseColor="rgba(220, 38, 38, 0.3)"
-                duration="2s"
-                className="flex min-h-12 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-[0_8px_32px_rgba(220,38,38,0.25)] hover:bg-red-500"
-              >
-                <GeminiMicOff className="size-4" />
-                End Session
-              </PulsatingButton>
-            )}
+              {selectedModelLabel}
+            </button>
           </div>
+
+          {!isConnected ? (
+            <ShimmerButton
+              onClick={handleConnect}
+              disabled={isStarting}
+              shimmerColor="#fbbf24"
+              shimmerDuration="2.5s"
+              background="linear-gradient(135deg, #d97706, #b45309)"
+              borderRadius="16px"
+              className="flex min-h-12 flex-1 items-center justify-center gap-2.5 px-5 py-3 text-sm font-bold text-stone-950 shadow-[0_8px_32px_rgba(217,119,6,0.25)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <GeminiMicOn className="size-4" />
+              {isStarting ? 'Connecting…' : 'Start Brainstorm'}
+            </ShimmerButton>
+          ) : (
+            <PulsatingButton
+              onClick={stop}
+              pulseColor="rgba(220, 38, 38, 0.3)"
+              duration="2s"
+              className="flex min-h-12 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-[0_8px_32px_rgba(220,38,38,0.25)] hover:bg-red-500"
+            >
+              <GeminiMicOff className="size-4" />
+              End Session
+            </PulsatingButton>
+          )}
         </div>
 
         <div className="mt-3 rounded-2xl border border-white/[0.05] bg-stone-950/70 p-2">
