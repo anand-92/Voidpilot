@@ -53,3 +53,6 @@
 | `save_brainstorm_artifact` | SILENT | Structure raw ideas into markdown document |
 | `generate_brainstorm_image` | WHEN_IDLE | Generate visual artifacts |
 | `delegate_to_flash` | WHEN_IDLE | General-purpose analysis/research delegation |
+
+- **SDK Object Structure**: The google.genai SDK objects (like GenerateContentResponse and its nested components) are objects, not dictionaries. They lack a .get() method. They must be accessed via object attributes, so dynamically testing via hasattr() and getattr() is required instead of .get().
+

@@ -2,15 +2,12 @@
 
 Environment variables, external dependencies, and setup notes.
 
-## Required Environment Variables
+**Required Environment Variables:**
+- `GOOGLE_API_KEY`: Required for Gemini LLM and flash workers.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GOOGLE_API_KEY` | Yes | Google AI API key for Gemini Live access |
+**External Dependencies:**
+- Node.js (v20+)
+- Python (v3.12+)
+- `uv` Python package manager
 
-## Notes
-- `.env` file should exist in project root with `GOOGLE_API_KEY`
-- The existing live.py endpoint has a hardcoded fallback API key for development
-- No new env vars are needed for Brainstorm Mode — it uses the same `GOOGLE_API_KEY`
-- FlashWorker uses the same API key for Flash Lite and Flash Image model calls
-- All tests mock the Gemini API — no real API key needed for testing
+- **Shell Environment**: The agent environment runs on Windows PowerShell. Unix-specific CLI utilities (like grep, find, sed) might fail or behave unexpectedly. Use PowerShell equivalents (like Select-String) or the provided AI tools (Grep, Glob, Edit) instead.
