@@ -21,7 +21,6 @@ export type BrainstormLayoutProps = {
   handleSend: () => void
   handleConnect: () => Promise<void>
   stop: () => void
-  sendSnapshot: () => void
 }
 
 export { BrainstormDesktopLayout } from './BrainstormDesktopLayout'

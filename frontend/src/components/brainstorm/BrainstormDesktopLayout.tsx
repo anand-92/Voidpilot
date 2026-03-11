@@ -29,7 +29,6 @@ export function BrainstormDesktopLayout({
   handleSend,
   handleConnect,
   stop,
-  sendSnapshot,
 }: BrainstormLayoutProps) {
   return (
     <main className="relative flex h-screen w-full overflow-hidden bg-[#0a0a0a] text-stone-100 font-sans">
@@ -80,7 +79,6 @@ export function BrainstormDesktopLayout({
           handleSend={handleSend}
           handleConnect={handleConnect}
           stop={stop}
-          sendSnapshot={sendSnapshot}
           layout="desktop"
         />
       </div>

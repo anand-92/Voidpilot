@@ -24,7 +24,6 @@ type BrainstormControlsProps = {
   handleSend: () => void
   handleConnect: () => Promise<void>
   stop: () => void
-  sendSnapshot: () => void
   layout: 'desktop' | 'mobile'
 }
 
@@ -38,7 +37,6 @@ export function BrainstormControls({
   handleSend,
   handleConnect,
   stop,
-  sendSnapshot,
   layout,
 }: BrainstormControlsProps) {
   const isMobile = layout === 'mobile'
@@ -89,16 +87,6 @@ export function BrainstormControls({
                 End Session
               </PulsatingButton>
             )}
-
-            <Button
-              onClick={sendSnapshot}
-              disabled={!isConnected}
-              variant="outline"
-              className="flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl border-amber-500/20 bg-amber-500/[0.08] px-4 py-3 text-sm font-semibold text-amber-300 transition-all hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <GeminiStar className="size-4" />
-              Save Snapshot
-            </Button>
           </div>
         </div>
 
@@ -156,16 +144,6 @@ export function BrainstormControls({
             End Session
           </PulsatingButton>
         )}
-
-        <Button
-          onClick={sendSnapshot}
-          disabled={!isConnected}
-          variant="outline"
-          className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl border-amber-500/20 bg-amber-500/[0.08] py-3 text-sm font-semibold text-amber-400 transition-all hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          <GeminiStar className="size-4" />
-          Snapshot
-        </Button>
       </div>
 
       <div className="flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-1.5 backdrop-blur-md">

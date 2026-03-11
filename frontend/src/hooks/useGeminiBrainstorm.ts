@@ -15,9 +15,9 @@ import {
 import type { Message, MessageRole } from './useGeminiLive.ts'
 
 export const BRAINSTORM_FLASH_MODEL_OPTIONS = [
-  { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite' },
-  { value: 'gemini-3-flash', label: 'Gemini 3 Flash' },
-  { value: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro' },
+  { value: 'gemini-3.1-flash-lite', label: 'Flash-Lite' },
+  { value: 'gemini-3-flash', label: 'Flash' },
+  { value: 'gemini-3.1-pro', label: 'Pro' },
 ] as const
 
 export type BrainstormFlashModel =
@@ -257,17 +257,6 @@ export function useGeminiBrainstorm() {
     [addMessage],
   )
 
-  const sendSnapshot = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'text',
-          content: '[SYSTEM: User requested a brainstorm save. Call save_brainstorm_artifact now with all current ideas.]',
-        }),
-      )
-    }
-  }, [])
-
   useEffect(() => {
     return () => {
       stop()
@@ -286,6 +275,5 @@ export function useGeminiBrainstorm() {
     start,
     stop,
     sendText,
-    sendSnapshot,
   }
 }

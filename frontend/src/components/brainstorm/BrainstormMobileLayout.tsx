@@ -33,7 +33,6 @@ export function BrainstormMobileLayout({
   handleSend,
   handleConnect,
   stop,
-  sendSnapshot,
 }: BrainstormLayoutProps) {
   const [activeTab, setActiveTab] = useState<string>('chat')
 
@@ -62,8 +61,8 @@ export function BrainstormMobileLayout({
                 <h1 className="truncate text-lg font-semibold text-white">Mobile workspace</h1>
               </div>
             </div>
-            <p className="mt-3 text-sm leading-6 text-stone-500">
-              Chat, save snapshots, and review artifacts without the desktop split view.
+              <p className="mt-3 text-sm leading-6 text-stone-500">
+              Chat and review artifacts without the desktop split view.
             </p>
           </div>
           <StatusChip isConnected={isConnected} isStarting={isStarting} />
@@ -127,7 +126,6 @@ export function BrainstormMobileLayout({
                 handleSend={handleSend}
                 handleConnect={handleConnect}
                 stop={stop}
-                sendSnapshot={sendSnapshot}
                 layout="mobile"
               />
             </section>

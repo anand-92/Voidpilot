@@ -89,7 +89,7 @@ export function WorkspacePanel({
               <div>
                 <p className="text-sm font-medium text-stone-400">No artifacts yet</p>
                 <p className="mt-1 text-sm leading-6 text-stone-500">
-                  Save snapshots or ask Gemini to generate files and previews.
+                  Ask Gemini to generate files and previews.
                 </p>
               </div>
             </div>

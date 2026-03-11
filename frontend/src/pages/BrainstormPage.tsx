@@ -15,7 +15,6 @@ export default function BrainstormPage() {
     start,
     stop,
     sendText,
-    sendSnapshot,
   } = useGeminiBrainstorm()
 
   const [inputText, setInputText] = useState('')
@@ -86,7 +85,6 @@ export default function BrainstormPage() {
     handleSend,
     handleConnect,
     stop,
-    sendSnapshot,
   }
 
   return isMobileLayout ? (
