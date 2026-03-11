@@ -93,7 +93,7 @@ export function useGeminiLive() {
     setPendingBash(value)
   }, [])
 
-  function resolvePendingBash(ws: WebSocket) {
+  const resolvePendingBash = useCallback((ws: WebSocket) => {
     const pending = pendingBashRef.current
     if (!pending) return
 
@@ -123,9 +123,9 @@ export function useGeminiLive() {
         }),
       )
     }
-  }
+  }, [syncPendingBash])
 
-  function denyPendingBash(ws: WebSocket) {
+  const denyPendingBash = useCallback((ws: WebSocket) => {
     const pending = pendingBashRef.current
     if (!pending) return
 
@@ -137,7 +137,7 @@ export function useGeminiLive() {
         result: 'User denied the command — it was not executed.',
       }),
     )
-  }
+  }, [syncPendingBash])
 
   const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages((previous) => {
@@ -431,7 +431,7 @@ export function useGeminiLive() {
         setIsStarting(false)
       }
     },
-    [addMessage, stop],
+    [addMessage, stop, denyPendingBash, resolvePendingBash, syncPendingBash],
   )
 
   const sendText = useCallback(
@@ -448,13 +448,13 @@ export function useGeminiLive() {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       resolvePendingBash(wsRef.current)
     }
-  }, [])
+  }, [resolvePendingBash])
 
   const denyBash = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       denyPendingBash(wsRef.current)
     }
-  }, [])
+  }, [denyPendingBash])
 
   useEffect(() => {
     return () => {

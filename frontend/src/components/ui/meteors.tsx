@@ -37,6 +37,7 @@ export const Meteors = ({
         Math.floor(Math.random() * (maxDuration - minDuration) + minDuration) +
         "s",
     }))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMeteorStyles(styles)
   }, [number, minDelay, maxDelay, minDuration, maxDuration, angle])
 
