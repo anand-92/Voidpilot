@@ -42,6 +42,14 @@ export function BrainstormControls({
 }: BrainstormControlsProps) {
   const isMobile = layout === 'mobile'
 
+  const handleModelToggle = () => {
+    const currentIndex = BRAINSTORM_FLASH_MODEL_OPTIONS.findIndex(opt => opt.value === selectedFlashModel)
+    const nextIndex = (currentIndex + 1) % BRAINSTORM_FLASH_MODEL_OPTIONS.length
+    setSelectedFlashModel(BRAINSTORM_FLASH_MODEL_OPTIONS[nextIndex].value)
+  }
+
+  const selectedModelLabel = BRAINSTORM_FLASH_MODEL_OPTIONS.find(opt => opt.value === selectedFlashModel)?.label ?? 'LITE'
+
   if (isMobile) {
     return (
       <>
@@ -165,24 +173,19 @@ export function BrainstormControls({
         {selectedFlashModel === 'gemini-3-flash' && (
           <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-amber-500/20 to-orange-500/20 blur-xl animate-pulse" />
         )}
-        <select
-          value={selectedFlashModel}
-          onChange={(event) => setSelectedFlashModel(event.target.value as BrainstormFlashModel)}
+        <button
+          onClick={handleModelToggle}
           disabled={isConnected || isStarting}
-          aria-label="Flash worker model"
+          aria-label="Toggle flash worker model"
           className={cn(
-            "h-10 w-[72px] cursor-pointer appearance-none text-center rounded-xl bg-transparent px-2 text-xs font-bold tracking-wider outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
+            "h-10 w-[72px] flex items-center justify-center cursor-pointer rounded-xl bg-transparent px-2 text-xs font-bold tracking-wider outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
             selectedFlashModel === 'gemini-3.1-pro' ? "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "",
             selectedFlashModel === 'gemini-3-flash' ? "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" : "",
-            selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium hover:text-stone-300" : ""
+            selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium hover:text-stone-300 hover:bg-white/[0.04]" : ""
           )}
         >
-          {BRAINSTORM_FLASH_MODEL_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value} className="bg-stone-900 text-stone-300 font-medium drop-shadow-none">
-              {option.label}
-            </option>
-          ))}
-        </select>
+          {selectedModelLabel}
+        </button>
         <div className="h-6 w-px bg-white/10 relative z-10" />
         <Input
           type="text"
