@@ -122,9 +122,11 @@ class FlashWorker:
             msg = "No candidates in Flash Image response"
             raise ValueError(msg)
 
-        for part in response.candidates[0].content.parts:
-            if part.inline_data:
-                return part.inline_data.data
+        first_candidate = response.candidates[0]
+        if first_candidate.content and first_candidate.content.parts:
+            for part in first_candidate.content.parts:
+                if part.inline_data and part.inline_data.data:
+                    return part.inline_data.data
 
         msg = "No image data in Flash Image response"
         raise ValueError(msg)

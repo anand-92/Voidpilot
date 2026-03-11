@@ -76,26 +76,7 @@ BASH_AGENT_TOOL_DEF = {
                 },
                 "required": ["task"],
             },
-        },
-        {
-            "name": "confirm_bash",
-            "behavior": "NON_BLOCKING",
-            "description": (
-                "Approve or deny a pending bash command. Call when"
-                " user says 'yes'/'go ahead' to approve, or"
-                " 'no'/'cancel' to deny."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "approved": {
-                        "type": "boolean",
-                        "description": ("true=approved, false=denied"),
-                    },
-                },
-                "required": ["approved"],
-            },
-        },
+        }
     ]
 }
 
@@ -192,23 +173,6 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
         finally:
             pending_tool_calls.pop(call_id, None)
 
-    async def confirm_bash(approved: bool) -> str:
-        """Forward voice-based confirm/deny to the frontend."""
-        logger.info("confirm_bash called: approved=%s", approved)
-        try:
-            await websocket.send_json(
-                {
-                    "type": "bash_confirm_voice",
-                    "approved": approved,
-                }
-            )
-            if approved:
-                return "Confirmation sent to the user's app."
-            return "Denial sent — the command will not run."
-        except Exception as e:
-            logger.error("confirm_bash failed: %s", e)
-            return f"Error sending confirmation: {e}"
-
     async def handle_bash_agent(task: str) -> str:
         return await run_bash_agent(
             task=task,
@@ -224,7 +188,6 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
         tool_mapping={
             "execute_midscene_action": execute_midscene_action,
             "bash_agent": handle_bash_agent,
-            "confirm_bash": confirm_bash,
         },
     )
 
@@ -253,7 +216,11 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
         if msg_type == "tool_response":
             call_id = payload.get("call_id")
             result = payload.get("result", "")
-            future = pending_tool_calls.pop(call_id, None)
+            if not call_id:
+                logger.warning("Tool response missing call_id")
+                return True
+
+            future = pending_tool_calls.pop(str(call_id), None)
             if future and not future.done():
                 future.set_result(result)
                 logger.info(f"Resolved tool call {call_id}: {result}")

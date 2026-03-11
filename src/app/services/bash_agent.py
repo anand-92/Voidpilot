@@ -38,20 +38,20 @@ _RUN_BASH_TOOL = types.Tool(
                 " machine and return stdout/stderr. User sees a"
                 " confirmation popup before execution."
             ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "The bash command to execute",
-                    },
-                    "timeout": {
-                        "type": "integer",
-                        "description": ("Max seconds to wait (default 30, max 120)"),
-                    },
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "command": types.Schema(
+                        type=types.Type.STRING,
+                        description="The bash command to execute",
+                    ),
+                    "timeout": types.Schema(
+                        type=types.Type.INTEGER,
+                        description="Max seconds to wait (default 30, max 120)",
+                    ),
                 },
-                "required": ["command"],
-            },
+                required=["command"],
+            ),
         )
     ]
 )
@@ -79,8 +79,8 @@ async def run_bash_agent(
         max_output_tokens=8192,
     )
 
-    contents: list[types.Content] = [
-        types.Content(role="user", parts=[types.Part(text=task)])
+    contents: list[Any] = [
+        types.Content(role="user", parts=[types.Part.from_text(text=task)])
     ]
 
     for turn in range(MAX_TURNS):
@@ -96,7 +96,8 @@ async def run_bash_agent(
             return response.text or "Agent completed without output."
 
         # Preserve thought signatures (mandatory for Gemini 3 FC)
-        contents.append(response.candidates[0].content)
+        if response.candidates and response.candidates[0].content:
+            contents.append(response.candidates[0].content)
 
         function_parts = []
         for fc in response.function_calls:
@@ -108,7 +109,7 @@ async def run_bash_agent(
             result = await execute_bash_fn(command=command, timeout=timeout)
             function_parts.append(
                 types.Part.from_function_response(
-                    name=fc.name,
+                    name=fc.name or "",
                     response={"result": result},
                 )
             )
