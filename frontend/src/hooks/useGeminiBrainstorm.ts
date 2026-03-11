@@ -15,9 +15,9 @@ import {
 import type { Message, MessageRole } from './useGeminiLive.ts'
 
 export const BRAINSTORM_FLASH_MODEL_OPTIONS = [
-  { value: 'gemini-3.1-flash-lite', label: 'Lite' },
-  { value: 'gemini-3-flash', label: 'Flash' },
-  { value: 'gemini-3.1-pro', label: 'Pro' },
+  { value: 'gemini-3.1-flash-lite', label: 'LITE' },
+  { value: 'gemini-3-flash', label: 'FLASH' },
+  { value: 'gemini-3.1-pro', label: 'PRO' },
 ] as const
 
 export type BrainstormFlashModel =

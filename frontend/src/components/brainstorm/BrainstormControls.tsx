@@ -60,7 +60,7 @@ export function BrainstormControls({
               disabled={isConnected || isStarting}
               aria-label="Flash worker model"
               className={cn(
-                "min-h-11 cursor-pointer rounded-xl border border-white/[0.06] bg-stone-950/50 px-3 text-sm font-bold outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
+                "min-h-11 cursor-pointer rounded-xl border border-white/[0.06] bg-stone-950/50 px-3 text-sm font-bold tracking-wide outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
                 selectedFlashModel === 'gemini-3.1-pro' ? "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)] border-blue-500/30" : "",
                 selectedFlashModel === 'gemini-3-flash' ? "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] border-amber-500/30" : "",
                 selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium" : ""
@@ -171,7 +171,7 @@ export function BrainstormControls({
           disabled={isConnected || isStarting}
           aria-label="Flash worker model"
           className={cn(
-            "h-10 w-16 cursor-pointer appearance-none text-center rounded-xl bg-transparent px-2 text-xs font-bold outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
+            "h-10 w-[72px] cursor-pointer appearance-none text-center rounded-xl bg-transparent px-2 text-xs font-bold tracking-wider outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
             selectedFlashModel === 'gemini-3.1-pro' ? "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "",
             selectedFlashModel === 'gemini-3-flash' ? "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" : "",
             selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium hover:text-stone-300" : ""
