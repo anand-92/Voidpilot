@@ -430,7 +430,7 @@ class GeminiLive:
             ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
-            tools=self.tools,
+            tools=self.tools,  # type: ignore
             context_window_compression=types.ContextWindowCompressionConfig(
                 trigger_tokens=25600,
                 sliding_window=types.SlidingWindow(target_tokens=12800),
