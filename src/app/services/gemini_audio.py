@@ -477,8 +477,10 @@ class GeminiLive:
                     error_str = str(error)
                     fatal_markers = (
                         "1007",
+                        "1011",
                         "invalid frame",
                         "ConnectionClosed",
+                        "The service is currently unavailable",
                     )
                     if any(
                         m.lower() in error_str.lower()
