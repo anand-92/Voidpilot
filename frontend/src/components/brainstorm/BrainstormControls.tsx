@@ -13,6 +13,7 @@ import {
   GeminiSend,
   GeminiStar,
 } from '../icons/GeminiIcons'
+import { cn } from '@/lib/utils'
 
 type BrainstormControlsProps = {
   isConnected: boolean
@@ -45,17 +46,28 @@ export function BrainstormControls({
     return (
       <>
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
-          <label className="order-2 flex min-h-12 flex-col justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 text-xs font-medium text-stone-300 lg:order-1">
-            <span className="mb-1 text-[10px] uppercase tracking-[0.2em] text-stone-600">Flash worker model</span>
+          <label className="order-2 flex min-h-12 flex-col justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] px-4 py-3 text-xs font-medium text-stone-300 lg:order-1 relative overflow-hidden">
+            <span className="mb-1 text-[10px] uppercase tracking-[0.2em] text-stone-600 relative z-10">Flash worker model</span>
+            {selectedFlashModel === 'gemini-3.1-pro' && (
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 blur-xl animate-pulse" />
+            )}
+            {selectedFlashModel === 'gemini-3-flash' && (
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 blur-xl animate-pulse" />
+            )}
             <select
               value={selectedFlashModel}
               onChange={(event) => setSelectedFlashModel(event.target.value as BrainstormFlashModel)}
               disabled={isConnected || isStarting}
               aria-label="Flash worker model"
-              className="min-h-11 cursor-pointer rounded-xl border border-white/[0.06] bg-stone-950 px-3 text-sm text-white outline-none transition-colors focus:border-amber-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+              className={cn(
+                "min-h-11 cursor-pointer rounded-xl border border-white/[0.06] bg-stone-950/50 px-3 text-sm font-bold outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
+                selectedFlashModel === 'gemini-3.1-pro' ? "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)] border-blue-500/30" : "",
+                selectedFlashModel === 'gemini-3-flash' ? "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] border-amber-500/30" : "",
+                selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium" : ""
+              )}
             >
               {BRAINSTORM_FLASH_MODEL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option key={option.value} value={option.value} className="bg-stone-900 text-stone-300 font-medium drop-shadow-none">
                   {option.label}
                 </option>
               ))}
@@ -146,21 +158,32 @@ export function BrainstormControls({
         )}
       </div>
 
-      <div className="flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-1.5 backdrop-blur-md">
+      <div className="flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-1.5 backdrop-blur-md relative overflow-hidden">
+        {selectedFlashModel === 'gemini-3.1-pro' && (
+          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-xl animate-pulse" />
+        )}
+        {selectedFlashModel === 'gemini-3-flash' && (
+          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-amber-500/20 to-orange-500/20 blur-xl animate-pulse" />
+        )}
         <select
           value={selectedFlashModel}
           onChange={(event) => setSelectedFlashModel(event.target.value as BrainstormFlashModel)}
           disabled={isConnected || isStarting}
           aria-label="Flash worker model"
-          className="h-10 w-16 cursor-pointer appearance-none text-center rounded-xl bg-transparent px-2 text-xs font-medium text-stone-400 outline-none transition-colors hover:text-stone-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className={cn(
+            "h-10 w-16 cursor-pointer appearance-none text-center rounded-xl bg-transparent px-2 text-xs font-bold outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
+            selectedFlashModel === 'gemini-3.1-pro' ? "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "",
+            selectedFlashModel === 'gemini-3-flash' ? "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" : "",
+            selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium hover:text-stone-300" : ""
+          )}
         >
           {BRAINSTORM_FLASH_MODEL_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value} className="bg-stone-900 text-stone-300">
+            <option key={option.value} value={option.value} className="bg-stone-900 text-stone-300 font-medium drop-shadow-none">
               {option.label}
             </option>
           ))}
         </select>
-        <div className="h-6 w-px bg-white/10" />
+        <div className="h-6 w-px bg-white/10 relative z-10" />
         <Input
           type="text"
           value={inputText}
