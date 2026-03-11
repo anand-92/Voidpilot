@@ -6,8 +6,7 @@ export function CustomCursor() {
     const cursorX = useMotionValue(-100);
     const cursorY = useMotionValue(-100);
 
-    // Smooth springs for the outer ring trailing effect
-    const springConfig = { damping: 25, stiffness: 250, mass: 0.5 };
+    const springConfig = { damping: 30, stiffness: 300, mass: 0.4 };
     const cursorXSpring = useSpring(cursorX, springConfig);
     const cursorYSpring = useSpring(cursorY, springConfig);
 
@@ -19,7 +18,6 @@ export function CustomCursor() {
 
         const handleMouseOver = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
-            // Triggers expansion if hovering over buttons, links, or customized elements
             if (
                 target.tagName.toLowerCase() === 'button' ||
                 target.tagName.toLowerCase() === 'a' ||
@@ -42,41 +40,41 @@ export function CustomCursor() {
         };
     }, [cursorX, cursorY]);
 
-    // Hide the default cursor completely via CSS globally in index.css
-
     return (
         <>
-            {/* Inner dot - instant follow */}
+            {/* Minimal dot — follows instantly */}
             <motion.div
-                className="fixed top-0 left-0 w-2 h-2 bg-sky-400 rounded-full pointer-events-none z-[100] mix-blend-screen shadow-[0_0_10px_2px_rgba(56,189,248,0.8)]"
+                className="fixed top-0 left-0 size-1.5 rounded-full bg-amber-400 pointer-events-none z-[100] mix-blend-screen"
                 style={{
                     x: cursorX,
                     y: cursorY,
                     translateX: '-50%',
                     translateY: '-50%',
+                    boxShadow: '0 0 8px 1px rgba(217,119,6,0.6)',
                 }}
                 animate={{
                     scale: isHovered ? 0 : 1,
-                    opacity: isHovered ? 0 : 1
+                    opacity: isHovered ? 0 : 0.9,
                 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.15 }}
             />
 
-            {/* Outer ring - smoothly trails and expands on hover */}
+            {/* Subtle ring — trails slightly, expands on interactive elements */}
             <motion.div
-                className="fixed top-0 left-0 w-8 h-8 rounded-full border border-sky-400/50 pointer-events-none z-[99] mix-blend-screen flex items-center justify-center bg-sky-500/10 backdrop-blur-[2px]"
+                className="fixed top-0 left-0 size-7 rounded-full pointer-events-none z-[99] mix-blend-screen"
                 style={{
                     x: cursorXSpring,
                     y: cursorYSpring,
                     translateX: '-50%',
                     translateY: '-50%',
+                    border: '1px solid rgba(217,119,6,0.25)',
                 }}
                 animate={{
-                    scale: isHovered ? 2.5 : 1,
-                    borderColor: isHovered ? 'rgba(56, 189, 248, 0.8)' : 'rgba(56, 189, 248, 0.5)',
-                    backgroundColor: isHovered ? 'rgba(56, 189, 248, 0.15)' : 'rgba(56, 189, 248, 0.05)',
+                    scale: isHovered ? 2.2 : 1,
+                    borderColor: isHovered ? 'rgba(217,119,6,0.5)' : 'rgba(217,119,6,0.25)',
+                    backgroundColor: isHovered ? 'rgba(217,119,6,0.08)' : 'rgba(217,119,6,0.02)',
                 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
             />
         </>
     );

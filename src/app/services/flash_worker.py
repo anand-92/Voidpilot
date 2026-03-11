@@ -54,9 +54,7 @@ class FlashWorker:
     """Background worker wrapping Flash Lite (text) and
     Flash Image (image generation) for brainstorm artifacts."""
 
-    def __init__(
-        self, api_key: str, text_model_key: str | None = None
-    ) -> None:
+    def __init__(self, api_key: str, text_model_key: str | None = None) -> None:
         self.api_key = api_key
         self.text_model = resolve_flash_text_model(text_model_key)
         self.client = genai.Client(
@@ -94,9 +92,7 @@ class FlashWorker:
 
         return response.text or ""
 
-    async def generate_markdown(
-        self, title: str, raw_ideas: str
-    ) -> str:
+    async def generate_markdown(self, title: str, raw_ideas: str) -> str:
         """Send raw brainstorm ideas to Flash Lite and get back
         structured markdown."""
         prompt = (
@@ -106,17 +102,13 @@ class FlashWorker:
             f"Raw ideas:\n{raw_ideas}\n\n"
             f"Return ONLY the markdown content, no extra commentary."
         )
-        logger.info(
-            "FlashWorker.generate_markdown: title=%r", title
-        )
+        logger.info("FlashWorker.generate_markdown: title=%r", title)
 
         return await self._generate_text(prompt)
 
     async def generate_image(self, prompt: str) -> bytes:
         """Call Flash Image model and extract inline_data bytes."""
-        logger.info(
-            "FlashWorker.generate_image: prompt=%r", prompt
-        )
+        logger.info("FlashWorker.generate_image: prompt=%r", prompt)
 
         response = await self.client.aio.models.generate_content(
             model=FLASH_IMAGE_MODEL,

@@ -148,6 +148,8 @@ async def test_save_handler_returns_silent():
     )
 
     mock_ws = AsyncMock()
+    from starlette.websockets import WebSocketState
+    mock_ws.client_state = WebSocketState.CONNECTED
 
     with patch(
         "src.app.api.v1.endpoints.brainstorm.FlashWorker"
@@ -176,6 +178,8 @@ async def test_image_handler_returns_when_idle():
     )
 
     mock_ws = AsyncMock()
+    from starlette.websockets import WebSocketState
+    mock_ws.client_state = WebSocketState.CONNECTED
 
     with patch(
         "src.app.api.v1.endpoints.brainstorm.FlashWorker"
@@ -203,6 +207,8 @@ async def test_delegate_handler_returns_when_idle():
     )
 
     mock_ws = AsyncMock()
+    from starlette.websockets import WebSocketState
+    mock_ws.client_state = WebSocketState.CONNECTED
 
     with patch(
         "src.app.api.v1.endpoints.brainstorm.FlashWorker"
@@ -228,6 +234,8 @@ async def test_make_tool_handlers_uses_selected_flash_model():
     )
 
     mock_ws = AsyncMock()
+    from starlette.websockets import WebSocketState
+    mock_ws.client_state = WebSocketState.CONNECTED
 
     with patch(
         'src.app.api.v1.endpoints.brainstorm.FlashWorker'
@@ -261,6 +269,8 @@ async def test_save_handler_pushes_artifact_via_websocket():
     )
 
     mock_ws = AsyncMock()
+    from starlette.websockets import WebSocketState
+    mock_ws.client_state = WebSocketState.CONNECTED
 
     with patch(
         "src.app.api.v1.endpoints.brainstorm.FlashWorker"
@@ -294,6 +304,8 @@ async def test_image_handler_pushes_image_via_websocket():
     )
 
     mock_ws = AsyncMock()
+    from starlette.websockets import WebSocketState
+    mock_ws.client_state = WebSocketState.CONNECTED
     image_bytes = b"\x89PNGfakedata"
 
     with patch(
@@ -331,6 +343,8 @@ async def test_delegate_handler_pushes_artifact_via_websocket():
     )
 
     mock_ws = AsyncMock()
+    from starlette.websockets import WebSocketState
+    mock_ws.client_state = WebSocketState.CONNECTED
 
     with patch(
         "src.app.api.v1.endpoints.brainstorm.FlashWorker"

@@ -1,61 +1,65 @@
-/* ─── Shared UI Atoms ──────────────────────────────────────────────
- * Extracted from App.tsx and BrainstormPage.tsx to avoid duplication.
- * Both pages import these components for consistent styling.
- * ────────────────────────────────────────────────────────────────── */
+import { Badge } from '@/components/ui/badge'
+import { BlurFade } from '@/components/ui/blur-fade'
+import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
 
 export function PulseRing({ active }: { active: boolean }) {
   if (!active) return null
   return (
-    <span className="relative flex h-2.5 w-2.5">
-      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+    <span className="relative flex size-2.5">
+      <span className="absolute inline-flex size-full animate-ping rounded-full bg-amber-400 opacity-60" />
+      <span className="relative inline-flex size-2.5 rounded-full bg-amber-400" />
     </span>
   )
 }
 
 export function StatusChip({ isConnected, isStarting }: { isConnected: boolean; isStarting: boolean }) {
-  let colorClasses: string
   let label: string
+  let chipClassName: string
 
   if (isConnected) {
-    colorClasses = 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-300'
+    chipClassName = 'border-amber-500/20 bg-amber-500/10 text-amber-300'
     label = 'Live'
   } else if (isStarting) {
-    colorClasses = 'border border-amber-400/20 bg-amber-500/10 text-amber-300'
-    label = 'Starting…'
+    chipClassName = 'border-orange-400/20 bg-orange-500/10 text-orange-300'
+    label = 'Starting...'
   } else {
-    colorClasses = 'border border-white/10 bg-white/5 text-slate-400'
+    chipClassName = 'border-stone-700 bg-stone-800/60 text-stone-500'
     label = 'Offline'
   }
 
   return (
-    <div
-      className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest transition-colors ${colorClasses}`}
+    <Badge
+      variant="outline"
+      className={cn(
+        'h-auto gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest transition-colors',
+        chipClassName,
+      )}
     >
       <PulseRing active={isConnected} />
       {label}
-    </div>
+    </Badge>
   )
 }
 
 const AI_STYLE = {
-  bubble: 'border border-white/[0.06] bg-white/[0.04] text-slate-200',
-  label: 'text-indigo-400/60',
+  bubble: 'border border-white/[0.06] bg-stone-900/60 text-stone-200',
+  label: 'text-amber-500/60',
   name: 'Gemini',
+  isMarkdown: true,
 }
 
-const MESSAGE_STYLES: Record<string, { bubble: string; label: string; name: string }> = {
+const MESSAGE_STYLES: Record<string, { bubble: string; label: string; name: string; isMarkdown?: boolean }> = {
   user: {
-    bubble: 'bg-sky-600/20 text-sky-100',
-    label: 'text-sky-400/60',
+    bubble: 'bg-amber-600/15 text-amber-50',
+    label: 'text-amber-400/60',
     name: 'You',
   },
   system: {
-    bubble: 'border border-white/[0.06] bg-white/[0.03] text-slate-500 italic',
-    label: 'text-slate-600',
+    bubble: 'border border-white/[0.06] bg-white/[0.02] text-stone-500 italic',
+    label: 'text-stone-600',
     name: 'System',
   },
-  // App.tsx uses "model", BrainstormPage uses "gemini" — both map to the same style
   model: AI_STYLE,
   gemini: AI_STYLE,
 }
@@ -76,23 +80,35 @@ export function MessageBubble({
 
   if (isToolResponse) {
     return (
-      <div className="flex justify-start">
-        <div className="rainbow-border max-w-[80%] rounded-2xl p-[2px]">
-          <div className="rounded-[14px] bg-[#0a0e1f] px-4 py-3 text-sm leading-relaxed text-slate-200">
-            <div className={`${LABEL_CLASSES} ${AI_STYLE.label}`}>Gemini — Tool Result</div>
-            <div>{content}</div>
+      <BlurFade delay={0.05} duration={0.3}>
+        <div className="flex justify-start">
+          <div className="rainbow-border max-w-[90%] md:max-w-[80%] rounded-2xl p-[2px]">
+            <div className="rounded-[14px] bg-stone-950 px-4 py-3 text-sm leading-relaxed text-stone-200">
+              <div className={`${LABEL_CLASSES} ${AI_STYLE.label}`}>Gemini — Tool Result</div>
+              <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-stone-900/50 prose-pre:border prose-pre:border-white/10">
+                <ReactMarkdown>{content}</ReactMarkdown>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </BlurFade>
     )
   }
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${styles.bubble}`}>
-        <div className={`${LABEL_CLASSES} ${styles.label}`}>{styles.name}</div>
-        <div>{content}</div>
+    <BlurFade delay={0.05} duration={0.3}>
+      <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+        <div className={cn('max-w-[90%] md:max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed', styles.bubble)}>
+          <div className={cn(LABEL_CLASSES, styles.label)}>{styles.name}</div>
+          {styles.isMarkdown ? (
+            <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-stone-900/50 prose-pre:border prose-pre:border-white/10 prose-a:text-amber-500 hover:prose-a:text-amber-400">
+              <ReactMarkdown>{content}</ReactMarkdown>
+            </div>
+          ) : (
+            <div className="whitespace-pre-wrap break-words">{content}</div>
+          )}
+        </div>
       </div>
-    </div>
+    </BlurFade>
   )
 }

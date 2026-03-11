@@ -101,10 +101,7 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
     logger.info("New walkthrough WebSocket connection request")
     await websocket.accept()
 
-    api_key = (
-        settings.GOOGLE_API_KEY
-        or "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
-    )
+    api_key = settings.GOOGLE_API_KEY or "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
 
     audio_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
     text_input_queue: asyncio.Queue[str] = asyncio.Queue()
@@ -112,7 +109,10 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
 
     async def send_to_client(payload: dict) -> None:
         try:
-            await websocket.send_json(payload)
+            from starlette.websockets import WebSocketState
+
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json(payload)
         except Exception as e:
             logger.error("Error sending to client: %s", e)
 
@@ -165,14 +165,10 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
             if is_normal:
                 logger.info("Walkthrough client disconnected")
             else:
-                logger.error(
-                    "RuntimeError in walkthrough receiver: %s", e
-                )
+                logger.error("RuntimeError in walkthrough receiver: %s", e)
                 logger.error(traceback.format_exc())
         except Exception as e:
-            logger.error(
-                "Error receiving from walkthrough client: %s", e
-            )
+            logger.error("Error receiving from walkthrough client: %s", e)
             logger.error(traceback.format_exc())
 
     async def forward_gemini_event(event: dict) -> None:
@@ -182,18 +178,14 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
                 {
                     "type": "text",
                     "role": event_type,
-                    "content": event.get(
-                        "text", event.get("content", "")
-                    ),
+                    "content": event.get("text", event.get("content", "")),
                 }
             )
         else:
             await send_to_client(event)
 
     async def audio_output_callback(data: bytes) -> None:
-        await send_to_client(
-            {"type": "audio", "content": data.hex()}
-        )
+        await send_to_client({"type": "audio", "content": data.hex()})
 
     async def audio_interrupt_callback() -> None:
         await send_to_client({"type": "interrupted"})
@@ -210,17 +202,13 @@ async def walkthrough_ws(websocket: WebSocket):  # noqa: C901
                 audio_interrupt_callback=audio_interrupt_callback,
             ):
                 if event:
-                    logger.debug(
-                        "Walkthrough event: %s", event["type"]
-                    )
+                    logger.debug("Walkthrough event: %s", event["type"])
                     await forward_gemini_event(event)
             logger.info("Walkthrough session ended normally")
         except Exception as e:
             logger.error("Walkthrough session error: %s", e)
             logger.error(traceback.format_exc())
-            await send_to_client(
-                {"type": "error", "content": str(e)}
-            )
+            await send_to_client({"type": "error", "content": str(e)})
 
     receive_task = asyncio.create_task(receive_from_client())
     try:

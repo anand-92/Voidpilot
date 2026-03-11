@@ -15,9 +15,9 @@ import {
 import type { Message, MessageRole } from './useGeminiLive.ts'
 
 export const BRAINSTORM_FLASH_MODEL_OPTIONS = [
-  { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite' },
-  { value: 'gemini-3-flash', label: 'Gemini 3 Flash' },
-  { value: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro' },
+  { value: 'gemini-3.1-flash-lite', label: 'LITE' },
+  { value: 'gemini-3-flash', label: 'FLASH' },
+  { value: 'gemini-3.1-pro', label: 'PRO' },
 ] as const
 
 export type BrainstormFlashModel =
@@ -55,11 +55,27 @@ export function useGeminiBrainstorm() {
   const toolCallPendingRef = useRef(false)
   const toolResponseTurnRef = useRef(false)
 
+  const startToolCallTurn = useCallback(() => {
+    // We intentionally do NOT modify the existing message here.
+    // By setting turnBoundaryRef = true AND toolResponseTurnRef = true,
+    // the very next incoming text chunk will be forced into a NEW message
+    // bubble with the isToolResponse style, separate from the text
+    // spoken before the tool call started.
+    turnBoundaryRef.current = true
+    toolResponseTurnRef.current = true
+  }, [])
+
   const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages((previous) => {
       const last = previous[previous.length - 1]
       const isNewTurn = turnBoundaryRef.current && role === 'gemini'
-      if (isNewTurn) turnBoundaryRef.current = false
+      if (isNewTurn) {
+        turnBoundaryRef.current = false
+        if (toolCallPendingRef.current) {
+          toolResponseTurnRef.current = true
+          toolCallPendingRef.current = false
+        }
+      }
 
       const isToolResponse = role === 'gemini' && toolResponseTurnRef.current
       const canAppend =
@@ -163,17 +179,16 @@ export function useGeminiBrainstorm() {
           }
         } else if (data.type === 'interrupted') {
           nextPlayTimeRef.current = 0
-        } else if (data.type === 'tool_call') {
+        } else if (data.type === 'tool_call_start') {
           setIsGenerating(true)
+          startToolCallTurn()
+        } else if (data.type === 'tool_call') {
+          // The background tool finished execution
+          setIsGenerating(false)
           toolCallPendingRef.current = true
         } else if (data.type === 'turn_complete') {
           turnBoundaryRef.current = true
-          if (toolCallPendingRef.current) {
-            toolCallPendingRef.current = false
-            toolResponseTurnRef.current = true
-          } else {
-            toolResponseTurnRef.current = false
-          }
+          toolResponseTurnRef.current = false
         }
       }
 
@@ -242,17 +257,6 @@ export function useGeminiBrainstorm() {
     [addMessage],
   )
 
-  const sendSnapshot = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'text',
-          content: '[SYSTEM: User requested a brainstorm save. Call save_brainstorm_artifact now with all current ideas.]',
-        }),
-      )
-    }
-  }, [])
-
   useEffect(() => {
     return () => {
       stop()
@@ -271,6 +275,5 @@ export function useGeminiBrainstorm() {
     start,
     stop,
     sendText,
-    sendSnapshot,
   }
 }
