@@ -60,15 +60,37 @@ const MESSAGE_STYLES: Record<string, { bubble: string; label: string; name: stri
   gemini: AI_STYLE,
 }
 
-export function MessageBubble({ role, content }: { role: string; content: string }) {
+const LABEL_CLASSES = 'mb-1 text-[10px] font-bold uppercase tracking-[0.2em]'
+
+export function MessageBubble({
+  role,
+  content,
+  isToolResponse,
+}: {
+  role: string
+  content: string
+  isToolResponse?: boolean
+}) {
   const isUser = role === 'user'
   const styles = MESSAGE_STYLES[role] ?? MESSAGE_STYLES.model
+
+  if (isToolResponse) {
+    return (
+      <div className="flex justify-start">
+        <div className="rainbow-border max-w-[80%] rounded-2xl p-[2px]">
+          <div className="rounded-[14px] bg-[#0a0e1f] px-4 py-3 text-sm leading-relaxed text-slate-200">
+            <div className={`${LABEL_CLASSES} ${AI_STYLE.label}`}>Gemini — Tool Result</div>
+            <div>{content}</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${styles.bubble}`}>
-        <div className={`mb-1 text-[10px] font-bold uppercase tracking-[0.2em] ${styles.label}`}>
-          {styles.name}
-        </div>
+        <div className={`${LABEL_CLASSES} ${styles.label}`}>{styles.name}</div>
         <div>{content}</div>
       </div>
     </div>

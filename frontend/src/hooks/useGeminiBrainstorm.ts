@@ -51,19 +51,28 @@ export function useGeminiBrainstorm() {
   const streamRef = useRef<MediaStream | null>(null)
   const nextPlayTimeRef = useRef(0)
   const sessionHandleRef = useRef<string | null>(null)
+  const turnBoundaryRef = useRef(false)
+  const toolCallPendingRef = useRef(false)
+  const toolResponseTurnRef = useRef(false)
 
   const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages((previous) => {
-      const lastMessage = previous[previous.length - 1]
-      if (lastMessage && lastMessage.role === role) {
+      const last = previous[previous.length - 1]
+      const isNewTurn = turnBoundaryRef.current && role === 'gemini'
+      if (isNewTurn) turnBoundaryRef.current = false
+
+      const isToolResponse = role === 'gemini' && toolResponseTurnRef.current
+      const canAppend =
+        !isNewTurn &&
+        last?.role === role &&
+        !!last.isToolResponse === isToolResponse
+
+      if (canAppend) {
         const updated = [...previous]
-        updated[updated.length - 1] = {
-          ...lastMessage,
-          content: lastMessage.content + content,
-        }
+        updated[updated.length - 1] = { ...last, content: last.content + content }
         return updated
       }
-      return [...previous, { role, content }]
+      return [...previous, { role, content, isToolResponse: isToolResponse ?? undefined }]
     })
   }, [])
 
@@ -153,10 +162,18 @@ export function useGeminiBrainstorm() {
             sessionHandleRef.current = data.handle
           }
         } else if (data.type === 'interrupted') {
-          // Reset audio playback scheduling on interrupt
           nextPlayTimeRef.current = 0
         } else if (data.type === 'tool_call') {
           setIsGenerating(true)
+          toolCallPendingRef.current = true
+        } else if (data.type === 'turn_complete') {
+          turnBoundaryRef.current = true
+          if (toolCallPendingRef.current) {
+            toolCallPendingRef.current = false
+            toolResponseTurnRef.current = true
+          } else {
+            toolResponseTurnRef.current = false
+          }
         }
       }
 

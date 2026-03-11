@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
 
 :root {
   font-family: "DM Sans", "Segoe UI Variable Display", "Segoe UI", "Avenir Next", Helvetica, Arial, sans-serif;
@@ -60,4 +59,31 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.14);
+}
+
+@property --rainbow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rainbow-flow {
+  to {
+    --rainbow-angle: 360deg;
+  }
+}
+
+.rainbow-border {
+  background: conic-gradient(
+    from var(--rainbow-angle),
+    #ff0000,
+    #ff8800,
+    #ffff00,
+    #00ff00,
+    #00ccff,
+    #4400ff,
+    #9900ff,
+    #ff0000
+  );
+  animation: rainbow-flow 3s linear infinite;
 }

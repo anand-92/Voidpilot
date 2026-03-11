@@ -558,6 +558,7 @@ class GeminiLive:
                                     "Turn complete, waiting for "
                                     "more user input..."
                                 )
+                                yield event
                                 break
 
                             if event_type == "session_dead":

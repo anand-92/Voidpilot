@@ -397,7 +397,12 @@ function ConversationPanel({ messages, messagesEndRef, mobile }: ConversationPan
         ) : (
           <div className="flex flex-col gap-3">
             {messages.map((message, index) => (
-              <MessageBubble key={index} role={message.role} content={message.content} />
+              <MessageBubble
+                key={index}
+                role={message.role}
+                content={message.content}
+                isToolResponse={message.isToolResponse}
+              />
             ))}
             <div ref={messagesEndRef} />
           </div>

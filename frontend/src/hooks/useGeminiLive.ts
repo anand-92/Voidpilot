@@ -18,6 +18,7 @@ export type MessageRole = 'user' | 'gemini' | 'system' | 'thought' | 'user_voice
 export interface Message {
   role: MessageRole
   content: string
+  isToolResponse?: boolean
 }
 
 export type CaptureConfig = {
