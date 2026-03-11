@@ -337,8 +337,10 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 ),
                 DEFAULT_FLASH_TEXT_MODEL_KEY,
             )
-            tool_mapping.clear()
-            tool_mapping.update(
+            
+            # Update the gemini_client's tool_mapping with new handlers bound to the correct model
+            gemini_client.tool_mapping.clear()
+            gemini_client.tool_mapping.update(
                 _make_tool_handlers(
                     websocket,
                     api_key,
