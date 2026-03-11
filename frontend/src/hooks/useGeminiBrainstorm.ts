@@ -55,11 +55,31 @@ export function useGeminiBrainstorm() {
   const toolCallPendingRef = useRef(false)
   const toolResponseTurnRef = useRef(false)
 
+  const markLastAsToolResponse = useCallback(() => {
+    setMessages((previous) => {
+      if (previous.length === 0) return previous
+      const lastIndex = previous.length - 1
+      const last = previous[lastIndex]
+      if (last.role === 'gemini' && !last.isToolResponse) {
+        const updated = [...previous]
+        updated[lastIndex] = { ...last, isToolResponse: true }
+        return updated
+      }
+      return previous
+    })
+  }, [])
+
   const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages((previous) => {
       const last = previous[previous.length - 1]
       const isNewTurn = turnBoundaryRef.current && role === 'gemini'
-      if (isNewTurn) turnBoundaryRef.current = false
+      if (isNewTurn) {
+        turnBoundaryRef.current = false
+        if (toolCallPendingRef.current) {
+          toolResponseTurnRef.current = true
+          toolCallPendingRef.current = false
+        }
+      }
 
       const isToolResponse = role === 'gemini' && toolResponseTurnRef.current
       const canAppend =
@@ -165,18 +185,15 @@ export function useGeminiBrainstorm() {
           nextPlayTimeRef.current = 0
         } else if (data.type === 'tool_call_start') {
           setIsGenerating(true)
+          toolResponseTurnRef.current = true
+          markLastAsToolResponse()
         } else if (data.type === 'tool_call') {
           // The background tool finished execution
           setIsGenerating(false)
           toolCallPendingRef.current = true
         } else if (data.type === 'turn_complete') {
           turnBoundaryRef.current = true
-          if (toolCallPendingRef.current) {
-            toolCallPendingRef.current = false
-            toolResponseTurnRef.current = true
-          } else {
-            toolResponseTurnRef.current = false
-          }
+          toolResponseTurnRef.current = false
         }
       }
 
