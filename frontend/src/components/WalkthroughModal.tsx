@@ -29,7 +29,8 @@ function StatusIndicator({ isConnected, isStarting }: { isConnected: boolean; is
 }
 
 export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalProps) {
-  const { isConnected, isStarting, start, stop, intensityRef } = useWalkthroughAgent();
+  const { isConnected, isStarting, start, stop, inputIntensityRef, outputIntensityRef, visualIntensityRef } =
+    useWalkthroughAgent();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
 
@@ -71,6 +72,7 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
     function resize() {
       canvas!.width = canvas!.offsetWidth * window.devicePixelRatio;
       canvas!.height = canvas!.offsetHeight * window.devicePixelRatio;
+      ctx!.setTransform(1, 0, 0, 1, 0, 0);
       ctx!.scale(window.devicePixelRatio, window.devicePixelRatio);
     }
     resize();
@@ -81,7 +83,9 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
       const h = canvas!.offsetHeight;
       const cx = w / 2;
       const cy = h / 2;
-      const intensity = intensityRef.current;
+      const intensity = visualIntensityRef.current;
+      const inputIntensity = inputIntensityRef.current;
+      const outputIntensity = outputIntensityRef.current;
 
       ctx!.clearRect(0, 0, w, h);
 
@@ -120,6 +124,39 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
       ctx!.fillStyle = `${LIGHT_VIOLET} ${0.6 + intensity * 0.4})`;
       ctx!.fill();
 
+      const meterWidth = Math.min(44, w * 0.12);
+      const meterGap = Math.min(40, w * 0.08);
+      const meterBaseHeight = h * 0.34;
+      const maxMeterHeight = h * 0.5;
+      const meterY = cy;
+      const meters = [
+        { label: 'You', intensity: inputIntensity, x: cx - meterGap - meterWidth },
+        { label: 'Gemini', intensity: outputIntensity, x: cx + meterGap },
+      ];
+
+      meters.forEach(({ label, intensity: meterIntensity, x }) => {
+        const activeHeight = meterBaseHeight + meterIntensity * (maxMeterHeight - meterBaseHeight);
+        const top = meterY - activeHeight / 2;
+        const meterGradient = ctx!.createLinearGradient(0, top, 0, top + activeHeight);
+        meterGradient.addColorStop(0, `${LIGHT_VIOLET} ${0.85 - meterIntensity * 0.1})`);
+        meterGradient.addColorStop(1, `${VIOLET} ${0.16 + meterIntensity * 0.42})`);
+
+        ctx!.fillStyle = `${VIOLET} 0.08)`;
+        ctx!.beginPath();
+        ctx!.roundRect(x, meterY - maxMeterHeight / 2, meterWidth, maxMeterHeight, 18);
+        ctx!.fill();
+
+        ctx!.fillStyle = meterGradient;
+        ctx!.beginPath();
+        ctx!.roundRect(x, top, meterWidth, activeHeight, 18);
+        ctx!.fill();
+
+        ctx!.fillStyle = `rgba(216, 180, 254, ${0.72 + meterIntensity * 0.18})`;
+        ctx!.font = '600 12px Inter, sans-serif';
+        ctx!.textAlign = 'center';
+        ctx!.fillText(label, x + meterWidth / 2, meterY + maxMeterHeight / 2 + 24);
+      });
+
       animationRef.current = requestAnimationFrame(draw);
     }
 
@@ -129,7 +166,7 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
       cancelAnimationFrame(animationRef.current);
       window.removeEventListener('resize', resize);
     };
-  }, [isOpen, intensityRef]);
+  }, [isOpen, inputIntensityRef, outputIntensityRef, visualIntensityRef]);
 
   return (
     <AnimatePresence>
@@ -179,7 +216,7 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            Ask me anything about Voidpilot
+            Speak naturally — left meter is you, right meter is Gemini
           </motion.p>
         </motion.div>
       )}

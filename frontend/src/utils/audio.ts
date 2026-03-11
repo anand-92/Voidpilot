@@ -30,11 +30,30 @@ export function float32ToPcm16(inputData: Float32Array): Int16Array {
 }
 
 export function calculateIntensity(data: Float32Array): number {
+  if (data.length === 0) return 0
+
   let maxValue = 0
+  let sumSquares = 0
   for (let i = 0; i < data.length; i += 1) {
-    if (Math.abs(data[i]) > maxValue) maxValue = Math.abs(data[i])
+    const sample = Math.abs(data[i])
+    if (sample > maxValue) maxValue = sample
+    sumSquares += sample * sample
   }
-  return maxValue
+
+  const rms = Math.sqrt(sumSquares / data.length)
+  const weightedLevel = maxValue * 0.55 + rms * 2.4
+  return Math.min(1, weightedLevel)
+}
+
+export function smoothIntensity(
+  current: number,
+  next: number,
+  options?: { attack?: number; release?: number },
+): number {
+  const attack = options?.attack ?? 0.7
+  const release = options?.release ?? 0.18
+  const factor = next >= current ? attack : release
+  return current + (next - current) * factor
 }
 
 export function resampleAudio(inputData: Float32Array, sourceRate: number, targetRate: number): Float32Array {
@@ -81,7 +100,7 @@ export function scheduleAudioPlayback(
   audioContext: AudioContext,
   floatData: Float32Array,
   nextPlayTimeRef: { current: number },
-): void {
+): { startTime: number; endTime: number } {
   const audioBuffer = audioContext.createBuffer(1, floatData.length, SAMPLE_RATE)
   audioBuffer.getChannelData(0).set(floatData)
   const bufferSource = audioContext.createBufferSource()
@@ -90,6 +109,10 @@ export function scheduleAudioPlayback(
 
   const now = audioContext.currentTime
   if (nextPlayTimeRef.current < now) nextPlayTimeRef.current = now + 0.05
-  bufferSource.start(nextPlayTimeRef.current)
-  nextPlayTimeRef.current += audioBuffer.duration
+  const startTime = nextPlayTimeRef.current
+  const endTime = startTime + audioBuffer.duration
+  bufferSource.start(startTime)
+  nextPlayTimeRef.current = endTime
+
+  return { startTime, endTime }
 }

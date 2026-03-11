@@ -11,18 +11,74 @@ import {
   requestMicrophone,
   resampleAudio,
   scheduleAudioPlayback,
+  smoothIntensity,
 } from '../utils/audio.ts'
 
 export function useWalkthroughAgent() {
   const [isConnected, setIsConnected] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
-  const intensityRef = useRef(0)
+  const inputIntensityRef = useRef(0)
+  const outputIntensityRef = useRef(0)
+  const visualIntensityRef = useRef(0)
+  const playbackSegmentsRef = useRef<Array<{ startTime: number; endTime: number; intensity: number }>>([])
 
   const wsRef = useRef<WebSocket | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const nextPlayTimeRef = useRef(0)
+
+  useEffect(() => {
+    let frameId = 0
+
+    const tick = () => {
+      inputIntensityRef.current = smoothIntensity(inputIntensityRef.current, 0, { release: 0.12 })
+
+      const audioContext = audioContextRef.current
+      if (audioContext) {
+        const now = audioContext.currentTime
+        playbackSegmentsRef.current = playbackSegmentsRef.current.filter(
+          (segment) => segment.endTime > now - 0.08,
+        )
+      } else if (playbackSegmentsRef.current.length > 0) {
+        playbackSegmentsRef.current = []
+      }
+
+      const activeOutputLevel = audioContext
+        ? playbackSegmentsRef.current.reduce((peak, segment) => {
+            const overlapsPlaybackWindow =
+              segment.endTime > audioContext.currentTime - 0.05 &&
+              segment.startTime < audioContext.currentTime + 0.16
+
+            return overlapsPlaybackWindow ? Math.max(peak, segment.intensity) : peak
+          }, 0)
+        : 0
+
+      if (activeOutputLevel > 0) {
+        outputIntensityRef.current = smoothIntensity(
+          outputIntensityRef.current,
+          activeOutputLevel,
+          { attack: 0.62, release: 0.12 },
+        )
+      } else {
+        outputIntensityRef.current = smoothIntensity(outputIntensityRef.current, 0, { release: 0.1 })
+      }
+
+      const combinedLevel = Math.max(inputIntensityRef.current, outputIntensityRef.current)
+      visualIntensityRef.current = smoothIntensity(visualIntensityRef.current, combinedLevel, {
+        attack: 0.78,
+        release: 0.14,
+      })
+
+      frameId = window.requestAnimationFrame(tick)
+    }
+
+    frameId = window.requestAnimationFrame(tick)
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+    }
+  }, [])
 
   const stop = useCallback(() => {
     if (wsRef.current) {
@@ -39,8 +95,11 @@ export function useWalkthroughAgent() {
     audioContextRef.current = null
     setIsConnected(false)
     setIsStarting(false)
-    intensityRef.current = 0
+    inputIntensityRef.current = 0
+    outputIntensityRef.current = 0
+    visualIntensityRef.current = 0
     nextPlayTimeRef.current = 0
+    playbackSegmentsRef.current = []
   }, [])
 
   const start = useCallback(async () => {
@@ -65,8 +124,17 @@ export function useWalkthroughAgent() {
         if (!pcmData || pcmData.length === 0 || !audioContextRef.current) return
 
         const floatData = pcm16ToFloat32(pcmData)
-        intensityRef.current = calculateIntensity(floatData)
-        scheduleAudioPlayback(audioContextRef.current, floatData, nextPlayTimeRef)
+        const outputLevel = Math.max(calculateIntensity(floatData), 0.08)
+        outputIntensityRef.current = smoothIntensity(outputIntensityRef.current, outputLevel, {
+          attack: 0.82,
+          release: 0.16,
+        })
+        const { startTime, endTime } = scheduleAudioPlayback(
+          audioContextRef.current,
+          floatData,
+          nextPlayTimeRef,
+        )
+        playbackSegmentsRef.current.push({ startTime, endTime, intensity: outputLevel })
       }
 
       ws.onerror = (error) => {
@@ -103,8 +171,11 @@ export function useWalkthroughAgent() {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
 
         const inputData = event.inputBuffer.getChannelData(0)
-        intensityRef.current = calculateIntensity(inputData)
-
+        inputIntensityRef.current = smoothIntensity(
+          inputIntensityRef.current,
+          calculateIntensity(inputData),
+          { attack: 0.9, release: 0.22 },
+        )
         const resampledData = resampleAudio(inputData, sourceRate, MIC_TARGET_RATE)
         const pcmData = float32ToPcm16(resampledData)
         wsRef.current.send(pcmData.buffer)
@@ -133,6 +204,8 @@ export function useWalkthroughAgent() {
     isStarting,
     start,
     stop,
-    intensityRef,
+    inputIntensityRef,
+    outputIntensityRef,
+    visualIntensityRef,
   }
 }

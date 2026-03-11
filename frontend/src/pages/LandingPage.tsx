@@ -218,10 +218,12 @@ export default function LandingPage() {
   const triggerLight = useCallback(() => haptic.trigger('light'), [haptic]);
 
   return (
-    <main className="custom-cursor relative w-full h-screen overflow-hidden bg-[#060818] text-slate-100 font-sans selection:bg-sky-500/30">
+    <main
+      className={`${isWalkthroughOpen ? '' : 'custom-cursor '}relative h-screen w-full overflow-hidden bg-[#060818] font-sans text-slate-100 selection:bg-sky-500/30`}
+    >
       <div className="fixed top-0 left-0 w-full h-screen overflow-hidden">
         <ThreeBackground scrollProgress={scrollProgress} />
-        <CustomCursor />
+        {!isWalkthroughOpen && <CustomCursor />}
 
         <header className="fixed top-0 left-0 w-full z-50 border-b border-white/5 bg-slate-950/20 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
