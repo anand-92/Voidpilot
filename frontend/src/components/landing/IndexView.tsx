@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { BlurFade } from '@/components/ui/blur-fade';
-import { SparklesText } from '@/components/ui/sparkles-text';
 import { MagicCard } from '@/components/ui/magic-card';
 import { Marquee } from '@/components/ui/marquee';
+import AnimatedTextRoller, { voidpilotHeroItems } from '@/components/shadcn-space/animated-text/animated-text-04';
 import { GeminiArrowRight } from '../icons/GeminiIcons';
 import { PulseDot } from './PulseDot';
 import { sectionVariants, indexCardVariants } from './LandingConstants';
@@ -91,13 +91,14 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
 
       <BlurFade delay={0.15}>
         <div className="pointer-events-auto">
-          <SparklesText
-            className="max-w-4xl text-center text-3xl font-extrabold tracking-tight sm:text-5xl md:text-7xl leading-tight pb-1 md:pb-2"
-            colors={{ first: '#d97706', second: '#fbbf24' }}
-            sparklesCount={0}
-          >
-            AI that sees, hears, and takes the wheel.
-          </SparklesText>
+          <div className="rounded-[2rem] border border-white/10 bg-white/6 px-5 py-4 shadow-[0_0_60px_rgba(56,189,248,0.12)] backdrop-blur-xl md:px-8 md:py-6">
+            <AnimatedTextRoller
+              className="max-w-4xl text-center text-3xl font-extrabold tracking-tight leading-tight sm:text-5xl md:text-7xl"
+              prefixClassName="font-extrabold tracking-tight text-white"
+              itemClassName="font-extrabold"
+              items={voidpilotHeroItems}
+            />
+          </div>
         </div>
       </BlurFade>
 

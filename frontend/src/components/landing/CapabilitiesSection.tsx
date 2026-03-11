@@ -64,7 +64,7 @@ export function CapabilitiesSection({ onCardTap }: { onCardTap: () => void }) {
                     </div>
                     <div className="min-w-0 flex-1 md:flex-none">
                       <h3 className="text-base md:text-xl font-bold text-white mb-1 md:mb-3">{title}</h3>
-                      <p className="text-xs md:text-base text-stone-500 leading-relaxed group-hover:text-stone-400 transition-colors">{description}</p>
+                      <p className="text-xs md:text-base text-stone-300 leading-relaxed group-hover:text-stone-200 transition-colors">{description}</p>
                     </div>
                   </article>
                 </MagicCard>

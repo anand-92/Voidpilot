@@ -40,6 +40,16 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
             const time = clock.getElapsedTime();
             gridMat.uniforms.time.value = time;
 
+            const driftX =
+                Math.sin(time * 0.42) * 0.18 +
+                Math.sin(time * 0.97 + Math.sin(time * 0.23) * 1.4) * 0.28;
+            const driftY =
+                Math.cos(time * 0.58 + 0.8) * 0.14 +
+                Math.sin(time * 1.21 + Math.cos(time * 0.19) * 1.7) * 0.2;
+            const driftZ =
+                Math.sin(time * 0.33 + 1.2) * 0.1 +
+                Math.cos(time * 0.88 + Math.sin(time * 0.27)) * 0.16;
+
             coreMesh.rotation.y += 0.005;
             coreMesh.rotation.x += 0.002;
             cageMesh.rotation.y -= 0.003;
@@ -49,8 +59,9 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
             coreGroup.rotation.y += (tp.coreRotY - coreGroup.rotation.y) * 0.06;
 
             const px = mouseRef.current.x * 0.001, py = mouseRef.current.y * 0.001;
-            coreGroup.position.x += (px * 2 - coreGroup.position.x) * 0.05;
-            coreGroup.position.y += (-py * 2 - coreGroup.position.y) * 0.05;
+            coreGroup.position.x += (px * 2 + driftX - coreGroup.position.x) * 0.05;
+            coreGroup.position.y += (-py * 2 + driftY - coreGroup.position.y) * 0.05;
+            coreGroup.position.z += (driftZ - coreGroup.position.z) * 0.04;
 
             // Smooth camera follow with faster lerp for responsiveness
             camera.position.x += (tp.camX - camera.position.x) * 0.06;
@@ -85,7 +96,7 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
 
         // --- Setup ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2('#020617', 0.04);
+        scene.fog = new THREE.FogExp2('#020617', 0.032);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 0, 8);
@@ -98,11 +109,11 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
         rendererRef.current = renderer;
 
         // --- Lights ---
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        const p1 = new THREE.PointLight(0x38bdf8, 4, 50);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const p1 = new THREE.PointLight(0x38bdf8, 5.5, 55);
         p1.position.set(5, 5, 5);
         scene.add(p1);
-        const p2 = new THREE.PointLight(0x818cf8, 3, 50);
+        const p2 = new THREE.PointLight(0x818cf8, 4, 55);
         p2.position.set(-5, -5, 2);
         scene.add(p2);
 
@@ -114,18 +125,18 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
             new THREE.MeshPhysicalMaterial({
                 color: 0x60a5fa, metalness: 0.2, roughness: 0.1,
                 transmission: 0.9, thickness: 0.5,
-                emissive: 0x38bdf8, emissiveIntensity: 1
+                emissive: 0x38bdf8, emissiveIntensity: 1.2
             })
         );
         coreGroup.add(coreMesh);
         const cageMesh = new THREE.Mesh(
             new THREE.IcosahedronGeometry(1.8, 1),
-            new THREE.MeshBasicMaterial({ color: 0xa5b4fc, wireframe: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending })
+            new THREE.MeshBasicMaterial({ color: 0xc4b5fd, wireframe: true, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending })
         );
         coreGroup.add(cageMesh);
 
         // --- Core Light (makes act like a bulb) ---
-        const coreLight = new THREE.PointLight(0x38bdf8, 8, 30);
+        const coreLight = new THREE.PointLight(0x38bdf8, 10, 34);
         coreLight.position.set(0, 0, 0);
         coreGroup.add(coreLight);
 
@@ -168,8 +179,8 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
                     float alpha=1.-min(line,1.);
                     float dist=distance(vUv,vec2(.5));
                     float fade=smoothstep(.45,.1,dist);
-                    c+=vec3(smoothstep(.5,1.5,vPosition.z)*.6);
-                    gl_FragColor=vec4(c,alpha*fade*.35);
+                    c+=vec3(smoothstep(.35,1.35,vPosition.z)*.85);
+                    gl_FragColor=vec4(c*1.12,alpha*fade*.5);
                 }
             `,
             transparent: true, side: THREE.DoubleSide
@@ -180,7 +191,7 @@ export function ThreeBackground({ scrollProgress }: ThreeBackgroundProps) {
         scene.add(gridMesh);
 
         // --- Grid Light (lights up the floor lines) ---
-        const gridLight = new THREE.PointLight(0x38bdf8, 6, 25);
+        const gridLight = new THREE.PointLight(0x38bdf8, 8.5, 28);
         gridLight.position.set(0, -3, 0);
         scene.add(gridLight);
 

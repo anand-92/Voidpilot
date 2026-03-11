@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { BlurFade } from '@/components/ui/blur-fade';
-import { AnimatedGradientText } from '@/components/ui/animated-gradient-text';
+import AnimatedTextRoller, { voidpilotHeroItems } from '@/components/shadcn-space/animated-text/animated-text-04';
 import { GeminiArrowRight } from '../icons/GeminiIcons';
 import { PulseDot } from './PulseDot';
 import { sectionVariants } from './LandingConstants';
@@ -28,13 +28,25 @@ export function HeroSection({ onLaunch }: { onLaunch: () => void }) {
       </BlurFade>
 
       <BlurFade delay={0.15}>
-        <h1 className="max-w-4xl text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-stone-200 to-stone-500 sm:text-5xl md:text-7xl drop-shadow-sm leading-tight pb-1 md:pb-2 pointer-events-auto">
-          AI that sees, hears, <br /> <AnimatedGradientText colorFrom="#d97706" colorTo="#fbbf24" className="text-3xl sm:text-5xl md:text-7xl font-extrabold">and takes the wheel.</AnimatedGradientText>
-        </h1>
+        <div className="pointer-events-auto flex max-w-5xl flex-col items-center gap-3 text-center md:gap-5">
+          <div className="rounded-[2rem] border border-white/10 bg-white/6 px-5 py-4 shadow-[0_0_60px_rgba(56,189,248,0.12)] backdrop-blur-xl md:px-8 md:py-6">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl md:text-7xl drop-shadow-sm leading-tight">
+              <span className="mb-2 block text-transparent bg-clip-text bg-gradient-to-br from-white via-stone-200 to-stone-500 md:mb-3">
+                Your AI copilot for
+              </span>
+              <AnimatedTextRoller
+                className="text-3xl sm:text-5xl md:text-7xl"
+                prefixClassName="font-extrabold tracking-tight text-white"
+                itemClassName="font-extrabold"
+                items={voidpilotHeroItems}
+              />
+            </h1>
+          </div>
+        </div>
       </BlurFade>
 
       <BlurFade delay={0.25}>
-        <p className="mt-3 md:mt-6 max-w-2xl text-sm text-stone-400 sm:text-lg md:text-xl font-light leading-relaxed pointer-events-auto">
+        <p className="mt-3 md:mt-6 max-w-2xl text-sm text-stone-300 sm:text-lg md:text-xl font-normal leading-relaxed pointer-events-auto drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
           Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
         </p>
       </BlurFade>

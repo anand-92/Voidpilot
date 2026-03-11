@@ -110,7 +110,7 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
                           <Icon className="size-6" />
                         </div>
                         <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
-                        <p className="text-sm text-stone-500 leading-relaxed">{description}</p>
+                        <p className="text-sm text-stone-300 leading-relaxed">{description}</p>
                       </div>
                     </MagicCard>
                   </EnhancedTiltCard>
