@@ -1,31 +1,44 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { XIcon } from 'lucide-react';
 import { useWalkthroughAgent } from '../hooks/useWalkthroughAgent.ts';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ShineBorder } from '@/components/ui/shine-border';
+import { Particles } from '@/components/ui/particles';
 
 interface WalkthroughModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const VIOLET = 'rgba(139, 92, 246,';
-const LIGHT_VIOLET = 'rgba(196, 167, 255,';
+const AMBER = 'rgba(217, 119, 6,';
+const GOLD = 'rgba(251, 191, 36,';
 
 function StatusIndicator({ isConnected, isStarting }: { isConnected: boolean; isStarting: boolean }) {
   if (isStarting) {
-    return <span className="text-violet-300">Connecting...</span>;
+    return (
+      <Badge variant="outline" className="h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-amber-300">
+        Connecting...
+      </Badge>
+    );
   }
   if (isConnected) {
     return (
-      <>
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-500" />
+      <Badge variant="outline" className="h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-amber-300">
+        <span className="relative flex size-2">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-amber-400 opacity-75" />
+          <span className="relative inline-flex size-2 rounded-full bg-amber-500" />
         </span>
-        <span className="text-violet-300">Live</span>
-      </>
+        Live
+      </Badge>
     );
   }
-  return <span className="text-slate-500">Disconnected</span>;
+  return (
+    <Badge variant="outline" className="h-auto rounded-full border-stone-700 bg-stone-800/60 px-3 py-1.5 text-stone-500">
+      Disconnected
+    </Badge>
+  );
 }
 
 export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalProps) {
@@ -98,20 +111,20 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
         const pulse = intensity * 30 * (1 - normalizedRing);
         const breathe = Math.sin(time * 0.8 + i * 0.5) * 3;
         const radius = baseRadius + pulse + breathe;
-        const alpha = 0.08 + intensity * 0.15 * (1 - normalizedRing);
+        const alpha = 0.06 + intensity * 0.12 * (1 - normalizedRing);
 
         ctx!.beginPath();
         ctx!.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx!.strokeStyle = `${VIOLET} ${alpha})`;
-        ctx!.lineWidth = 1.5;
+        ctx!.strokeStyle = `${AMBER} ${alpha})`;
+        ctx!.lineWidth = 1;
         ctx!.stroke();
       }
 
       const orbRadius = 30 + intensity * 40;
       const gradient = ctx!.createRadialGradient(cx, cy, 0, cx, cy, orbRadius);
-      gradient.addColorStop(0, `${VIOLET} ${0.3 + intensity * 0.4})`);
-      gradient.addColorStop(0.5, `${VIOLET} ${0.1 + intensity * 0.2})`);
-      gradient.addColorStop(1, `${VIOLET} 0)`);
+      gradient.addColorStop(0, `${AMBER} ${0.3 + intensity * 0.4})`);
+      gradient.addColorStop(0.5, `${AMBER} ${0.1 + intensity * 0.2})`);
+      gradient.addColorStop(1, `${AMBER} 0)`);
 
       ctx!.beginPath();
       ctx!.arc(cx, cy, orbRadius, 0, Math.PI * 2);
@@ -121,7 +134,7 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
       const coreRadius = 4 + intensity * 8;
       ctx!.beginPath();
       ctx!.arc(cx, cy, coreRadius, 0, Math.PI * 2);
-      ctx!.fillStyle = `${LIGHT_VIOLET} ${0.6 + intensity * 0.4})`;
+      ctx!.fillStyle = `${GOLD} ${0.6 + intensity * 0.4})`;
       ctx!.fill();
 
       const meterWidth = Math.min(44, w * 0.12);
@@ -138,10 +151,10 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
         const activeHeight = meterBaseHeight + meterIntensity * (maxMeterHeight - meterBaseHeight);
         const top = meterY - activeHeight / 2;
         const meterGradient = ctx!.createLinearGradient(0, top, 0, top + activeHeight);
-        meterGradient.addColorStop(0, `${LIGHT_VIOLET} ${0.85 - meterIntensity * 0.1})`);
-        meterGradient.addColorStop(1, `${VIOLET} ${0.16 + meterIntensity * 0.42})`);
+        meterGradient.addColorStop(0, `${GOLD} ${0.85 - meterIntensity * 0.1})`);
+        meterGradient.addColorStop(1, `${AMBER} ${0.16 + meterIntensity * 0.42})`);
 
-        ctx!.fillStyle = `${VIOLET} 0.08)`;
+        ctx!.fillStyle = `${AMBER} 0.06)`;
         ctx!.beginPath();
         ctx!.roundRect(x, meterY - maxMeterHeight / 2, meterWidth, maxMeterHeight, 18);
         ctx!.fill();
@@ -151,8 +164,8 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
         ctx!.roundRect(x, top, meterWidth, activeHeight, 18);
         ctx!.fill();
 
-        ctx!.fillStyle = `rgba(216, 180, 254, ${0.72 + meterIntensity * 0.18})`;
-        ctx!.font = '600 12px Inter, sans-serif';
+        ctx!.fillStyle = `rgba(251, 191, 36, ${0.72 + meterIntensity * 0.18})`;
+        ctx!.font = '600 12px "DM Sans", Inter, sans-serif';
         ctx!.textAlign = 'center';
         ctx!.fillText(label, x + meterWidth / 2, meterY + maxMeterHeight / 2 + 24);
       });
@@ -172,21 +185,31 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-stone-950/95 backdrop-blur-2xl"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <button
+          {/* Particles background */}
+          <Particles
+            className="absolute inset-0"
+            quantity={40}
+            color="#d97706"
+            size={0.3}
+            staticity={60}
+            ease={60}
+          />
+
+          <Button
+            variant="ghost"
+            size="icon-lg"
             onClick={handleClose}
             aria-label="Close walkthrough"
-            className="absolute top-6 right-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white transition-all border border-white/10"
+            className="absolute top-6 right-6 z-10 rounded-full border border-stone-700 bg-stone-800/60 text-stone-400 hover:bg-stone-800 hover:text-stone-200"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
+            <XIcon />
+          </Button>
 
           <motion.div
             className="mb-8 flex items-center gap-2 text-sm font-medium"
@@ -198,20 +221,25 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
           </motion.div>
 
           <motion.div
-            className="relative w-80 h-80 md:w-96 md:h-96"
+            className="relative size-80 md:size-96 rounded-full"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
+            <ShineBorder
+              shineColor={['#d97706', '#fbbf24', '#92400e']}
+              borderWidth={2}
+              duration={10}
+            />
             <canvas
               ref={canvasRef}
-              className="w-full h-full"
+              className="size-full"
             />
           </motion.div>
 
           <motion.p
-            className="mt-6 text-sm text-slate-500 font-light"
+            className="mt-6 text-sm text-stone-500 font-light"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}

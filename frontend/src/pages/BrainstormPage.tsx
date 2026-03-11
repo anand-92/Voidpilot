@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BrainstormDesktopLayout, BrainstormMobileLayout, getArtifactSize, type BrainstormLayoutProps } from '../components/brainstorm/BrainstormLayouts'
+import { BrainstormDesktopLayout, BrainstormMobileLayout, type BrainstormLayoutProps } from '../components/brainstorm/BrainstormLayouts'
+import { getArtifactSize } from '../components/brainstorm/utils'
 import { useGeminiBrainstorm } from '../hooks/useGeminiBrainstorm'
 
 export default function BrainstormPage() {

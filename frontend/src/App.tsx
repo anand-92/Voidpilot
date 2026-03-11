@@ -24,16 +24,42 @@ import { useGeminiLive } from './hooks/useGeminiLive'
 import type { PendingBashRequest } from './hooks/useGeminiLive'
 import type { DesktopCapturerSource, RegionBounds } from './electron-env'
 import { StatusChip, MessageBubble } from './components/SharedUI'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { MagicCard } from '@/components/ui/magic-card'
+import { BorderBeam } from '@/components/ui/border-beam'
+import { ShimmerButton } from '@/components/ui/shimmer-button'
+import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
+import { BlurFade } from '@/components/ui/blur-fade'
+import { cn } from '@/lib/utils'
 
 type ShareMode = 'full' | 'region'
 
 function formatRegion(region?: RegionBounds) {
   if (!region) return 'No area selected yet'
-  return `${region.width}×${region.height} at (${region.x}, ${region.y})`
+  return `${region.width}x${region.height} at (${region.x}, ${region.y})`
 }
 
 function formatPixels(width: number, height: number) {
-  return `${width.toLocaleString()}×${height.toLocaleString()}`
+  return `${width.toLocaleString()}x${height.toLocaleString()}`
 }
 
 function getNativeResolution(source: DesktopCapturerSource) {
@@ -55,13 +81,22 @@ function InfoCard({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-      <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-        <Icon className={`h-3 w-3 ${iconColor}`} />
-        {title}
+    <MagicCard
+      className="rounded-xl"
+      gradientColor="#1c1917"
+      gradientFrom="#d97706"
+      gradientTo="#92400e"
+      gradientOpacity={0.4}
+      gradientSize={150}
+    >
+      <div className="p-3.5">
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+          <Icon className={cn('size-3', iconColor)} />
+          {title}
+        </div>
+        <div className="mt-2 text-sm text-stone-300">{children}</div>
       </div>
-      <div className="mt-2 text-sm text-slate-300">{children}</div>
-    </div>
+    </MagicCard>
   )
 }
 
@@ -75,69 +110,69 @@ function BashConfirmPopup({
   onDeny: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="mx-4 w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c1229] shadow-[0_32px_80px_rgba(0,0,0,0.6)]">
-        {/* Header */}
-        <div className="flex items-center gap-3 border-b border-white/[0.06] bg-amber-500/[0.06] px-5 py-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
-            <GeminiShield className="h-5 w-5 text-amber-400" />
+    <Dialog open onOpenChange={(open) => { if (!open) onDeny() }}>
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-lg border-white/[0.06] bg-stone-950 p-0 shadow-[0_32px_80px_rgba(0,0,0,0.6)] sm:max-w-lg"
+      >
+        <DialogHeader className="flex-row items-center gap-3 border-b border-white/[0.06] bg-amber-500/[0.06] px-5 py-4">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
+            <GeminiShield className="size-5 text-amber-400" />
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-white">Command Confirmation</h3>
-            <p className="mt-0.5 text-xs text-slate-400">
+          <div className="flex-1">
+            <DialogTitle className="text-sm font-bold text-white">Command Confirmation</DialogTitle>
+            <DialogDescription className="mt-0.5 text-xs">
               Gemini wants to run this command on your computer
-            </p>
+            </DialogDescription>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onDeny}
             aria-label="Close command confirmation"
-            className="ml-auto flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300"
+            className="ml-auto shrink-0 text-stone-500 hover:text-stone-300"
           >
-            <GeminiClose className="h-4 w-4" />
-          </button>
-        </div>
+            <GeminiClose className="size-4" />
+          </Button>
+        </DialogHeader>
 
-        {/* Command display */}
         <div className="px-5 py-4">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-            <GeminiTerminal className="h-3 w-3 text-sky-400" />
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+            <GeminiTerminal className="size-3 text-amber-400" />
             Command
           </div>
-          <div className="mt-2 rounded-xl border border-white/[0.08] bg-[#060818] px-4 py-3">
-            <code className="break-all text-sm font-mono text-emerald-300">
+          <div className="mt-2 rounded-xl border border-white/[0.06] bg-stone-950 px-4 py-3">
+            <code className="break-all font-mono text-sm text-amber-300">
               {request.command}
             </code>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-slate-500">
-            You can also say <span className="font-medium text-slate-300">"yes"</span> or{' '}
-            <span className="font-medium text-slate-300">"go ahead"</span> to approve, or{' '}
-            <span className="font-medium text-slate-300">"no"</span> /{' '}
-            <span className="font-medium text-slate-300">"cancel"</span> to deny.
+          <p className="mt-3 text-xs leading-relaxed text-stone-500">
+            You can also say <span className="font-medium text-stone-300">&quot;yes&quot;</span> or{' '}
+            <span className="font-medium text-stone-300">&quot;go ahead&quot;</span> to approve, or{' '}
+            <span className="font-medium text-stone-300">&quot;no&quot;</span> /{' '}
+            <span className="font-medium text-stone-300">&quot;cancel&quot;</span> to deny.
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-3 border-t border-white/[0.06] bg-white/[0.02] px-5 py-4">
-          <button
-            type="button"
+        <DialogFooter className="flex-row gap-3 border-t border-white/[0.06] bg-stone-900/40 px-5 py-4">
+          <Button
+            variant="outline"
             onClick={onDeny}
-            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-300 transition-all hover:bg-white/[0.06]"
+            className="flex-1 gap-2 rounded-xl border-stone-700 bg-stone-800/60 py-3 text-sm font-semibold text-stone-300 hover:bg-stone-800"
           >
-            <GeminiClose className="h-4 w-4" />
+            <GeminiClose className="size-4" />
             Deny
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             onClick={onAllow}
-            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:brightness-110"
+            className="flex-1 gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 py-3 text-sm font-bold text-stone-950 shadow-lg shadow-amber-500/20 hover:brightness-110"
           >
-            <GeminiCheck className="h-4 w-4" />
+            <GeminiCheck className="size-4" />
             Allow
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -156,12 +191,10 @@ export default function App() {
   const [showDisplayPicker, setShowDisplayPicker] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Load displays when screen sharing is enabled
   useEffect(() => {
     if (!screenShareEnabled) {
       setSources([])
@@ -277,324 +310,335 @@ export default function App() {
     (!screenShareEnabled || (!!selectedSource && (shareMode === 'full' || Boolean(selectedRegion))))
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-[#060818] text-slate-100">
-      {/* ═══════ Top bar ═══════ */}
-      <header className="flex shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#0a0e1f]/80 px-5 py-3 backdrop-blur-xl">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600">
-            <GeminiStar className="h-4 w-4 text-white" />
+    <TooltipProvider>
+      <main className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <header className="flex shrink-0 items-center justify-between border-b border-white/[0.04] bg-stone-950/80 px-5 py-3 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600">
+              <GeminiStar className="size-4 text-white" />
+            </div>
+            <AnimatedGradientText colorFrom="#d97706" colorTo="#fbbf24" className="text-sm font-semibold tracking-tight">
+              Voidpilot
+            </AnimatedGradientText>
           </div>
-          <span className="text-sm font-semibold tracking-tight text-white">
-            Void<span className="text-sky-400">pilot</span>
-          </span>
-        </div>
 
-        <StatusChip isConnected={isConnected} isStarting={isStarting} />
-      </header>
+          <StatusChip isConnected={isConnected} isStarting={isStarting} />
+        </header>
 
-      {/* ═══════ Body (2-column) ═══════ */}
-      <div className="flex min-h-0 flex-1">
-        {/* ─── Left: Controls ─── */}
-        <div className="flex w-[380px] shrink-0 flex-col gap-0 overflow-y-auto border-r border-white/[0.06] bg-[#080c1c]/60">
+        <div className="flex min-h-0 flex-1">
+          {/* Left: Controls */}
+          <div className="flex w-[380px] shrink-0 flex-col gap-0 overflow-y-auto border-r border-white/[0.04] bg-stone-950/40">
 
-          {/* ── Screen sharing toggle ── */}
-          <section className="border-b border-white/[0.06] p-4">
-            <button
-              type="button"
-              onClick={() => !isConnected && setScreenShareEnabled(!screenShareEnabled)}
-              disabled={isConnected}
-              className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
-                screenShareEnabled
-                  ? 'border-sky-500/20 bg-sky-500/[0.07]'
-                  : 'border-white/[0.08] bg-white/[0.03]'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                    screenShareEnabled ? 'bg-sky-500/15' : 'bg-white/[0.06]'
-                  }`}
-                >
-                  {screenShareEnabled ? (
-                    <GeminiIrisOpen className="h-4 w-4 text-sky-400" />
-                  ) : (
-                    <GeminiIrisClosed className="h-4 w-4 text-slate-500" />
-                  )}
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-white">Screen Sharing</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    {screenShareEnabled ? 'Gemini can see your screen' : 'Audio-only mode'}
-                  </div>
-                </div>
-              </div>
-              <div
-                className={`relative h-6 w-11 rounded-full transition-colors ${
-                  screenShareEnabled ? 'bg-sky-500' : 'bg-slate-700'
-                }`}
+            {/* Screen sharing toggle */}
+            <section className="border-b border-white/[0.04] p-4">
+              <button
+                type="button"
+                onClick={() => !isConnected && setScreenShareEnabled(!screenShareEnabled)}
+                disabled={isConnected}
+                className={cn(
+                  'flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60',
+                  screenShareEnabled
+                    ? 'border-amber-500/20 bg-amber-500/[0.07]'
+                    : 'border-white/[0.06] bg-stone-900/60',
+                )}
               >
-                <div
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                    screenShareEnabled ? 'translate-x-5' : 'translate-x-0.5'
-                  }`}
-                />
-              </div>
-            </button>
-          </section>
-
-          {screenShareEnabled && (
-            <>
-          {/* ── Display selector ── */}
-          <section className="border-b border-white/[0.06] p-4">
-            <button
-              type="button"
-              onClick={() => setShowDisplayPicker(!showDisplayPicker)}
-              className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-left transition-colors hover:bg-white/[0.06]"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10">
-                  <GeminiDisplay className="h-4 w-4 text-sky-400" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Display
-                  </div>
-                  <div className="mt-0.5 text-sm font-medium text-white">
-                    {isLoadingSources
-                      ? 'Scanning…'
-                      : selectedSource?.name ?? 'No display found'}
-                  </div>
-                </div>
-              </div>
-              <GeminiCaret
-                className={`h-4 w-4 text-slate-500 transition-transform ${showDisplayPicker ? 'rotate-180' : ''}`}
-              />
-            </button>
-
-            {showDisplayPicker && (
-              <div className="mt-3 flex flex-col gap-2">
-                {sources.map((source) => {
-                  const isSelected = source.id === selectedSourceId
-                  const native = getNativeResolution(source)
-                  return (
-                    <button
-                      key={source.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedSourceId(source.id)
-                        setShowDisplayPicker(false)
-                      }}
-                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
-                        isSelected
-                          ? 'border-sky-500/30 bg-sky-500/10'
-                          : 'border-white/[0.06] bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]'
-                      }`}
-                    >
-                      <div
-                        className={`h-3 w-3 shrink-0 rounded-full border-2 transition-colors ${
-                          isSelected ? 'border-sky-400 bg-sky-400' : 'border-slate-600 bg-transparent'
-                        }`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium text-white">{source.name}</span>
-                          {source.isPrimary && (
-                            <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-emerald-400">
-                              Primary
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-0.5 text-xs text-slate-500">
-                          {formatPixels(native.width, native.height)} · {source.scaleFactor}x
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-
-          {/* ── Share mode ── */}
-          <section className="border-b border-white/[0.06] p-4">
-            <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-              <GeminiReticle className="h-3.5 w-3.5 text-orange-400" />
-              Capture mode
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { mode: 'full' as ShareMode, label: 'Full screen', icon: GeminiDisplay },
-                { mode: 'region' as ShareMode, label: 'Region', icon: GeminiCrop },
-              ].map(({ mode, label, icon: Icon }) => {
-                const isActive = shareMode === mode
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setShareMode(mode)}
-                    className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3.5 py-3 text-sm font-medium transition-all ${
-                      isActive
-                        ? 'border-orange-400/30 bg-orange-500/10 text-orange-200'
-                        : 'border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-slate-200'
-                    }`}
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      'flex size-9 items-center justify-center rounded-lg',
+                      screenShareEnabled ? 'bg-amber-500/15' : 'bg-stone-800',
+                    )}
                   >
-                    <Icon className={`h-4 w-4 ${isActive ? 'text-orange-400' : 'text-slate-500'}`} />
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-
-            {shareMode === 'region' && (
-              <div className="mt-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs text-slate-400">
-                      {selectedRegion ? formatRegion(selectedRegion) : 'No region selected'}
+                    {screenShareEnabled ? (
+                      <GeminiIrisOpen className="size-4 text-amber-400" />
+                    ) : (
+                      <GeminiIrisClosed className="size-4 text-stone-500" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-white">Screen Sharing</div>
+                    <div className="mt-0.5 text-xs text-stone-500">
+                      {screenShareEnabled ? 'Gemini can see your screen' : 'Audio-only mode'}
                     </div>
                   </div>
+                </div>
+                <Switch
+                  checked={screenShareEnabled}
+                  className="pointer-events-none"
+                  aria-hidden
+                />
+              </button>
+            </section>
+
+            {screenShareEnabled && (
+              <>
+                {/* Display selector */}
+                <section className="border-b border-white/[0.04] p-4">
                   <button
                     type="button"
-                    onClick={handlePickRegion}
-                    disabled={!selectedSource || isPickingRegion || isConnected}
-                    className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-500 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-sky-500/20 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={() => setShowDisplayPicker(!showDisplayPicker)}
+                    className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-white/[0.06] bg-stone-900/60 px-4 py-3 text-left transition-colors hover:bg-stone-900/80"
                   >
-                    <GeminiWand className="h-3.5 w-3.5" />
-                    {isPickingRegion ? 'Picking…' : selectedRegion ? 'Re-pick' : 'Select area'}
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-lg bg-amber-500/10">
+                        <GeminiDisplay className="size-4 text-amber-400" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                          Display
+                        </div>
+                        <div className="mt-0.5 text-sm font-medium text-white">
+                          {isLoadingSources
+                            ? 'Scanning...'
+                            : selectedSource?.name ?? 'No display found'}
+                        </div>
+                      </div>
+                    </div>
+                    <GeminiCaret
+                      className={cn('size-4 text-stone-500 transition-transform', showDisplayPicker && 'rotate-180')}
+                    />
                   </button>
-                </div>
+
+                  {showDisplayPicker && (
+                    <div className="mt-3 flex flex-col gap-2">
+                      {sources.map((source) => {
+                        const isSelected = source.id === selectedSourceId
+                        const native = getNativeResolution(source)
+                        return (
+                          <button
+                            key={source.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSourceId(source.id)
+                              setShowDisplayPicker(false)
+                            }}
+                            className={cn(
+                              'flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all',
+                              isSelected
+                                ? 'border-amber-500/20 bg-amber-500/10'
+                                : 'border-white/[0.06] bg-stone-900/60 hover:border-white/10 hover:bg-stone-900/80',
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                'size-3 shrink-0 rounded-full border-2 transition-colors',
+                                isSelected ? 'border-amber-400 bg-amber-400' : 'border-stone-600 bg-transparent',
+                              )}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="truncate text-sm font-medium text-white">{source.name}</span>
+                                {source.isPrimary && (
+                                  <Badge
+                                    variant="outline"
+                                    className="shrink-0 border-amber-500/20 bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-400"
+                                  >
+                                    Primary
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="mt-0.5 text-xs text-stone-500">
+                                {formatPixels(native.width, native.height)} · {source.scaleFactor}x
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                {/* Share mode */}
+                <section className="border-b border-white/[0.04] p-4">
+                  <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                    <GeminiReticle className="size-3.5 text-orange-400" />
+                    Capture mode
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { mode: 'full' as ShareMode, label: 'Full screen', icon: GeminiDisplay },
+                      { mode: 'region' as ShareMode, label: 'Region', icon: GeminiCrop },
+                    ].map(({ mode, label, icon: Icon }) => {
+                      const isActive = shareMode === mode
+                      return (
+                        <Button
+                          key={mode}
+                          variant="outline"
+                          onClick={() => setShareMode(mode)}
+                          className={cn(
+                            'h-auto gap-2 rounded-xl px-3.5 py-3 text-sm font-medium',
+                            isActive
+                              ? 'border-orange-400/20 bg-orange-500/10 text-orange-200 hover:bg-orange-500/15 hover:text-orange-200'
+                              : 'border-white/[0.06] bg-stone-900/60 text-stone-500 hover:text-stone-300',
+                          )}
+                        >
+                          <Icon className={cn('size-4', isActive ? 'text-orange-400' : 'text-stone-500')} />
+                          {label}
+                        </Button>
+                      )
+                    })}
+                  </div>
+
+                  {shareMode === 'region' && (
+                    <div className="mt-3 rounded-xl border border-dashed border-white/[0.06] bg-stone-900/60 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs text-stone-500">
+                            {selectedRegion ? formatRegion(selectedRegion) : 'No region selected'}
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handlePickRegion}
+                          disabled={!selectedSource || isPickingRegion || isConnected}
+                          className="shrink-0 gap-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-orange-500 px-3 py-2 text-xs font-semibold text-stone-950 shadow-lg shadow-amber-500/20 hover:brightness-110"
+                          size="sm"
+                        >
+                          <GeminiWand className="size-3.5" />
+                          {isPickingRegion ? 'Picking...' : selectedRegion ? 'Re-pick' : 'Select area'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+                <section className="flex flex-col gap-3 p-4">
+                  <InfoCard icon={GeminiPulse} iconColor="text-amber-400" title="Display info">
+                    {nativeResolution && selectedSource
+                      ? `${formatPixels(nativeResolution.width, nativeResolution.height)} native · ${formatPixels(selectedSource.bounds.width, selectedSource.bounds.height)} logical`
+                      : 'Select a display'}
+                  </InfoCard>
+
+                  <InfoCard icon={GeminiBroadcast} iconColor="text-orange-400" title="Gemini sees">
+                    {shareMode === 'full'
+                      ? selectedSource
+                        ? `Full feed from ${selectedSource.name}`
+                        : 'Waiting for display'
+                      : selectedRegion
+                        ? formatRegion(selectedRegion)
+                        : 'Region not yet defined'}
+                  </InfoCard>
+
+                  <InfoCard icon={GeminiBolt} iconColor="text-yellow-500" title="Midscene target">
+                    {selectedSource?.name ?? 'None'}
+                  </InfoCard>
+                </section>
+              </>
+            )}
+
+            {setupError && (
+              <div className="mx-4 mb-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-300">
+                {setupError}
               </div>
             )}
-          </section>
 
-          <section className="flex flex-col gap-3 p-4">
-            <InfoCard icon={GeminiPulse} iconColor="text-sky-400" title="Display info">
-              {nativeResolution && selectedSource
-                ? `${formatPixels(nativeResolution.width, nativeResolution.height)} native · ${formatPixels(selectedSource.bounds.width, selectedSource.bounds.height)} logical`
-                : 'Select a display'}
-            </InfoCard>
-
-            <InfoCard icon={GeminiBroadcast} iconColor="text-orange-400" title="Gemini sees">
-              {shareMode === 'full'
-                ? selectedSource
-                  ? `Full feed from ${selectedSource.name}`
-                  : 'Waiting for display'
-                : selectedRegion
-                  ? formatRegion(selectedRegion)
-                  : 'Region not yet defined'}
-            </InfoCard>
-
-            <InfoCard icon={GeminiBolt} iconColor="text-emerald-400" title="Midscene target">
-              {selectedSource?.name ?? 'None'}
-            </InfoCard>
-          </section>
-            </>
-          )}
-
-          {/* ── Error ── */}
-          {setupError && (
-            <div className="mx-4 mb-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
-              {setupError}
+            <div className="mt-auto p-4">
+              <Separator className="mb-4 bg-white/[0.04]" />
+              {!isConnected ? (
+                <ShimmerButton
+                  onClick={handleStart}
+                  disabled={!canStart}
+                  shimmerColor="#fbbf24"
+                  shimmerDuration="2.5s"
+                  background="linear-gradient(135deg, #d97706, #b45309)"
+                  borderRadius="12px"
+                  className="w-full gap-2.5 px-5 py-3.5 text-sm font-bold text-stone-950 shadow-[0_8px_32px_rgba(217,119,6,0.25)] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <GeminiMicOn className="size-4" />
+                  {isStarting ? 'Connecting...' : 'Start Live Session'}
+                </ShimmerButton>
+              ) : (
+                <Button
+                  onClick={stop}
+                  variant="destructive"
+                  className="w-full gap-2.5 rounded-xl bg-red-600 px-5 py-3.5 text-sm font-bold text-white shadow-[0_8px_32px_rgba(220,38,38,0.25)] hover:bg-red-500"
+                  size="lg"
+                >
+                  <GeminiMicOff className="size-4" />
+                  End Session
+                </Button>
+              )}
             </div>
-          )}
-
-          {/* ── Start / Stop ── */}
-          <div className="mt-auto border-t border-white/[0.06] p-4">
-            {!isConnected ? (
-              <button
-                type="button"
-                onClick={handleStart}
-                disabled={!canStart}
-                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500 px-5 py-3.5 text-sm font-bold text-white shadow-[0_8px_32px_rgba(56,189,248,0.25)] transition-all hover:-translate-y-px hover:shadow-[0_12px_40px_rgba(56,189,248,0.35)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
-              >
-                <GeminiMicOn className="h-4 w-4" />
-                {isStarting ? 'Connecting…' : 'Start Live Session'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={stop}
-                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-rose-600 px-5 py-3.5 text-sm font-bold text-white shadow-[0_8px_32px_rgba(225,29,72,0.25)] transition-all hover:bg-rose-500"
-              >
-                <GeminiMicOff className="h-4 w-4" />
-                End Session
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ─── Right: Conversation ─── */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* Chat header */}
-          <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] bg-[#080c1c]/40 px-5 py-3">
-            <GeminiChat className="h-4 w-4 text-sky-400" />
-            <span className="text-sm font-semibold text-white">Conversation</span>
-            <span className="ml-auto text-[10px] font-medium uppercase tracking-widest text-slate-500">
-              {messages.length} messages
-            </span>
           </div>
 
-          {/* Messages area */}
-          <div className="flex-1 overflow-y-auto px-5 py-4">
-            {messages.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03]">
-                  <GeminiStar className="h-7 w-7 text-sky-500/40" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-400">No messages yet</p>
-                  <p className="mt-1 text-xs text-slate-600">
-                    Start a session to begin talking with Gemini.
-                  </p>
-                </div>
+          {/* Right: Conversation */}
+          <div className="relative flex min-w-0 flex-1 flex-col">
+            {isConnected && <BorderBeam size={60} duration={6} colorFrom="#d97706" colorTo="#b45309" />}
+
+            <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.04] bg-stone-950/40 px-5 py-3">
+              <GeminiChat className="size-4 text-amber-400" />
+              <span className="text-sm font-semibold text-white">Conversation</span>
+              <Badge variant="secondary" className="ml-auto text-[10px] font-medium uppercase tracking-widest text-stone-500">
+                {messages.length} messages
+              </Badge>
+            </div>
+
+            <ScrollArea className="flex-1">
+              <div className="px-5 py-4">
+                {messages.length === 0 ? (
+                  <div className="flex h-full min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+                    <div className="flex size-16 items-center justify-center rounded-2xl border border-white/[0.06] bg-stone-900/60">
+                      <GeminiStar className="size-7 text-amber-500/30" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-stone-500">No messages yet</p>
+                      <p className="mt-1 text-xs text-stone-600">
+                        Start a session to begin talking with Gemini.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {messages.map((message, index) => (
+                      <BlurFade key={index} delay={0.03} duration={0.25}>
+                        <MessageBubble role={message.role} content={message.content} />
+                      </BlurFade>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {messages.map((message, index) => (
-                  <MessageBubble key={index} role={message.role} content={message.content} />
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-          </div>
+            </ScrollArea>
 
-          {/* Input bar */}
-          <div className="shrink-0 border-t border-white/[0.06] bg-[#080c1c]/40 px-5 py-3.5">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">
-                <GeminiCheck className="h-3.5 w-3.5 text-emerald-500/40" />
+            <div className="shrink-0 border-t border-white/[0.04] bg-stone-950/40 px-5 py-3.5">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-600">
+                <GeminiCheck className="size-3.5 text-amber-500/40" />
                 Quick prompt
               </div>
-            </div>
-            <div className="mt-2.5 flex gap-2.5">
-              <input
-                type="text"
-                value={inputText}
-                onChange={(event) => setInputText(event.target.value)}
-                onKeyDown={(event) => event.key === 'Enter' && handleSend()}
-                placeholder={isConnected ? 'Type a message…' : 'Connect first to chat'}
-                disabled={!isConnected}
-                aria-label="Message input"
-                className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-sky-500/40 focus:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-40"
-              />
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={!isConnected || !inputText.trim()}
-                aria-label="Send message"
-                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-sky-600/80 text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                <GeminiSend className="h-4 w-4" />
-              </button>
+              <div className="mt-2.5 flex gap-2.5">
+                <Input
+                  value={inputText}
+                  onChange={(event) => setInputText(event.target.value)}
+                  onKeyDown={(event) => event.key === 'Enter' && handleSend()}
+                  placeholder={isConnected ? 'Type a message...' : 'Connect first to chat'}
+                  disabled={!isConnected}
+                  aria-label="Message input"
+                  className="h-10 flex-1 rounded-xl border-white/[0.06] bg-stone-900/60 px-4 text-sm text-white placeholder:text-stone-600 focus-visible:border-amber-500/30 focus-visible:bg-stone-900/80"
+                />
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        onClick={handleSend}
+                        disabled={!isConnected || !inputText.trim()}
+                        aria-label="Send message"
+                        size="icon-lg"
+                        className="shrink-0 rounded-xl bg-amber-600/80 text-stone-950 hover:bg-amber-500"
+                      />
+                    }
+                  >
+                    <GeminiSend className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Send message</TooltipContent>
+                </Tooltip>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Bash confirmation popup */}
-      {pendingBash && (
-        <BashConfirmPopup request={pendingBash} onAllow={confirmBash} onDeny={denyBash} />
-      )}
-    </main>
+        {pendingBash && (
+          <BashConfirmPopup request={pendingBash} onAllow={confirmBash} onDeny={denyBash} />
+        )}
+      </main>
+    </TooltipProvider>
   )
 }
