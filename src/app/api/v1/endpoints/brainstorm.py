@@ -33,20 +33,24 @@ Behavior:
 - Challenge weak assumptions constructively
 - Summarize progress periodically
 - NEVER speak out long generations that could/should be files.
-- If you are generating content, structured ideas, lists, or code, DO NOT speak it out loud. You MUST use a tool call instead to create a file for the user to read.
-- Your voice should only be used to communicate WITH the user, not to dictate content AT the user.
+- If you are generating content, structured ideas, lists, or code,\
+  DO NOT speak it out loud. You MUST use a tool call instead to\
+  create a file for the user to read.
+- Your voice should only be used to communicate WITH the user,\
+  not to dictate content AT the user.
 
 Artifact generation:
 - Your tools run in the background — do NOT pause the conversation to wait \
 for them.
-- Call save_brainstorm_artifact when ideas crystallize into structured content, instead of speaking them.
+- Call save_brainstorm_artifact when ideas crystallize into\
+  structured content, instead of speaking them.
 - Call generate_brainstorm_image when a visual would help the brainstorm.
 - Call delegate_to_flash when you need analysis, research synthesis, or \
 structured data extraction, instead of speaking it.
 - Keep talking to the user while tools execute. You'll be notified when they \
 complete."""
 
-# ── Tool declarations ────────────────────────────────────────────
+# ── Tool declarations ────────────────────────────────────────────  # noqa: E501
 
 SAVE_ARTIFACT_TOOL_DEF = {
     "name": "save_brainstorm_artifact",
@@ -64,15 +68,11 @@ SAVE_ARTIFACT_TOOL_DEF = {
             },
             "raw_ideas": {
                 "type": "string",
-                "description": (
-                    "Raw brainstorm ideas to structure into markdown"
-                ),
+                "description": ("Raw brainstorm ideas to structure into markdown"),
             },
             "filename": {
                 "type": "string",
-                "description": (
-                    "Filename for the artifact (e.g. 'ideas.md')"
-                ),
+                "description": ("Filename for the artifact (e.g. 'ideas.md')"),
             },
         },
         "required": ["title", "raw_ideas", "filename"],
@@ -95,9 +95,7 @@ IMAGE_TOOL_DEF = {
             },
             "label": {
                 "type": "string",
-                "description": (
-                    "Short label describing what the image shows"
-                ),
+                "description": ("Short label describing what the image shows"),
             },
         },
         "required": ["prompt", "label"],
@@ -120,9 +118,7 @@ DELEGATE_TOOL_DEF = {
             },
             "context": {
                 "type": "string",
-                "description": (
-                    "Context information for the task"
-                ),
+                "description": ("Context information for the task"),
             },
             "output_format": {
                 "type": "string",
@@ -131,10 +127,7 @@ DELEGATE_TOOL_DEF = {
                     "json",
                     "summary",
                 ],
-                "description": (
-                    "Desired output format"
-                    " (defaults to markdown_section)"
-                ),
+                "description": ("Desired output format (defaults to markdown_section)"),  # noqa: E501
             },
         },
         "required": ["task", "context"],
@@ -152,7 +145,7 @@ BRAINSTORM_TOOLS = [
 ]
 
 
-# ── Tool handler factories ───────────────────────────────────────
+# ── Tool handler factories ───────────────────────────────────────  # noqa: E501
 
 
 def _make_tool_handlers(
@@ -162,19 +155,14 @@ def _make_tool_handlers(
 ):
     """Create brainstorm tool handler functions bound to a
     specific WebSocket and API key."""
-    flash = FlashWorker(
-        api_key=api_key, text_model_key=text_model_key
-    )
+    flash = FlashWorker(api_key=api_key, text_model_key=text_model_key)
 
-    async def handle_save_artifact(
-        title: str, raw_ideas: str, filename: str
-    ) -> dict:
+    async def handle_save_artifact(title: str, raw_ideas: str, filename: str) -> dict:
         """Generate markdown via FlashWorker and push to client."""
         try:
-            markdown = await flash.generate_markdown(
-                title=title, raw_ideas=raw_ideas
-            )
+            markdown = await flash.generate_markdown(title=title, raw_ideas=raw_ideas)
             from starlette.websockets import WebSocketState
+
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(
                     {
@@ -194,17 +182,14 @@ def _make_tool_handlers(
                 "scheduling": "SILENT",
             }
 
-    async def handle_generate_image(
-        prompt: str, label: str
-    ) -> dict:
+    async def handle_generate_image(prompt: str, label: str) -> dict:
         """Generate image via FlashWorker and push to client."""
         try:
             image_bytes = await flash.generate_image(prompt=prompt)
             b64_data = base64.b64encode(image_bytes).decode("utf-8")
-            filename = (
-                label.lower().replace(" ", "_") + ".png"
-            )
+            filename = label.lower().replace(" ", "_") + ".png"
             from starlette.websockets import WebSocketState
+
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(
                     {
@@ -237,10 +222,9 @@ def _make_tool_handlers(
                 context=context,
                 output_format=output_format,
             )
-            filename = (
-                task[:30].lower().replace(" ", "_") + ".md"
-            )
+            filename = task[:30].lower().replace(" ", "_") + ".md"
             from starlette.websockets import WebSocketState
+
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(
                     {
@@ -268,7 +252,7 @@ def _make_tool_handlers(
     return mapping
 
 
-# ── WebSocket endpoint ───────────────────────────────────────────
+# ── WebSocket endpoint ───────────────────────────────────────────  # noqa: E501
 
 
 @router.websocket("/brainstorm")
@@ -277,17 +261,13 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
     logger.info("New brainstorm WebSocket connection request")
     await websocket.accept()
 
-    api_key = (
-        settings.GOOGLE_API_KEY
-        or "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
-    )
+    api_key = settings.GOOGLE_API_KEY or "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
 
     audio_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
     video_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
     text_input_queue: asyncio.Queue[str] = asyncio.Queue()
 
     tool_mapping = _make_tool_handlers(websocket, api_key)
-    selected_text_model_key = DEFAULT_FLASH_TEXT_MODEL_KEY
 
     gemini_client = GeminiLive(
         api_key=api_key,
@@ -302,6 +282,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
     async def send_to_client(payload: dict) -> None:
         try:
             from starlette.websockets import WebSocketState
+
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(payload)
         except Exception as e:
@@ -321,14 +302,10 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
             handle = payload.get("handle")
             if handle:
                 gemini_client.session_resumption_handle = handle
-                logger.info(
-                    "Brainstorm received resumption handle"
-                )
+                logger.info("Brainstorm received resumption handle")
 
             requested_model_key = payload.get("flash_model")
-            resolved_model = resolve_flash_text_model(
-                requested_model_key
-            )
+            resolved_model = resolve_flash_text_model(requested_model_key)
             selected_text_model_key = next(
                 (
                     key
@@ -337,8 +314,8 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 ),
                 DEFAULT_FLASH_TEXT_MODEL_KEY,
             )
-            
-            # Update the gemini_client's tool_mapping with new handlers bound to the correct model
+
+            # Update the gemini_client's tool_mapping with new handlers bound to the correct model  # noqa: E501
             gemini_client.tool_mapping.clear()
             gemini_client.tool_mapping.update(
                 _make_tool_handlers(
@@ -376,25 +353,19 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                     if await handle_client_message(payload):
                         continue
 
-                logger.info(
-                    "Brainstorm received raw text: %s", text
-                )
+                logger.info("Brainstorm received raw text: %s", text)
                 await text_input_queue.put(text)
         except (WebSocketDisconnect, RuntimeError) as e:
-            is_normal = isinstance(
-                e, WebSocketDisconnect
-            ) or ("disconnect" in str(e).lower())
+            is_normal = isinstance(e, WebSocketDisconnect) or (
+                "disconnect" in str(e).lower()
+            )
             if is_normal:
                 logger.info("Brainstorm client disconnected")
             else:
-                logger.error(
-                    "RuntimeError in brainstorm receiver: %s", e
-                )
+                logger.error("RuntimeError in brainstorm receiver: %s", e)
                 logger.error(traceback.format_exc())
         except Exception as e:
-            logger.error(
-                "Error receiving from brainstorm client: %s", e
-            )
+            logger.error("Error receiving from brainstorm client: %s", e)
             logger.error(traceback.format_exc())
 
     async def forward_gemini_event(event: dict) -> None:
@@ -404,9 +375,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 {
                     "type": "text",
                     "role": event_type,
-                    "content": event.get(
-                        "text", event.get("content", "")
-                    ),
+                    "content": event.get("text", event.get("content", "")),
                 }
             )
         elif event_type == "session_resumption_update":
@@ -415,9 +384,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
             await send_to_client(event)
 
     async def audio_output_callback(data: bytes) -> None:
-        await send_to_client(
-            {"type": "audio", "content": data.hex()}
-        )
+        await send_to_client({"type": "audio", "content": data.hex()})
 
     async def audio_interrupt_callback() -> None:
         await send_to_client({"type": "interrupted"})
@@ -434,17 +401,13 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 audio_interrupt_callback=audio_interrupt_callback,
             ):
                 if event:
-                    logger.debug(
-                        "Brainstorm event: %s", event["type"]
-                    )
+                    logger.debug("Brainstorm event: %s", event["type"])
                     await forward_gemini_event(event)
             logger.info("Brainstorm session ended normally")
         except Exception as e:
             logger.error("Brainstorm session error: %s", e)
             logger.error(traceback.format_exc())
-            await send_to_client(
-                {"type": "error", "content": str(e)}
-            )
+            await send_to_client({"type": "error", "content": str(e)})
 
     receive_task = asyncio.create_task(receive_from_client())
     try:

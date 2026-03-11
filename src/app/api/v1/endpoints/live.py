@@ -90,9 +90,7 @@ BASH_AGENT_TOOL_DEF = {
                 "properties": {
                     "approved": {
                         "type": "boolean",
-                        "description": (
-                            "true=approved, false=denied"
-                        ),
+                        "description": ("true=approved, false=denied"),
                     },
                 },
                 "required": ["approved"],
@@ -118,6 +116,7 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
     async def send_to_client(payload: dict) -> None:
         try:
             from starlette.websockets import WebSocketState
+
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(payload)
         except Exception as e:
@@ -174,9 +173,7 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
                 }
             )
 
-            result = await asyncio.wait_for(
-                future, timeout=effective_timeout
-            )
+            result = await asyncio.wait_for(future, timeout=effective_timeout)
             logger.info("run_bash result for %s: %s", call_id, result)
             return str(result)
         except TimeoutError:

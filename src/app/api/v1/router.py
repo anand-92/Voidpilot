@@ -11,9 +11,5 @@ async def hello():
 
 
 api_router.include_router(live.router, prefix="/live", tags=["Gemini Live"])
-api_router.include_router(
-    walkthrough.router, prefix="/live", tags=["Walkthrough"]
-)
-api_router.include_router(
-    brainstorm.router, prefix="/live", tags=["Brainstorm"]
-)
+api_router.include_router(walkthrough.router, prefix="/live", tags=["Walkthrough"])
+api_router.include_router(brainstorm.router, prefix="/live", tags=["Brainstorm"])

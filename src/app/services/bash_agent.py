@@ -47,10 +47,7 @@ _RUN_BASH_TOOL = types.Tool(
                     },
                     "timeout": {
                         "type": "integer",
-                        "description": (
-                            "Max seconds to wait"
-                            " (default 30, max 120)"
-                        ),
+                        "description": ("Max seconds to wait (default 30, max 120)"),
                     },
                 },
                 "required": ["command"],
@@ -61,10 +58,7 @@ _RUN_BASH_TOOL = types.Tool(
 
 
 def _build_system_prompt() -> str:
-    os_info = (
-        f"{platform.system()} {platform.release()}"
-        f" ({platform.machine()})"
-    )
+    os_info = f"{platform.system()} {platform.release()} ({platform.machine()})"
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return _SYSTEM_PROMPT.format(os_info=os_info, now=now)
 
@@ -81,16 +75,12 @@ async def run_bash_agent(
     config = types.GenerateContentConfig(
         system_instruction=_build_system_prompt(),
         tools=[_RUN_BASH_TOOL],
-        automatic_function_calling=(
-            types.AutomaticFunctionCallingConfig(disable=True)
-        ),
+        automatic_function_calling=(types.AutomaticFunctionCallingConfig(disable=True)),
         max_output_tokens=8192,
     )
 
     contents: list[types.Content] = [
-        types.Content(
-            role="user", parts=[types.Part(text=task)]
-        )
+        types.Content(role="user", parts=[types.Part(text=task)])
     ]
 
     for turn in range(MAX_TURNS):
@@ -114,12 +104,8 @@ async def run_bash_agent(
             command = args.get("command", "")
             timeout = args.get("timeout", 30)
 
-            logger.info(
-                "Bash agent turn %d calling: %s", turn, command
-            )
-            result = await execute_bash_fn(
-                command=command, timeout=timeout
-            )
+            logger.info("Bash agent turn %d calling: %s", turn, command)
+            result = await execute_bash_fn(command=command, timeout=timeout)
             function_parts.append(
                 types.Part.from_function_response(
                     name=fc.name,
@@ -127,8 +113,6 @@ async def run_bash_agent(
                 )
             )
 
-        contents.append(
-            types.Content(role="user", parts=function_parts)
-        )
+        contents.append(types.Content(role="user", parts=function_parts))
 
     return "Agent reached maximum turns without completing."

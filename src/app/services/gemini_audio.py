@@ -35,20 +35,18 @@ async def _call_maybe_async(func, *args, **kwargs):
     if inspect.iscoroutinefunction(func):
         return await func(*args, **kwargs)
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
-        None, lambda: func(*args, **kwargs)
-    )
+    return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 
 
-async def get_weather(
-    location: str, unit: str = "fahrenheit", days: int = 0
-) -> str:
+async def get_weather(location: str, unit: str = "fahrenheit", days: int = 0) -> str:
     """Get current weather or forecast for a location using Open-Meteo
     (free, no API key)."""
     try:
         logger.info(
             "get_weather called: location=%s, unit=%s, days=%d",
-            location, unit, days,
+            location,
+            unit,
+            days,
         )
 
         location_clean = location.split(",")[0].strip()
@@ -79,9 +77,7 @@ async def get_weather(
                 return await _get_forecast(
                     client, params, location_name, is_celsius, days
                 )
-            return await _get_current_weather(
-                client, params, location_name, unit
-            )
+            return await _get_current_weather(client, params, location_name, unit)
     except Exception as e:
         return f"Error getting weather: {e}"
 
@@ -94,9 +90,7 @@ async def _get_forecast(
     days: int,
 ) -> str:
     """Fetch multi-day forecast from Open-Meteo."""
-    params["daily"] = (
-        "temperature_2m_max,temperature_2m_min,weather_code"
-    )
+    params["daily"] = "temperature_2m_max,temperature_2m_min,weather_code"
     params["timezone"] = "auto"
     params["forecast_days"] = min(days, 16)
 
@@ -123,8 +117,7 @@ async def _get_forecast(
 
         desc = _weather_code_desc(code)
         lines.append(
-            f"{day_label}: {desc}, "
-            f"High: {hi}{unit_symbol}, Low: {lo}{unit_symbol}"
+            f"{day_label}: {desc}, High: {hi}{unit_symbol}, Low: {lo}{unit_symbol}"
         )
     return "\n".join(lines)
 
@@ -148,6 +141,7 @@ async def _get_current_weather(
         f"Current weather in {location_name}: {desc}, "
         f"{temp}°{unit[0].upper()}, Wind: {wind} km/h"
     )
+
 
 _WEATHER_TOOL_DECL = {
     "name": "get_weather",
@@ -202,18 +196,14 @@ class GeminiLive:
         self.api_key = api_key
         self.model = model
         self.input_sample_rate = input_sample_rate
-        self.system_prompt = (
-            system_prompt or "You are a helpful desktop assistant."
-        )
+        self.system_prompt = system_prompt or "You are a helpful desktop assistant."
         self.session_resumption_handle = session_resumption_handle
         self.client = genai.Client(
             api_key=api_key, http_options={"api_version": "v1beta"}
         )
 
         if include_default_tools:
-            self.tools = [
-                {"function_declarations": [_WEATHER_TOOL_DECL]}
-            ]
+            self.tools = [{"function_declarations": [_WEATHER_TOOL_DECL]}]
             self.tool_mapping = {"get_weather": get_weather}
         else:
             self.tools = []
@@ -221,14 +211,9 @@ class GeminiLive:
 
         if tools:
             for tool_def in tools:
-                if (
-                    isinstance(tool_def, dict)
-                    and "function_declarations" in tool_def
-                ):
+                if isinstance(tool_def, dict) and "function_declarations" in tool_def:
                     if self.tools:
-                        self.tools[0][
-                            "function_declarations"
-                        ].extend(
+                        self.tools[0]["function_declarations"].extend(
                             tool_def["function_declarations"]
                         )
                     else:
@@ -250,9 +235,7 @@ class GeminiLive:
             response_modalities=[types.Modality.AUDIO],
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                        voice_name="Puck"
-                    )
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
                 )
             ),
             system_instruction=types.Content(
@@ -263,9 +246,7 @@ class GeminiLive:
             tools=self.tools,
             context_window_compression=types.ContextWindowCompressionConfig(
                 trigger_tokens=25600,
-                sliding_window=types.SlidingWindow(
-                    target_tokens=12800
-                ),
+                sliding_window=types.SlidingWindow(target_tokens=12800),
             ),
             session_resumption=types.SessionResumptionConfig(
                 handle=self.session_resumption_handle,
@@ -273,9 +254,7 @@ class GeminiLive:
         )
 
         tool_names = [
-            fn["name"]
-            for t in self.tools
-            for fn in t.get("function_declarations", [])
+            fn["name"] for t in self.tools for fn in t.get("function_declarations", [])
         ]
         logger.info("=== Gemini Live with Tools ===")
         logger.info("Tools loaded: %s", tool_names)
@@ -287,9 +266,7 @@ class GeminiLive:
                 model=self.model, config=config
             ) as session:
                 logger.info("Session connected.")
-                audio_mime = (
-                    f"audio/pcm;rate={self.input_sample_rate}"
-                )
+                audio_mime = f"audio/pcm;rate={self.input_sample_rate}"
 
                 async def _send_loop(queue, label, build_input):
                     """Generic send loop for audio/video/text."""
@@ -301,9 +278,7 @@ class GeminiLive:
                                     "Sending video frame: %d bytes",
                                     len(data),
                                 )
-                            await session.send_realtime_input(
-                                **build_input(data)
-                            )
+                            await session.send_realtime_input(**build_input(data))
                     except asyncio.CancelledError:
                         logger.info("%s send task cancelled", label)
                     except Exception as e:
@@ -320,9 +295,7 @@ class GeminiLive:
                                     audio_output_callback,
                                     part.inline_data.data,
                                 )
-                            if part.text and not part.text.startswith(
-                                "**"
-                            ):
+                            if part.text and not part.text.startswith("**"):
                                 await event_queue.put(
                                     {
                                         "type": "text",
@@ -330,17 +303,13 @@ class GeminiLive:
                                     }
                                 )
 
-                    transcription = (
-                        server_content.input_transcription
-                    )
+                    transcription = server_content.input_transcription
                     if transcription and transcription.text:
                         await event_queue.put(
                             {"type": "user", "text": transcription.text}
                         )
 
-                    transcription = (
-                        server_content.output_transcription
-                    )
+                    transcription = server_content.output_transcription
                     if transcription and transcription.text:
                         await event_queue.put(
                             {
@@ -351,15 +320,11 @@ class GeminiLive:
 
                     if server_content.turn_complete:
                         logger.info("Turn complete, session continues")
-                        await event_queue.put(
-                            {"type": "turn_complete"}
-                        )
+                        await event_queue.put({"type": "turn_complete"})
 
                     if server_content.interrupted:
                         if audio_interrupt_callback:
-                            await _call_maybe_async(
-                                audio_interrupt_callback
-                            )
+                            await _call_maybe_async(audio_interrupt_callback)
                         await event_queue.put({"type": "interrupted"})
 
                 async def _dispatch_tool_call(fc):
@@ -392,19 +357,15 @@ class GeminiLive:
                     scheduling = "WHEN_IDLE"
                     result_str = result
                     if isinstance(result, dict):
-                        scheduling = result.get(
-                            "scheduling", "WHEN_IDLE"
-                        )
-                        result_str = result.get(
-                            "result", str(result)
-                        )
+                        scheduling = result.get("scheduling", "WHEN_IDLE")
+                        result_str = result.get("result", str(result))
 
                     logger.info(
                         "Tool %s result: %.200s...",
                         fc.name,
                         result_str,
                     )
-                    
+
                     await event_queue.put(
                         {
                             "type": "tool_call",
@@ -413,7 +374,7 @@ class GeminiLive:
                             "result": result,
                         }
                     )
-                    
+
                     response = types.FunctionResponse(
                         name=fc.name,
                         id=fc.id,
@@ -422,40 +383,27 @@ class GeminiLive:
                             "scheduling": scheduling,
                         },
                     )
-                    
+
                     await asyncio.sleep(0.05)
-                    await session.send_tool_response(
-                        function_responses=[response]
-                    )
+                    await session.send_tool_response(function_responses=[response])
 
                 async def _handle_tool_call(tool_call):
                     """Execute tool calls and send responses without blocking."""
                     for fc in tool_call.function_calls:
-                        # Schedule tool calls as background tasks so they don't block session.receive()
+                        # Schedule tool calls as background tasks so they don't block session.receive()  # noqa: E501
                         asyncio.create_task(_dispatch_tool_call(fc))
 
                 async def receive_loop():
                     try:
                         async for response in session.receive():
-                            logger.debug(
-                                "Received response from Gemini"
-                            )
+                            logger.debug("Received response from Gemini")
                             if response.server_content:
-                                await _handle_server_content(
-                                    response.server_content
-                                )
+                                await _handle_server_content(response.server_content)
                             if response.tool_call:
-                                await _handle_tool_call(
-                                    response.tool_call
-                                )
+                                await _handle_tool_call(response.tool_call)
                             if response.session_resumption_update:
-                                update = (
-                                    response.session_resumption_update
-                                )
-                                if (
-                                    update.resumable
-                                    and update.new_handle
-                                ):
+                                update = response.session_resumption_update
+                                if update.resumable and update.new_handle:
                                     await event_queue.put(
                                         {
                                             "type": "session_resumption_update",
@@ -482,13 +430,8 @@ class GeminiLive:
                         "ConnectionClosed",
                         "The service is currently unavailable",
                     )
-                    if any(
-                        m.lower() in error_str.lower()
-                        for m in fatal_markers
-                    ):
-                        logger.warning(
-                            "Session connection closed: %s", error
-                        )
+                    if any(m.lower() in error_str.lower() for m in fatal_markers):
+                        logger.warning("Session connection closed: %s", error)
                         await event_queue.put(
                             {
                                 "type": "session_dead",
@@ -496,13 +439,9 @@ class GeminiLive:
                             }
                         )
                     else:
-                        logger.error(
-                            "Error in receive loop: %s", error
-                        )
+                        logger.error("Error in receive loop: %s", error)
                         logger.error(traceback.format_exc())
-                        await event_queue.put(
-                            {"type": "error", "error": error_str}
-                        )
+                        await event_queue.put({"type": "error", "error": error_str})
 
                 send_tasks = [
                     asyncio.create_task(
@@ -510,9 +449,7 @@ class GeminiLive:
                             audio_input_queue,
                             "audio",
                             lambda d: {
-                                "audio": types.Blob(
-                                    data=d, mime_type=audio_mime
-                                )
+                                "audio": types.Blob(data=d, mime_type=audio_mime)
                             },
                         )
                     ),
@@ -521,9 +458,7 @@ class GeminiLive:
                             video_input_queue,
                             "video",
                             lambda d: {
-                                "video": types.Blob(
-                                    data=d, mime_type="image/jpeg"
-                                )
+                                "video": types.Blob(data=d, mime_type="image/jpeg")
                             },
                         )
                     ),
@@ -538,9 +473,7 @@ class GeminiLive:
 
                 try:
                     while session_active:
-                        receive_task = asyncio.create_task(
-                            receive_loop()
-                        )
+                        receive_task = asyncio.create_task(receive_loop())
 
                         while session_active:
                             try:
@@ -551,8 +484,7 @@ class GeminiLive:
 
                             if event is None:
                                 logger.info(
-                                    "Receive loop ended, "
-                                    "waiting for more input..."
+                                    "Receive loop ended, waiting for more input..."
                                 )
                                 break
 
@@ -560,8 +492,7 @@ class GeminiLive:
 
                             if event_type == "turn_complete":
                                 logger.info(
-                                    "Turn complete, waiting for "
-                                    "more user input..."
+                                    "Turn complete, waiting for more user input..."
                                 )
                                 yield event
                                 break
