@@ -38,6 +38,7 @@ const AnimatedTextRoller = ({
   const [index, setIndex] = useState(0);
   const [activeWidth, setActiveWidth] = useState<number>();
   const [activeHeight, setActiveHeight] = useState<number>();
+  const [isReady, setIsReady] = useState(false);
   const itemRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
   const normalizedItems = useMemo(() => {
@@ -47,6 +48,12 @@ const AnimatedTextRoller = ({
 
     return [{ text: "", className: undefined } satisfies RollerItem];
   }, [items]);
+
+  useEffect(() => {
+    document.fonts?.ready.then(() => {
+      setIsReady(true);
+    });
+  }, []);
 
   useEffect(() => {
     if (normalizedItems.length <= 1) {
@@ -72,7 +79,7 @@ const AnimatedTextRoller = ({
       }
 
       const { width, height } = currentItem.getBoundingClientRect();
-      setActiveWidth(width);
+      setActiveWidth(Math.ceil(width) + 28);
       setActiveHeight(height);
     };
 
@@ -81,6 +88,10 @@ const AnimatedTextRoller = ({
     if (typeof window === "undefined") {
       return;
     }
+
+    document.fonts?.ready.then(() => {
+      updateMeasurements();
+    });
 
     window.addEventListener("resize", updateMeasurements);
 
@@ -92,7 +103,13 @@ const AnimatedTextRoller = ({
     .reduce((total, item) => total + (item?.getBoundingClientRect().height ?? activeHeight ?? 0), 0);
 
   return (
-    <div className={cn("flex flex-wrap items-center justify-center gap-x-3 gap-y-1", className)}>
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-center gap-x-3 gap-y-1 transition-opacity duration-500",
+        isReady ? "opacity-100" : "opacity-0",
+        className,
+      )}
+    >
       <p className={cn("text-white", prefixClassName)}>{prefix}</p>
       <div
         className="overflow-hidden text-center transition-[width,height] duration-500 ease-in-out"
