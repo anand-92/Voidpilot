@@ -30,6 +30,8 @@ export interface ElectronAPI {
   executeMidsceneAction: (args: unknown) => Promise<unknown>;
   interruptMidscene: () => Promise<void>;
   runBash: (args: { command: string; timeout?: number }) => Promise<string>;
+  resolveRegionSelector: (result: RegionSelectionResult) => Promise<{ ok: true }>;
+  cancelRegionSelector: () => Promise<{ ok: true }>;
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -40,4 +42,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   executeMidsceneAction: (args: unknown) => ipcRenderer.invoke('execute-midscene-action', args),
   interruptMidscene: () => ipcRenderer.invoke('interrupt-midscene'),
   runBash: (args: { command: string; timeout?: number }) => ipcRenderer.invoke('run-bash', args),
+  resolveRegionSelector: (result: RegionSelectionResult) => ipcRenderer.invoke('resolve-region-selector', result),
+  cancelRegionSelector: () => ipcRenderer.invoke('cancel-region-selector'),
 })
