@@ -138,6 +138,7 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
               >
                 <button
                   onClick={handleClick}
+                  aria-label={`Open ${card.label}`}
                   className={`group relative w-full rounded-2xl p-3 md:p-6 text-left transition-all duration-300 flex items-center gap-3 md:block`}
                 >
                   <div className={`shrink-0 inline-flex h-9 w-9 md:h-11 md:w-11 md:mb-3 items-center justify-center rounded-xl ${colors?.bg} ${colors?.text}`}>

@@ -123,6 +123,8 @@ export function ScreenSharePanel({
           type="button"
           onClick={() => !isConnected && setScreenShareEnabled(!screenShareEnabled)}
           disabled={isConnected}
+          aria-label={screenShareEnabled ? 'Disable screen sharing' : 'Enable screen sharing'}
+          aria-pressed={screenShareEnabled}
           className={cn(
             'flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60',
             screenShareEnabled
@@ -160,6 +162,8 @@ export function ScreenSharePanel({
             <button
               type="button"
               onClick={() => setShowDisplayPicker(!showDisplayPicker)}
+              aria-label="Toggle display picker"
+              aria-expanded={showDisplayPicker}
               className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-white/[0.06] bg-stone-900/60 px-4 py-3 text-left transition-colors hover:bg-stone-900/80"
             >
               <div className="flex items-center gap-3">
@@ -193,6 +197,8 @@ export function ScreenSharePanel({
                         setSelectedSourceId(source.id)
                         setShowDisplayPicker(false)
                       }}
+                      aria-label={`Select display: ${source.name}`}
+                      aria-pressed={isSelected}
                       className={cn(
                         'flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all',
                         isSelected
