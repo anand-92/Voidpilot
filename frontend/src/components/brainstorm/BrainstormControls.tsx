@@ -152,7 +152,7 @@ export function BrainstormControls({
           onChange={(event) => setSelectedFlashModel(event.target.value as BrainstormFlashModel)}
           disabled={isConnected || isStarting}
           aria-label="Flash worker model"
-          className="h-10 w-28 cursor-pointer appearance-none rounded-xl bg-transparent px-3 text-xs font-medium text-stone-400 outline-none transition-colors hover:text-stone-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-10 w-16 cursor-pointer appearance-none text-center rounded-xl bg-transparent px-2 text-xs font-medium text-stone-400 outline-none transition-colors hover:text-stone-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {BRAINSTORM_FLASH_MODEL_OPTIONS.map((option) => (
             <option key={option.value} value={option.value} className="bg-stone-900 text-stone-300">
