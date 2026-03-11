@@ -84,9 +84,8 @@ export function BrainstormControls({
               shimmerDuration="2.5s"
               background="linear-gradient(135deg, #d97706, #b45309)"
               borderRadius="16px"
-              className="flex min-h-12 flex-1 items-center justify-center gap-2.5 px-5 py-3 text-sm font-bold text-stone-950 shadow-[0_8px_32px_rgba(217,119,6,0.25)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex min-h-12 flex-1 items-center justify-center px-4 py-3 text-sm font-bold whitespace-nowrap text-stone-950 shadow-[0_8px_32px_rgba(217,119,6,0.25)] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <GeminiMicOn className="size-4" />
               {isStarting ? 'Connecting…' : 'Start Brainstorm'}
             </ShimmerButton>
           ) : (
@@ -94,9 +93,8 @@ export function BrainstormControls({
               onClick={stop}
               pulseColor="rgba(220, 38, 38, 0.3)"
               duration="2s"
-              className="flex min-h-12 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-[0_8px_32px_rgba(220,38,38,0.25)] hover:bg-red-500"
+              className="flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-red-600 px-4 py-3 text-sm font-bold whitespace-nowrap text-white shadow-[0_8px_32px_rgba(220,38,38,0.25)] hover:bg-red-500"
             >
-              <GeminiMicOff className="size-4" />
               End Session
             </PulsatingButton>
           )}
