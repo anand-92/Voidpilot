@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
 
 export function PulseRing({ active }: { active: boolean }) {
   if (!active) return null
@@ -45,9 +46,10 @@ const AI_STYLE = {
   bubble: 'border border-white/[0.06] bg-stone-900/60 text-stone-200',
   label: 'text-amber-500/60',
   name: 'Gemini',
+  isMarkdown: true,
 }
 
-const MESSAGE_STYLES: Record<string, { bubble: string; label: string; name: string }> = {
+const MESSAGE_STYLES: Record<string, { bubble: string; label: string; name: string; isMarkdown?: boolean }> = {
   user: {
     bubble: 'bg-amber-600/15 text-amber-50',
     label: 'text-amber-400/60',
@@ -80,10 +82,12 @@ export function MessageBubble({
     return (
       <BlurFade delay={0.05} duration={0.3}>
         <div className="flex justify-start">
-          <div className="rainbow-border max-w-[80%] rounded-2xl p-[2px]">
+          <div className="rainbow-border max-w-[90%] md:max-w-[80%] rounded-2xl p-[2px]">
             <div className="rounded-[14px] bg-stone-950 px-4 py-3 text-sm leading-relaxed text-stone-200">
               <div className={`${LABEL_CLASSES} ${AI_STYLE.label}`}>Gemini — Tool Result</div>
-              <div>{content}</div>
+              <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-stone-900/50 prose-pre:border prose-pre:border-white/10">
+                <ReactMarkdown>{content}</ReactMarkdown>
+              </div>
             </div>
           </div>
         </div>
@@ -94,9 +98,15 @@ export function MessageBubble({
   return (
     <BlurFade delay={0.05} duration={0.3}>
       <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
-        <div className={cn('max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed', styles.bubble)}>
+        <div className={cn('max-w-[90%] md:max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed', styles.bubble)}>
           <div className={cn(LABEL_CLASSES, styles.label)}>{styles.name}</div>
-          <div>{content}</div>
+          {styles.isMarkdown ? (
+            <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-stone-900/50 prose-pre:border prose-pre:border-white/10 prose-a:text-amber-500 hover:prose-a:text-amber-400">
+              <ReactMarkdown>{content}</ReactMarkdown>
+            </div>
+          ) : (
+            <div className="whitespace-pre-wrap break-words">{content}</div>
+          )}
         </div>
       </div>
     </BlurFade>

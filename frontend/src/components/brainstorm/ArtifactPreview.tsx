@@ -22,7 +22,7 @@ export function ArtifactPreview({ artifact }: { artifact: BrainstormArtifact }) 
   }
 
   return (
-    <div className="overflow-auto rounded-xl border border-white/[0.06] bg-stone-950/40 p-4">
+    <div className="rounded-xl border border-white/[0.06] bg-stone-950/40 p-4">
       <div className="prose prose-invert prose-sm max-w-none prose-headings:text-stone-200 prose-p:text-stone-400 prose-a:text-amber-400 prose-strong:text-stone-200 prose-code:rounded prose-code:bg-white/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-amber-300 prose-pre:border prose-pre:border-white/[0.06] prose-pre:bg-stone-950 prose-li:text-stone-400 prose-blockquote:border-amber-500/30 prose-blockquote:text-stone-500">
         <ReactMarkdown>{artifact.content}</ReactMarkdown>
       </div>

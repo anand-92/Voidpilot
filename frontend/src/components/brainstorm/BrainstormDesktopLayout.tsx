@@ -1,6 +1,8 @@
 import { Separator } from '@/components/ui/separator'
 import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
 import { BorderBeam } from '@/components/ui/border-beam'
+import { DotPattern } from '@/components/ui/dot-pattern'
+import { Particles } from '@/components/ui/particles'
 import { IconBrainstorm } from '../icons/CustomIcons'
 import { StatusChip } from '../SharedUI'
 import type { BrainstormLayoutProps } from './BrainstormLayouts'
@@ -30,44 +32,24 @@ export function BrainstormDesktopLayout({
   sendSnapshot,
 }: BrainstormLayoutProps) {
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-[#0c0a09] text-stone-100">
-      <header className="flex shrink-0 items-center justify-between border-b border-white/[0.04] bg-stone-950/80 px-5 py-3 backdrop-blur-xl">
-        <div className="flex items-center gap-3">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600">
-            <IconBrainstorm className="size-4 text-white" />
-          </div>
-          <AnimatedGradientText colorFrom="#d97706" colorTo="#fbbf24" className="text-sm font-semibold tracking-tight">
-            Brainstorm Mode
-          </AnimatedGradientText>
-        </div>
+    <main className="relative flex h-screen w-full overflow-hidden bg-[#0a0a0a] text-stone-100 font-sans">
+      <Particles className="absolute inset-0 z-0 opacity-40" quantity={120} ease={80} color="#fbbf24" refresh />
+      <DotPattern className="absolute inset-0 z-0 opacity-50" width={32} height={32} cx={16} cy={16} cr={1} />
 
+      {/* Floating Header */}
+      <header className="absolute top-6 left-6 z-50 flex items-center gap-4 rounded-[2rem] border border-white/[0.08] bg-black/50 px-5 py-3 backdrop-blur-2xl shadow-xl">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-inner">
+          <IconBrainstorm className="size-4 text-white" />
+        </div>
+        <AnimatedGradientText colorFrom="#d97706" colorTo="#fbbf24" className="text-base font-bold tracking-tight">
+          Brainstorm
+        </AnimatedGradientText>
+        <Separator orientation="vertical" className="h-5 bg-white/20" />
         <StatusChip isConnected={isConnected} isStarting={isStarting} />
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <div className="relative flex min-w-0 flex-[3] flex-col border-r border-white/[0.04]">
-          {isConnected && <BorderBeam size={50} duration={6} colorFrom="#d97706" colorTo="#b45309" />}
-          <ConversationPanel messages={messages} messagesEndRef={messagesEndRef} mobile={false} />
-
-          <Separator className="bg-white/[0.04]" />
-
-          <div className="shrink-0 bg-stone-950/40 px-5 py-3.5">
-            <BrainstormControls
-              isConnected={isConnected}
-              isStarting={isStarting}
-              selectedFlashModel={selectedFlashModel}
-              setSelectedFlashModel={setSelectedFlashModel}
-              inputText={inputText}
-              setInputText={setInputText}
-              handleSend={handleSend}
-              handleConnect={handleConnect}
-              stop={stop}
-              sendSnapshot={sendSnapshot}
-              layout="desktop"
-            />
-          </div>
-        </div>
-
+      {/* Main spatial area: Workspace */}
+      <div className="absolute inset-0 z-10 pt-28 pb-6 pl-8 pr-[420px] flex flex-col overflow-hidden">
         <WorkspacePanel
           artifacts={artifacts}
           artifactList={artifactList}
@@ -77,6 +59,29 @@ export function BrainstormDesktopLayout({
           currentArtifact={currentArtifact}
           setSelectedArtifact={setSelectedArtifact}
           mobile={false}
+        />
+      </div>
+
+      {/* Floating Chat Side Panel */}
+      <div className="absolute top-6 right-6 bottom-[220px] w-[380px] z-40 flex flex-col overflow-hidden rounded-[2rem] border border-white/[0.08] bg-black/60 backdrop-blur-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+        {isConnected && <BorderBeam size={100} duration={10} colorFrom="#d97706" colorTo="#b45309" />}
+        <ConversationPanel messages={messages} messagesEndRef={messagesEndRef} mobile={false} />
+      </div>
+
+      {/* Floating Command Bar at bottom */}
+      <div className="absolute bottom-6 right-6 w-[380px] z-50 flex flex-col justify-end">
+        <BrainstormControls
+          isConnected={isConnected}
+          isStarting={isStarting}
+          selectedFlashModel={selectedFlashModel}
+          setSelectedFlashModel={setSelectedFlashModel}
+          inputText={inputText}
+          setInputText={setInputText}
+          handleSend={handleSend}
+          handleConnect={handleConnect}
+          stop={stop}
+          sendSnapshot={sendSnapshot}
+          layout="desktop"
         />
       </div>
     </main>

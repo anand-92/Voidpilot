@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
+import { Particles } from '@/components/ui/particles'
+import { DotPattern } from '@/components/ui/dot-pattern'
 import { IconBrainstorm } from '../icons/CustomIcons'
 import { GeminiChat } from '../icons/GeminiIcons'
 import { StatusChip } from '../SharedUI'
@@ -42,8 +44,11 @@ export function BrainstormMobileLayout({
   }, [artifactList, setSelectedArtifact])
 
   return (
-    <main className="flex min-h-dvh flex-col bg-[#0c0a09] text-stone-100">
-      <header className="sticky top-0 z-20 shrink-0 border-b border-white/[0.04] bg-stone-950/95 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl">
+    <main className="relative flex min-h-dvh flex-col bg-[#0a0a0a] text-stone-100 font-sans">
+      <Particles className="absolute inset-0 z-0 opacity-40" quantity={60} ease={80} color="#fbbf24" refresh />
+      <DotPattern className="absolute inset-0 z-0 opacity-30" width={32} height={32} cx={16} cy={16} cr={1} />
+      
+      <header className="sticky top-0 z-20 shrink-0 border-b border-white/[0.04] bg-stone-950/80 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-2xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-3">

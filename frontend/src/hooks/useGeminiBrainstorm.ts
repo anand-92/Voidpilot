@@ -163,8 +163,11 @@ export function useGeminiBrainstorm() {
           }
         } else if (data.type === 'interrupted') {
           nextPlayTimeRef.current = 0
-        } else if (data.type === 'tool_call') {
+        } else if (data.type === 'tool_call_start') {
           setIsGenerating(true)
+        } else if (data.type === 'tool_call') {
+          // The background tool finished execution
+          setIsGenerating(false)
           toolCallPendingRef.current = true
         } else if (data.type === 'turn_complete') {
           turnBoundaryRef.current = true

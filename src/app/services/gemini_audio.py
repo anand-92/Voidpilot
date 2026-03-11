@@ -362,74 +362,77 @@ class GeminiLive:
                             )
                         await event_queue.put({"type": "interrupted"})
 
-                async def _handle_tool_call(tool_call):
-                    """Execute tool calls and send responses."""
-                    function_responses = []
-                    for fc in tool_call.function_calls:
-                        args = fc.args or {}
-                        logger.info(
-                            "Tool call: %s(%s)", fc.name, args
+                async def _dispatch_tool_call(fc):
+                    args = fc.args or {}
+                    logger.info("Tool call: %s(%s)", fc.name, args)
+
+                    await event_queue.put(
+                        {
+                            "type": "tool_call_start",
+                            "name": fc.name,
+                        }
+                    )
+
+                    if fc.name not in self.tool_mapping:
+                        return None
+
+                    try:
+                        result = await _call_maybe_async(
+                            self.tool_mapping[fc.name], **args
                         )
-
-                        if fc.name not in self.tool_mapping:
-                            continue
-
-                        try:
-                            result = await _call_maybe_async(
-                                self.tool_mapping[fc.name], **args
-                            )
-                        except Exception as e:
-                            logger.error(
-                                "Error executing tool %s: %s",
-                                fc.name,
-                                e,
-                            )
-                            logger.error(traceback.format_exc())
-                            result = f"Error: {e}"
-
-                        # Extract scheduling and result from
-                        # handler response. Dict handlers can
-                        # specify scheduling; string results
-                        # default to WHEN_IDLE.
-                        scheduling = "WHEN_IDLE"
-                        result_str = result
-                        if isinstance(result, dict):
-                            scheduling = result.get(
-                                "scheduling", "WHEN_IDLE"
-                            )
-                            result_str = result.get(
-                                "result", str(result)
-                            )
-
-                        logger.info(
-                            "Tool %s result: %.200s...",
+                    except Exception as e:
+                        logger.error(
+                            "Error executing tool %s: %s",
                             fc.name,
-                            result_str,
+                            e,
                         )
-                        function_responses.append(
-                            types.FunctionResponse(
-                                name=fc.name,
-                                id=fc.id,
-                                response={
-                                    "result": result_str,
-                                    "scheduling": scheduling,
-                                },
-                            )
+                        logger.error(traceback.format_exc())
+                        result = f"Error: {e}"
+
+                    scheduling = "WHEN_IDLE"
+                    result_str = result
+                    if isinstance(result, dict):
+                        scheduling = result.get(
+                            "scheduling", "WHEN_IDLE"
                         )
-                        await event_queue.put(
-                            {
-                                "type": "tool_call",
-                                "name": fc.name,
-                                "args": args,
-                                "result": result,
-                            }
+                        result_str = result.get(
+                            "result", str(result)
                         )
 
-                    if function_responses:
-                        await asyncio.sleep(0.05)
-                        await session.send_tool_response(
-                            function_responses=function_responses
-                        )
+                    logger.info(
+                        "Tool %s result: %.200s...",
+                        fc.name,
+                        result_str,
+                    )
+                    
+                    await event_queue.put(
+                        {
+                            "type": "tool_call",
+                            "name": fc.name,
+                            "args": args,
+                            "result": result,
+                        }
+                    )
+                    
+                    response = types.FunctionResponse(
+                        name=fc.name,
+                        id=fc.id,
+                        response={
+                            "result": result_str,
+                            "scheduling": scheduling,
+                        },
+                    )
+                    
+                    await asyncio.sleep(0.05)
+                    await session.send_tool_response(
+                        function_responses=[response]
+                    )
+
+                async def _handle_tool_call(tool_call):
+                    """Execute tool calls and send responses without blocking."""
+                    for fc in tool_call.function_calls:
+                        # Schedule tool calls as background tasks so they don't block session.receive()
+                        asyncio.create_task(_dispatch_tool_call(fc))
 
                 async def receive_loop():
                     try:
