@@ -32,7 +32,7 @@ export function HeroSection({ onLaunch }: { onLaunch: () => void }) {
           <div className="rounded-[2rem] border border-white/10 bg-white/6 px-5 py-4 shadow-[0_0_60px_rgba(56,189,248,0.12)] backdrop-blur-xl md:px-8 md:py-6">
             <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl md:text-7xl drop-shadow-sm leading-tight">
               <span className="mb-2 block text-transparent bg-clip-text bg-gradient-to-br from-white via-stone-200 to-stone-500 md:mb-3">
-                Your AI copilot for
+                Your copilot for
               </span>
               <AnimatedTextRoller
                 className="text-3xl sm:text-5xl md:text-7xl"
