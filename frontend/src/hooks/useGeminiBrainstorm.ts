@@ -55,18 +55,14 @@ export function useGeminiBrainstorm() {
   const toolCallPendingRef = useRef(false)
   const toolResponseTurnRef = useRef(false)
 
-  const markLastAsToolResponse = useCallback(() => {
-    setMessages((previous) => {
-      if (previous.length === 0) return previous
-      const lastIndex = previous.length - 1
-      const last = previous[lastIndex]
-      if (last.role === 'gemini' && !last.isToolResponse) {
-        const updated = [...previous]
-        updated[lastIndex] = { ...last, isToolResponse: true }
-        return updated
-      }
-      return previous
-    })
+  const startToolCallTurn = useCallback(() => {
+    // We intentionally do NOT modify the existing message here.
+    // By setting turnBoundaryRef = true AND toolResponseTurnRef = true,
+    // the very next incoming text chunk will be forced into a NEW message
+    // bubble with the isToolResponse style, separate from the text
+    // spoken before the tool call started.
+    turnBoundaryRef.current = true
+    toolResponseTurnRef.current = true
   }, [])
 
   const addMessage = useCallback((content: string, role: MessageRole) => {
@@ -185,8 +181,7 @@ export function useGeminiBrainstorm() {
           nextPlayTimeRef.current = 0
         } else if (data.type === 'tool_call_start') {
           setIsGenerating(true)
-          toolResponseTurnRef.current = true
-          markLastAsToolResponse()
+          startToolCallTurn()
         } else if (data.type === 'tool_call') {
           // The background tool finished execution
           setIsGenerating(false)
