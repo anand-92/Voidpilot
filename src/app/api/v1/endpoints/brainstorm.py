@@ -148,14 +148,21 @@ def _make_tool_handlers(  # noqa: C901
         from src.app.services.flash_worker import FlashImageResult
 
         try:
-            result: FlashImageResult = await flash.generate_image(prompt=prompt)
+            result = await flash.generate_image(prompt=prompt)
+
+            if isinstance(result, FlashImageResult):
+                image_bytes = result.image_bytes
+                result_text = result.text
+            else:
+                image_bytes = result
+                result_text = ""
 
             # Ensure image bytes exist
-            if not result.image_bytes:
+            if not image_bytes:
                 raise ValueError("No image bytes in FlashImageResult")
 
             # Convert image bytes to base64
-            b64_image = base64.b64encode(result.image_bytes).decode("utf-8")
+            b64_image = base64.b64encode(image_bytes).decode("utf-8")
             filename = label.lower().replace(" ", "_") + ".png"
 
             # Send both image and text to frontend
@@ -166,7 +173,7 @@ def _make_tool_handlers(  # noqa: C901
                         "filename": filename,
                         "label": label,
                         "data": b64_image,
-                        "text": result.text,  # Include interleaved text
+                        **({"text": result_text} if result_text else {}),
                     }
                 )
 
@@ -310,14 +317,11 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
             new_tool_defs = _build_tool_defs(enabled_tools)
             gemini_client.tools = new_tool_defs
 
-            gemini_client.tool_mapping.clear()
-            gemini_client.tool_mapping.update(
-                _make_tool_handlers(
-                    websocket,
-                    api_key,
-                    text_model_key=selected_text_model_key,
-                    enabled_tools=enabled_tools,
-                )
+            gemini_client.tool_mapping = _make_tool_handlers(
+                websocket,
+                api_key,
+                text_model_key=selected_text_model_key,
+                enabled_tools=enabled_tools,
             )
             logger.info(
                 "Brainstorm selected flash worker model: %s",

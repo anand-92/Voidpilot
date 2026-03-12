@@ -38,6 +38,11 @@ class FlashImageResult:
     text: str
     image_bytes: bytes | None
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, (bytes, bytearray)):
+            return self.image_bytes == bytes(other)
+        return super().__eq__(other)
+
 
 FLASH_TEXT_MODEL_OPTIONS = {
     "gemini-3.1-flash-lite": FlashTextModelOption(
@@ -154,7 +159,7 @@ class FlashWorker:
         for part in parts:
             # Extract text content
             text = getattr(part, "text", None)
-            if text:
+            if isinstance(text, str) and text:
                 text_parts.append(text)
 
             # Extract image data
