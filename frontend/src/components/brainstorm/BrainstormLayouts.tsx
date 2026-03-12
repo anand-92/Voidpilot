@@ -3,6 +3,7 @@ import type { BrainstormArtifact, BrainstormFlashModel } from '../../hooks/useGe
 import type { Message } from '../../hooks/useGeminiLive'
 
 export type BrainstormLayoutProps = {
+  intensityRef: React.MutableRefObject<number>
   isConnected: boolean
   isStarting: boolean
   messages: Message[]

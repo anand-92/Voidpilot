@@ -9,8 +9,10 @@ import type { BrainstormLayoutProps } from './BrainstormLayouts'
 import { BrainstormControls } from './BrainstormControls'
 import { ConversationPanel } from './ConversationPanel'
 import { WorkspacePanel } from './WorkspacePanel'
+import { AgentVisualizer } from './AgentVisualizer'
 
 export function BrainstormDesktopLayout({
+  intensityRef,
   isConnected,
   isStarting,
   messages,
@@ -49,6 +51,7 @@ export function BrainstormDesktopLayout({
 
       {/* Main spatial area: Workspace */}
       <div className="absolute inset-0 z-10 pt-28 pb-6 pl-8 pr-[420px] flex flex-col overflow-hidden">
+        <AgentVisualizer intensityRef={intensityRef} isGenerating={isGenerating} isConnected={isConnected} />
         <WorkspacePanel
           artifacts={artifacts}
           artifactList={artifactList}

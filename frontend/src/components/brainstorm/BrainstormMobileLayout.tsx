@@ -13,8 +13,10 @@ import type { BrainstormLayoutProps } from './BrainstormLayouts'
 import { BrainstormControls } from './BrainstormControls'
 import { ConversationPanel } from './ConversationPanel'
 import { WorkspacePanel } from './WorkspacePanel'
+import { AgentVisualizer } from './AgentVisualizer'
 
 export function BrainstormMobileLayout({
+  intensityRef,
   isConnected,
   isStarting,
   messages,
@@ -115,6 +117,9 @@ export function BrainstormMobileLayout({
       <div className="flex flex-1 flex-col overflow-hidden px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4">
         {activeTab === 'chat' ? (
           <>
+            <div className="mb-4">
+              <AgentVisualizer intensityRef={intensityRef} isGenerating={isGenerating} isConnected={isConnected} />
+            </div>
             <section className="shrink-0 rounded-3xl border border-white/[0.05] bg-stone-900/40 p-4 shadow-[0_20px_60px_rgba(12,10,9,0.4)]">
               <BrainstormControls
                 isConnected={isConnected}

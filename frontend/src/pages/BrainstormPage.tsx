@@ -10,6 +10,7 @@ export default function BrainstormPage() {
     messages,
     artifacts,
     isGenerating,
+    intensityRef,
     selectedFlashModel,
     setSelectedFlashModel,
     start,
@@ -67,6 +68,7 @@ export default function BrainstormPage() {
     selectedArtifact !== null ? artifacts.get(selectedArtifact) ?? null : null
 
   const sharedProps: BrainstormLayoutProps = {
+    intensityRef,
     isConnected,
     isStarting,
     messages,
