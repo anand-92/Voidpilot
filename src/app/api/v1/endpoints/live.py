@@ -18,7 +18,7 @@ MAX_RETRIES = 3
 
 
 @router.websocket("/live")
-async def gemini_live_ws(websocket: WebSocket):
+async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
     """WebSocket endpoint for Gemini Live connection."""
     logger.info("New Gemini Live WebSocket connection request")
     await websocket.accept()

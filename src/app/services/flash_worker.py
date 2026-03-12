@@ -166,7 +166,7 @@ class FlashWorker:
 
         config = types.GenerateVideosConfig(
             aspect_ratio="16:9",
-            duration_seconds="4",
+            duration_seconds=4,
         )
 
         # Run sync video generation in thread pool since the SDK
@@ -183,8 +183,22 @@ class FlashWorker:
                 time.sleep(10)
                 operation = self.client.operations.get(operation)
 
+            if not operation.response or not operation.response.generated_videos:
+                msg = "No videos generated in Veo response"
+                raise ValueError(msg)
+
             generated_video = operation.response.generated_videos[0]
-            self.client.files.download(file=generated_video.video)
-            return generated_video.video.video_bytes
+            video = generated_video.video
+            if not video:
+                msg = "No video file in generated video response"
+                raise ValueError(msg)
+
+            self.client.files.download(file=video)
+            video_bytes = video.video_bytes
+            if not video_bytes:
+                msg = "No video bytes in downloaded video"
+                raise ValueError(msg)
+
+            return video_bytes
 
         return await asyncio.to_thread(generate_sync)
