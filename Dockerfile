@@ -15,7 +15,7 @@ RUN chmod +x node_modules/.bin/* 2>/dev/null || true
 # Copy source
 COPY frontend/ ./
 
-# Build the React app (web-only, skip Electron)
+# Build the React app
 RUN npx vite build
 
 # Stage 2: Python backend
