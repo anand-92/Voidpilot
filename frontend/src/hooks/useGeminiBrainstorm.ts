@@ -46,6 +46,7 @@ export type BrainstormArtifact = {
   mimeType: string
   label?: string
   updatedAt: string
+  text?: string  // Interleaved text from image generation
 }
 
 // Artifact type to MIME type mapping
@@ -55,13 +56,14 @@ const ARTIFACT_MIME_TYPES: Record<string, string> = {
   brainstorm_video: 'video/mp4',
 }
 
-function createArtifact(filename: string, data: string, type: string, label?: string): BrainstormArtifact {
+function createArtifact(filename: string, data: string, type: string, label?: string, text?: string): BrainstormArtifact {
   return {
     filename,
     content: data,
     mimeType: ARTIFACT_MIME_TYPES[type] || 'text/markdown',
     label,
     updatedAt: new Date().toISOString(),
+    text,
   }
 }
 
@@ -131,10 +133,10 @@ export function useGeminiBrainstorm() {
   }, [])
 
   const handleArtifactMessage = useCallback((data: Record<string, string>) => {
-    const { filename, content, data: mediaData, label } = data
+    const { filename, content, data: mediaData, label, text } = data
     // Backend sends "content" for text artifacts but "data" for media (image/video)
     const artifactContent = content ?? mediaData
-    const artifact = createArtifact(filename, artifactContent, data.type, label)
+    const artifact = createArtifact(filename, artifactContent, data.type, label, text)
     upsertArtifact(filename, artifact)
     setIsGenerating(false)
   }, [upsertArtifact])

@@ -26,6 +26,13 @@ class FlashTextModelOption:
     supports_grounding: bool = True
 
 
+@dataclass(frozen=True)
+class FlashImageResult:
+    """Result from interleaved image generation containing text and image."""
+    text: str
+    image_bytes: bytes | None
+
+
 FLASH_TEXT_MODEL_OPTIONS = {
     "gemini-3.1-flash-lite": FlashTextModelOption(
         label="Gemini 3.1 Flash Lite",
@@ -109,8 +116,11 @@ class FlashWorker:
 
         return await self._generate_text(prompt)
 
-    async def generate_image(self, prompt: str) -> bytes:
-        """Call Flash Image model and extract inline_data bytes."""
+    async def generate_image(self, prompt: str) -> FlashImageResult:
+        """Call Flash Image model and extract interleaved text + image bytes.
+
+        Returns FlashImageResult with both text and image data.
+        """
         logger.info("FlashWorker.generate_image: prompt=%r", prompt)
 
         response = await self.client.aio.models.generate_content(
@@ -131,13 +141,27 @@ class FlashWorker:
         content = getattr(first_candidate, "content", None)
         parts = getattr(content, "parts", []) or []
 
+        text_parts: list[str] = []
+        image_data: bytes | None = None
+
         for part in parts:
+            # Extract text content
+            text = getattr(part, "text", None)
+            if text:
+                text_parts.append(text)
+
+            # Extract image data
             inline_data = getattr(part, "inline_data", None)
             if inline_data and getattr(inline_data, "data", None):
-                return inline_data.data
+                image_data = inline_data.data
 
-        msg = "No image data in Flash Image response"
-        raise ValueError(msg)
+        combined_text = "\n".join(text_parts)
+
+        if not image_data:
+            msg = "No image data in Flash Image response"
+            raise ValueError(msg)
+
+        return FlashImageResult(text=combined_text, image_bytes=image_data)
 
     async def delegate_task(
         self,

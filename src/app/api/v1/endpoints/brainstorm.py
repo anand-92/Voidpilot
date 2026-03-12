@@ -144,10 +144,39 @@ def _make_tool_handlers(  # noqa: C901
             return {"result": f"Error: {e}", "scheduling": scheduling}
 
     async def handle_generate_image(prompt: str, label: str) -> dict:
-        """Generate image via FlashWorker and push to client."""
-        return await handle_generate_media(
-            "generate_image", prompt, label, "brainstorm_image", "png", "WHEN_IDLE"
-        )
+        """Generate image via FlashWorker with interleaved text and push to client."""
+        from src.app.services.flash_worker import FlashImageResult
+
+        try:
+            result: FlashImageResult = await flash.generate_image(prompt=prompt)
+
+            # Ensure image bytes exist
+            if not result.image_bytes:
+                raise ValueError("No image bytes in FlashImageResult")
+
+            # Convert image bytes to base64
+            b64_image = base64.b64encode(result.image_bytes).decode("utf-8")
+            filename = label.lower().replace(" ", "_") + ".png"
+
+            # Send both image and text to frontend
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json(
+                    {
+                        "type": "brainstorm_image",
+                        "filename": filename,
+                        "label": label,
+                        "data": b64_image,
+                        "text": result.text,  # Include interleaved text
+                    }
+                )
+
+            return {
+                "result": f"Image '{label}' generated.",
+                "scheduling": "WHEN_IDLE",
+            }
+        except Exception as e:
+            logger.error("generate_image failed: %s", e)
+            return {"result": f"Error generating image: {e}", "scheduling": "WHEN_IDLE"}
 
     async def handle_generate_video(prompt: str, label: str) -> dict:
         """Generate video via FlashWorker and push to client."""

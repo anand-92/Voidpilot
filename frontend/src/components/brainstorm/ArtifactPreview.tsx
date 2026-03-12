@@ -17,6 +17,14 @@ export function ArtifactPreview({ artifact }: { artifact: BrainstormArtifact }) 
           className="max-h-80 w-full rounded-lg object-contain"
         />
         {artifact.label && <p className="mt-2 text-center text-xs text-stone-500">{artifact.label}</p>}
+        {/* Show interleaved text if available */}
+        {artifact.text && (
+          <div className="mt-4 rounded-lg border border-white/[0.06] bg-stone-900/50 p-3">
+            <div className="prose prose-invert prose-xs max-w-none prose-headings:text-stone-300 prose-p:text-stone-400">
+              <ReactMarkdown>{artifact.text}</ReactMarkdown>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
