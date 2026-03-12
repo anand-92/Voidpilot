@@ -12,6 +12,12 @@ FLASH_LITE_MODEL = "gemini-3.1-flash-lite-preview"
 FLASH_MODEL = "gemini-3-flash-preview"
 FLASH_PRO_MODEL = "gemini-3.1-pro-preview"
 FLASH_IMAGE_MODEL = "gemini-3.1-flash-image-preview"
+FLASH_IMAGE_SYSTEM_INSTRUCTION = (
+    "You are a creative helper working alongside a voice assistant. "
+    "When asked to generate images, create visually appealing images "
+    "with brief explanatory text. Think of yourself as a skilled "
+    "designer creating assets to support the conversation."
+)
 VEO_VIDEO_MODEL = "veo-3.1-fast-generate-preview"
 FLASH_LITE_CONFIG = types.GenerateContentConfig(
     tools=[types.Tool(google_search=types.GoogleSearch())],
@@ -128,6 +134,7 @@ class FlashWorker:
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_modalities=["Text", "Image"],
+                system_instruction=FLASH_IMAGE_SYSTEM_INSTRUCTION,
             ),
         )
 
