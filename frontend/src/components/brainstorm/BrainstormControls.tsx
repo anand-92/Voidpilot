@@ -31,6 +31,195 @@ type BrainstormControlsProps = {
   layout: 'desktop' | 'mobile'
 }
 
+// Helper component for tool selector buttons
+function ToolSelector({
+  selectedTools,
+  onToggle,
+  disabled,
+  compact,
+}: {
+  selectedTools: BrainstormToolId[]
+  onToggle: (toolId: BrainstormToolId) => void
+  disabled: boolean
+  compact?: boolean
+}) {
+  return (
+    <div className={cn("flex items-center gap-1.5 mb-3 px-1", !compact && "mb-0 px-0")}>
+      {BRAINSTORM_TOOL_OPTIONS.map(tool => (
+        <button
+          key={tool.id}
+          onClick={() => onToggle(tool.id)}
+          disabled={disabled}
+          className={cn(
+            "flex-1 rounded-lg text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
+            compact ? "py-1.5 px-2" : "py-2 px-3",
+            selectedTools.includes(tool.id)
+              ? "bg-amber-600/80 text-stone-950 shadow-md"
+              : "bg-white/[0.05] text-stone-400 border border-white/[0.08] hover:bg-white/[0.08]"
+          )}
+        >
+          {tool.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// Helper component for model toggle button
+function ModelToggle({
+  model,
+  onToggle,
+  disabled,
+  layout,
+}: {
+  model: BrainstormFlashModel
+  onToggle: () => void
+  disabled: boolean
+  layout: 'desktop' | 'mobile'
+}) {
+  const label = BRAINSTORM_FLASH_MODEL_OPTIONS.find(opt => opt.value === model)?.label ?? 'LITE'
+  const isCompact = layout === 'mobile'
+
+  const gradientClass = model === 'gemini-3.1-pro'
+    ? "from-blue-500/10 to-purple-500/10"
+    : model === 'gemini-3-flash'
+    ? "from-amber-500/10 to-orange-500/10"
+    : ""
+
+  const textClass = cn(
+    "flex items-center justify-center cursor-pointer text-xs font-bold tracking-wider outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
+    model === 'gemini-3.1-pro' && "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]",
+    model === 'gemini-3-flash' && "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]",
+    model === 'gemini-3.1-flash-lite' && "text-stone-400 font-medium hover:bg-white/[0.04]"
+  )
+
+  return (
+    <div className={cn(
+      "relative overflow-hidden rounded-2xl border border-white/[0.05] bg-white/[0.02]",
+      isCompact ? "w-[80px] min-h-12" : "w-[72px] h-10"
+    )}>
+      {gradientClass && (
+        <div className={cn("absolute inset-0 blur-xl animate-pulse", gradientClass)} />
+      )}
+      <button
+        onClick={onToggle}
+        disabled={disabled}
+        aria-label="Toggle flash worker model"
+        className={cn(textClass, isCompact ? "min-h-12 px-2" : "h-10 w-[72px] px-2")}
+      >
+        {label}
+      </button>
+    </div>
+  )
+}
+
+// Helper component for connection button
+function ConnectionButton({
+  isConnected,
+  isStarting,
+  onConnect,
+  onStop,
+  layout,
+}: {
+  isConnected: boolean
+  isStarting: boolean
+  onConnect: () => Promise<void>
+  onStop: () => void
+  layout: 'desktop' | 'mobile'
+}) {
+  const isCompact = layout === 'mobile'
+
+  if (!isConnected) {
+    return (
+      <ShimmerButton
+        onClick={onConnect}
+        disabled={isStarting}
+        shimmerColor="#fbbf24"
+        shimmerDuration="2.5s"
+        background="linear-gradient(135deg, #d97706, #b45309)"
+        borderRadius="16px"
+        className={cn(
+          "flex items-center justify-center gap-2 text-sm font-bold text-stone-950 shadow-lg disabled:cursor-not-allowed disabled:opacity-40",
+          isCompact ? "min-h-12 flex-1 px-3 py-3" : "flex-1 py-3"
+        )}
+      >
+        <GeminiMicOn className="size-4" />
+        {isStarting ? 'Connecting…' : isCompact ? 'Start' : 'Connect'}
+      </ShimmerButton>
+    )
+  }
+
+  return (
+    <PulsatingButton
+      onClick={onStop}
+      pulseColor={isCompact ? "rgba(220, 38, 38, 0.3)" : "rgba(220, 38, 38, 0.4)"}
+      duration="2s"
+      className={cn(
+        "flex items-center justify-center gap-2 rounded-2xl font-bold text-white shadow-lg backdrop-blur-md hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50",
+        isCompact 
+          ? "min-h-12 flex-1 px-4 py-3 text-sm bg-red-600" 
+          : "flex-1 py-3 text-sm bg-red-500/90"
+      )}
+    >
+      {layout === 'desktop' && <GeminiMicOff className="size-4" />}
+      {isCompact ? 'End Session' : 'End Session'}
+    </PulsatingButton>
+  )
+}
+
+// Helper component for message input
+function MessageInput({
+  inputText,
+  onChange,
+  onSend,
+  isConnected,
+  layout,
+}: {
+  inputText: string
+  onChange: (value: string) => void
+  onSend: () => void
+  isConnected: boolean
+  layout: 'desktop' | 'mobile'
+}) {
+  const isCompact = layout === 'mobile'
+
+  return (
+    <div className={cn(
+      "flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-1.5 backdrop-blur-md relative overflow-hidden",
+      isCompact ? "mt-3 p-2" : ""
+    )}>
+      <Input
+        type="text"
+        value={inputText}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && onSend()}
+        placeholder={isConnected 
+          ? (isCompact ? 'Type a message…' : 'Message Gemini...') 
+          : (isCompact ? 'Connect first to chat' : 'Connect to brainstorm...')}
+        disabled={!isConnected}
+        aria-label="Message input"
+        className={cn(
+          "flex-1 border-0 bg-transparent text-sm text-white shadow-none focus-visible:ring-0 placeholder:text-stone-600 disabled:cursor-not-allowed disabled:opacity-50",
+          isCompact ? "min-h-11 h-auto px-4 py-3" : "h-10 px-3"
+        )}
+      />
+      <Button
+        onClick={onSend}
+        disabled={!isConnected || !inputText.trim()}
+        aria-label="Send message"
+        className={cn(
+          "shrink-0 cursor-pointer rounded-xl bg-gradient-to-br text-stone-950 shadow-md transition-transform hover:scale-105 hover:from-amber-400 hover:to-orange-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100",
+          isCompact 
+            ? "size-11 from-amber-500 to-orange-600" 
+            : "size-10 from-amber-500 to-orange-600"
+        )}
+      >
+        <GeminiSend className={cn("size-4", !isCompact && "translate-x-[-1px] translate-y-[1px]")} />
+      </Button>
+    </div>
+  )
+}
+
 export function BrainstormControls({
   isConnected,
   isStarting,
@@ -61,192 +250,70 @@ export function BrainstormControls({
     )
   }
 
-  const selectedModelLabel = BRAINSTORM_FLASH_MODEL_OPTIONS.find(opt => opt.value === selectedFlashModel)?.label ?? 'LITE'
+  const isDisabled = isConnected || isStarting
 
   if (isMobile) {
     return (
       <>
-        {/* Tool selector - mobile */}
-        <div className="flex items-center gap-1.5 mb-3 px-1">
-          {BRAINSTORM_TOOL_OPTIONS.map(tool => (
-            <button
-              key={tool.id}
-              onClick={() => handleToolToggle(tool.id)}
-              disabled={isConnected || isStarting}
-              className={cn(
-                "flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
-                selectedTools.includes(tool.id)
-                  ? "bg-amber-600/80 text-stone-950"
-                  : "bg-white/[0.05] text-stone-400 border border-white/[0.08]"
-              )}
-            >
-              {tool.label}
-            </button>
-          ))}
-        </div>
+        <ToolSelector
+          selectedTools={selectedTools}
+          onToggle={handleToolToggle}
+          disabled={isDisabled}
+          compact
+        />
 
         <div className="flex items-center gap-2">
-          <div className="relative overflow-hidden rounded-2xl border border-white/[0.05] bg-white/[0.02]">
-            {selectedFlashModel === 'gemini-3.1-pro' && (
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 blur-xl animate-pulse" />
-            )}
-            {selectedFlashModel === 'gemini-3-flash' && (
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 blur-xl animate-pulse" />
-            )}
-            <button
-              onClick={handleModelToggle}
-              disabled={isConnected || isStarting}
-              aria-label="Toggle flash worker model"
-              className={cn(
-                "min-h-12 w-[80px] flex items-center justify-center cursor-pointer px-2 text-xs font-bold tracking-wider outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
-                selectedFlashModel === 'gemini-3.1-pro' ? "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "",
-                selectedFlashModel === 'gemini-3-flash' ? "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" : "",
-                selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium hover:bg-white/[0.04]" : ""
-              )}
-            >
-              {selectedModelLabel}
-            </button>
-          </div>
+          <ModelToggle
+            model={selectedFlashModel}
+            onToggle={handleModelToggle}
+            disabled={isDisabled}
+            layout="mobile"
+          />
 
-          {!isConnected ? (
-            <ShimmerButton
-              onClick={handleConnect}
-              disabled={isStarting}
-              shimmerColor="#fbbf24"
-              shimmerDuration="2.5s"
-              background="linear-gradient(135deg, #d97706, #b45309)"
-              borderRadius="16px"
-              className="flex min-h-12 flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-bold whitespace-nowrap text-stone-950 shadow-[0_8px_32px_rgba(217,119,6,0.25)] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <GeminiMicOn className="size-4 shrink-0" />
-              {isStarting ? 'Connecting…' : 'Start'}
-            </ShimmerButton>
-          ) : (
-            <PulsatingButton
-              onClick={stop}
-              pulseColor="rgba(220, 38, 38, 0.3)"
-              duration="2s"
-              className="flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-red-600 px-4 py-3 text-sm font-bold whitespace-nowrap text-white shadow-[0_8px_32px_rgba(220,38,38,0.25)] hover:bg-red-500"
-            >
-              End Session
-            </PulsatingButton>
-          )}
+          <ConnectionButton
+            isConnected={isConnected}
+            isStarting={isStarting}
+            onConnect={handleConnect}
+            onStop={stop}
+            layout="mobile"
+          />
         </div>
 
-        <div className="mt-3 rounded-2xl border border-white/[0.05] bg-stone-950/70 p-2">
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              value={inputText}
-              onChange={(event) => setInputText(event.target.value)}
-              onKeyDown={(event) => event.key === 'Enter' && handleSend()}
-              placeholder={isConnected ? 'Type a message…' : 'Connect first to chat'}
-              disabled={!isConnected}
-              aria-label="Message input"
-              className="min-h-11 flex-1 rounded-2xl border-white/[0.06] bg-white/[0.03] px-4 py-3 text-base text-white outline-none transition-colors placeholder:text-stone-600 focus:border-amber-500/30 focus:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-40"
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!isConnected || !inputText.trim()}
-              aria-label="Send message"
-              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-amber-600/80 text-stone-950 transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <GeminiSend className="size-4" />
-            </Button>
-          </div>
-        </div>
+        <MessageInput
+          inputText={inputText}
+          onChange={setInputText}
+          onSend={handleSend}
+          isConnected={isConnected}
+          layout="mobile"
+        />
       </>
     )
   }
 
-  // Unified Desktop Controls
+  // Desktop layout
   return (
     <div className="flex flex-col gap-3 p-4 shrink-0 border-t border-white/[0.08] bg-black/20 relative z-10">
-      {/* Tool selector - desktop */}
-      <div className="flex items-center gap-2">
-        {BRAINSTORM_TOOL_OPTIONS.map(tool => (
-          <button
-            key={tool.id}
-            onClick={() => handleToolToggle(tool.id)}
-            disabled={isConnected || isStarting}
-            className={cn(
-              "flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
-              selectedTools.includes(tool.id)
-                ? "bg-amber-600/80 text-stone-950 shadow-md"
-                : "bg-white/[0.05] text-stone-400 border border-white/[0.08] hover:bg-white/[0.08]"
-            )}
-          >
-            {tool.label}
-          </button>
-        ))}
-      </div>
+      <ToolSelector
+        selectedTools={selectedTools}
+        onToggle={handleToolToggle}
+        disabled={isDisabled}
+      />
 
-      <div className="flex items-center gap-2">
-        {!isConnected ? (
-          <ShimmerButton
-            onClick={handleConnect}
-            disabled={isStarting}
-            shimmerColor="#fbbf24"
-            shimmerDuration="2.5s"
-            background="linear-gradient(135deg, #d97706, #b45309)"
-            borderRadius="16px"
-            className="flex flex-1 items-center justify-center gap-2 text-sm font-bold text-stone-950 shadow-lg disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <GeminiMicOn className="size-4" />
-            {isStarting ? 'Connecting…' : 'Connect'}
-          </ShimmerButton>
-        ) : (
-          <PulsatingButton
-            onClick={stop}
-            pulseColor="rgba(220, 38, 38, 0.4)"
-            duration="2s"
-            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-red-500/90 py-3 text-sm font-bold text-white shadow-lg backdrop-blur-md hover:bg-red-500"
-          >
-            <GeminiMicOff className="size-4" />
-            End Session
-          </PulsatingButton>
-        )}
-      </div>
+      <ConnectionButton
+        isConnected={isConnected}
+        isStarting={isStarting}
+        onConnect={handleConnect}
+        onStop={stop}
+        layout="desktop"
+      />
 
-      <div className="flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-1.5 backdrop-blur-md relative overflow-hidden">
-        {selectedFlashModel === 'gemini-3.1-pro' && (
-          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-xl animate-pulse" />
-        )}
-        {selectedFlashModel === 'gemini-3-flash' && (
-          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-amber-500/20 to-orange-500/20 blur-xl animate-pulse" />
-        )}
-        <button
-          onClick={handleModelToggle}
-          disabled={isConnected || isStarting}
-          aria-label="Toggle flash worker model"
-          className={cn(
-            "h-10 w-[72px] flex items-center justify-center cursor-pointer rounded-xl bg-transparent px-2 text-xs font-bold tracking-wider outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
-            selectedFlashModel === 'gemini-3.1-pro' ? "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "",
-            selectedFlashModel === 'gemini-3-flash' ? "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" : "",
-            selectedFlashModel === 'gemini-3.1-flash-lite' ? "text-stone-400 font-medium hover:text-stone-300 hover:bg-white/[0.04]" : ""
-          )}
-        >
-          {selectedModelLabel}
-        </button>
-        <div className="h-6 w-px bg-white/10 relative z-10" />
-        <Input
-          type="text"
-          value={inputText}
-          onChange={(event) => setInputText(event.target.value)}
-          onKeyDown={(event) => event.key === 'Enter' && handleSend()}
-          placeholder={isConnected ? 'Message Gemini...' : 'Connect to brainstorm...'}
-          disabled={!isConnected}
-          className="flex-1 h-10 border-0 bg-transparent px-3 text-sm text-white shadow-none focus-visible:ring-0 placeholder:text-stone-600 disabled:cursor-not-allowed disabled:opacity-50"
-        />
-        <Button
-          onClick={handleSend}
-          disabled={!isConnected || !inputText.trim()}
-          size="icon"
-          className="size-10 shrink-0 cursor-pointer rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-stone-950 shadow-md transition-transform hover:scale-105 hover:from-amber-400 hover:to-orange-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-        >
-          <GeminiSend className="size-4 translate-x-[-1px] translate-y-[1px]" />
-        </Button>
-      </div>
+      <MessageInput
+        inputText={inputText}
+        onChange={setInputText}
+        onSend={handleSend}
+        isConnected={isConnected}
+        layout="desktop"
+      />
     </div>
   )
 }

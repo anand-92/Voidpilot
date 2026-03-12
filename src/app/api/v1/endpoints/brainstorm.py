@@ -2,7 +2,6 @@ import asyncio
 import base64
 import logging
 import traceback
-from typing import Any
 
 from fastapi import APIRouter, WebSocket
 from starlette.websockets import WebSocketState
@@ -71,7 +70,7 @@ structured data extraction, instead of speaking it.
 - Keep talking to the user while tools execute. You'll be notified when they \
 complete."""
 
-# ── Tool handler factories ───────────────────────────────────────  # noqa: E501
+# ── Tool handler factories ───────────────────────────────────────  # noqa: C901
 
 
 def _make_tool_handlers(  # noqa: C901
@@ -91,17 +90,14 @@ def _make_tool_handlers(  # noqa: C901
                       Note: delegate_to_flash is always included as it's internal.
     """
     flash = FlashWorker(api_key=api_key, text_model_key=text_model_key)
-
-    # Default to all tools enabled
-    if enabled_tools is None:
-        enabled_tools = DEFAULT_ENABLED_TOOLS.copy()
+    enabled = (
+        enabled_tools if enabled_tools is not None else DEFAULT_ENABLED_TOOLS.copy()
+    )
 
     async def handle_save_artifact(title: str, raw_ideas: str, filename: str) -> dict:
         """Generate markdown via FlashWorker and push to client."""
         try:
             markdown = await flash.generate_markdown(title=title, raw_ideas=raw_ideas)
-            from starlette.websockets import WebSocketState
-
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(
                     {
@@ -110,44 +106,54 @@ def _make_tool_handlers(  # noqa: C901
                         "content": markdown,
                     }
                 )
-            return {
-                "result": f"Artifact '{filename}' saved.",
-                "scheduling": "SILENT",
-            }
+            return {"result": f"Artifact '{filename}' saved.", "scheduling": "SILENT"}
         except Exception as e:
             logger.error("save_brainstorm_artifact failed: %s", e)
-            return {
-                "result": f"Error saving artifact: {e}",
-                "scheduling": "SILENT",
-            }
+            return {"result": f"Error saving artifact: {e}", "scheduling": "SILENT"}
 
-    async def handle_generate_image(prompt: str, label: str) -> dict:
-        """Generate image via FlashWorker and push to client."""
+    async def handle_generate_media(
+        flash_method: str,
+        prompt: str,
+        label: str,
+        result_type: str,
+        file_ext: str,
+        scheduling: str,
+    ) -> dict:
+        """Generic handler for image/video generation via FlashWorker."""
+        method = getattr(flash, flash_method)
         try:
-            image_bytes = await flash.generate_image(prompt=prompt)
-            b64_data = base64.b64encode(image_bytes).decode("utf-8")
-            filename = label.lower().replace(" ", "_") + ".png"
-            from starlette.websockets import WebSocketState
-
+            data_bytes = await method(prompt=prompt)
+            b64_data = base64.b64encode(data_bytes).decode("utf-8")
+            filename = label.lower().replace(" ", "_") + "." + file_ext
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(
                     {
-                        "type": "brainstorm_image",
+                        "type": result_type,
                         "filename": filename,
                         "label": label,
                         "data": b64_data,
                     }
                 )
             return {
-                "result": f"Image '{label}' generated.",
-                "scheduling": "WHEN_IDLE",
+                "result": f"{result_type.replace('brainstorm_', '').title()} "
+                f"'{label}' generated.",
+                "scheduling": scheduling,
             }
         except Exception as e:
-            logger.error("generate_brainstorm_image failed: %s", e)
-            return {
-                "result": f"Error generating image: {e}",
-                "scheduling": "WHEN_IDLE",
-            }
+            logger.error("%s failed: %s", flash_method, e)
+            return {"result": f"Error: {e}", "scheduling": scheduling}
+
+    async def handle_generate_image(prompt: str, label: str) -> dict:
+        """Generate image via FlashWorker and push to client."""
+        return await handle_generate_media(
+            "generate_image", prompt, label, "brainstorm_image", "png", "WHEN_IDLE"
+        )
+
+    async def handle_generate_video(prompt: str, label: str) -> dict:
+        """Generate video via FlashWorker and push to client."""
+        return await handle_generate_media(
+            "generate_video", prompt, label, "brainstorm_video", "mp4", "WHEN_IDLE"
+        )
 
     async def handle_delegate(
         task: str,
@@ -162,8 +168,6 @@ def _make_tool_handlers(  # noqa: C901
                 output_format=output_format,
             )
             filename = task[:30].lower().replace(" ", "_") + ".md"
-            from starlette.websockets import WebSocketState
-
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(
                     {
@@ -172,56 +176,23 @@ def _make_tool_handlers(  # noqa: C901
                         "content": result_text,
                     }
                 )
-            return {
-                "result": result_text[:200],
-                "scheduling": "WHEN_IDLE",
-            }
+            return {"result": result_text[:200], "scheduling": "WHEN_IDLE"}
         except Exception as e:
             logger.error("delegate_to_flash failed: %s", e)
-            return {
-                "result": f"Error delegating task: {e}",
-                "scheduling": "WHEN_IDLE",
-            }
+            return {"result": f"Error delegating task: {e}", "scheduling": "WHEN_IDLE"}
 
-    async def handle_generate_video(prompt: str, label: str) -> dict:
-        """Generate video via FlashWorker and push to client."""
-        try:
-            video_bytes = await flash.generate_video(prompt=prompt)
-            b64_data = base64.b64encode(video_bytes).decode("utf-8")
-            filename = label.lower().replace(" ", "_") + ".mp4"
-            from starlette.websockets import WebSocketState
+    # Build tool mapping - delegate_to_flash is always included
+    mapping: dict = {"delegate_to_flash": handle_delegate}
 
-            if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_json(
-                    {
-                        "type": "brainstorm_video",
-                        "filename": filename,
-                        "label": label,
-                        "data": b64_data,
-                    }
-                )
-            return {
-                "result": f"Video '{label}' generated.",
-                "scheduling": "WHEN_IDLE",
-            }
-        except Exception as e:
-            logger.error("generate_brainstorm_video failed: %s", e)
-            return {
-                "result": f"Error generating video: {e}",
-                "scheduling": "WHEN_IDLE",
-            }
-
-    mapping: dict[str, Callable[..., Any]] = {}
-    # Always include delegate_to_flash as it's the internal mechanism
-    mapping["delegate_to_flash"] = handle_delegate
-
-    # Only include handlers for enabled tools
-    if "save_brainstorm_artifact" in enabled_tools:
-        mapping["save_brainstorm_artifact"] = handle_save_artifact
-    if "generate_brainstorm_image" in enabled_tools:
-        mapping["generate_brainstorm_image"] = handle_generate_image
-    if "generate_brainstorm_video" in enabled_tools:
-        mapping["generate_brainstorm_video"] = handle_generate_video
+    # Add handlers for enabled tools using a loop instead of repeated if statements
+    tool_handlers = {
+        "save_brainstorm_artifact": handle_save_artifact,
+        "generate_brainstorm_image": handle_generate_image,
+        "generate_brainstorm_video": handle_generate_video,
+    }
+    for tool_name, handler in tool_handlers.items():
+        if tool_name in enabled:
+            mapping[tool_name] = handler
 
     return mapping
 
@@ -235,13 +206,15 @@ def _build_tool_defs(enabled_tools: list[str] | None = None) -> list[dict]:
     Returns:
         List of tool definitions in Gemini format.
     """
-    if enabled_tools is None:
-        enabled_tools = DEFAULT_ENABLED_TOOLS.copy()
+    enabled = enabled_tools if enabled_tools is not None else DEFAULT_ENABLED_TOOLS
 
-    tool_defs = [DELEGATE_TOOL_DEF]  # Always include delegate_to_flash
-    for tool_def in AVAILABLE_TOOL_DEFS:
-        if tool_def["name"] in enabled_tools:
-            tool_defs.append(tool_def)
+    # Always include delegate_to_flash, then add enabled tools
+    tool_defs = [DELEGATE_TOOL_DEF]
+    tool_defs.extend(
+        tool_def
+        for tool_def in AVAILABLE_TOOL_DEFS
+        if tool_def["name"] in enabled
+    )
 
     return [{"function_declarations": tool_defs}]
 
@@ -288,15 +261,13 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 gemini_client.session_resumption_handle = handle
                 logger.info("Brainstorm received resumption handle")
 
+            # Resolve and select the flash model
             requested_model_key = payload.get("flash_model")
             resolved_model = resolve_flash_text_model(requested_model_key)
-            selected_text_model_key = next(
-                (
-                    key
-                    for key, option in FLASH_TEXT_MODEL_OPTIONS.items()
-                    if option == resolved_model
-                ),
-                DEFAULT_FLASH_TEXT_MODEL_KEY,
+            selected_text_model_key = (
+                requested_model_key
+                if requested_model_key in FLASH_TEXT_MODEL_OPTIONS
+                else DEFAULT_FLASH_TEXT_MODEL_KEY
             )
 
             # Handle tool selection
