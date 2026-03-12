@@ -8,6 +8,8 @@ interface AgentVisualizerProps {
   intensityRef: React.MutableRefObject<number>
   isGenerating: boolean
   isConnected: boolean
+  className?: string
+  style?: React.CSSProperties
 }
 
 // ── Spritesheet layout (sneaky-toast-spritesheet.png) ───────
@@ -17,16 +19,16 @@ interface AgentVisualizerProps {
 // Row 3: HIDDEN — 4 frames  (y=48)
 const FRAME_SIZE = 16
 const ANIMS = {
-  idle:   { row: 0, frames: 4,  speed: 0.35 },
-  walk:   { row: 1, frames: 8,  speed: 0.12 },
-  hide:   { row: 2, frames: 15, speed: 0.08 },
-  hidden: { row: 3, frames: 4,  speed: 0.3  },
+  idle: { row: 0, frames: 4, speed: 0.35 },
+  walk: { row: 1, frames: 8, speed: 0.12 },
+  hide: { row: 2, frames: 15, speed: 0.08 },
+  hidden: { row: 3, frames: 4, speed: 0.3 },
 } as const
 type AnimKey = keyof typeof ANIMS
 
-const ZOOM = 4
+const ZOOM = 5
 const COLS = 10
-const ROWS = 5
+const ROWS = 6
 
 interface ToastAgent {
   name: string
@@ -77,7 +79,7 @@ function createFurniture(): FurnitureInstance[] {
   ]
 }
 
-export function AgentVisualizer({ intensityRef, isGenerating, isConnected }: AgentVisualizerProps) {
+export function AgentVisualizer({ intensityRef, isGenerating, isConnected, className, style }: AgentVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const geminiRef = useRef(createAgent('Gemini', 'Voice', '#fbbf24', 2, 3))
   const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 7, 3))
@@ -130,8 +132,88 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected }: Age
 
       if (dist > 2) {
         const speed = 48 * dt
-        agent.x += (dx / dist) * Math.min(speed, dist)
-        agent.y += (dy / dist) * Math.min(speed, dist)
+        let nextX = agent.x + (dx / dist) * Math.min(speed, dist)
+        let nextY = agent.y + (dy / dist) * Math.min(speed, dist)
+
+        // --- Collision Detection ---
+        const agentRadius = 6 // collision radius for the agent
+
+        // 1. Furniture Collision
+        let collided = false
+        const furnitureItems = furnitureRef.current
+        for (const f of furnitureItems) {
+           // We approximate furniture bounding boxes based on the sprite bounds.
+           // TILE_SIZE is 16.
+           let fw = 16, fh = 16
+           if (f.sprite === DESK_SPRITE) { fw = 32; fh = 20 }
+           else if (f.sprite === CHAIR_SPRITE) { fw = 16; fh = 16 }
+           else if (f.sprite === PC_SPRITE) { fw = 16; fh = 16 }
+           else if (f.sprite === PLANT_SPRITE) { fw = 16; fh = 24 }
+
+           // f.x, f.y are top-left-ish coordinates in the pixel-office coordinate system
+           // Adjusting the bounding box to match the visual footprint
+           const fLeft = f.x
+           const fRight = f.x + fw
+           const fTop = f.y
+           const fBottom = f.y + fh
+
+           // Simple AABB vs Circle collision check
+           // Find the closest point on the AABB to the circle center
+           const closestX = Math.max(fLeft, Math.min(nextX, fRight))
+           const closestY = Math.max(fTop, Math.min(nextY, fBottom))
+
+           // Calculate distance from circle center to this closest point
+           const distanceX = nextX - closestX
+           const distanceY = nextY - closestY
+           const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY)
+
+           if (distanceSquared < (agentRadius * agentRadius)) {
+               collided = true
+               // Basic sliding response: move away from the closest point
+               const distToClosest = Math.sqrt(distanceSquared) || 1
+               const overlap = agentRadius - distToClosest
+               nextX += (distanceX / distToClosest) * overlap
+               nextY += (distanceY / distToClosest) * overlap
+           }
+        }
+
+        // 2. Agent-to-Agent Collision
+        const otherAgent = agent === geminiRef.current ? flashRef.current : geminiRef.current;
+        const distToOtherX = nextX - otherAgent.x;
+        const distToOtherY = nextY - otherAgent.y;
+        const distToOtherSq = distToOtherX * distToOtherX + distToOtherY * distToOtherY;
+        const combinedRadii = agentRadius * 2; // both have same radius
+
+        if (distToOtherSq > 0 && distToOtherSq < combinedRadii * combinedRadii) {
+            collided = true;
+            const distToOther = Math.sqrt(distToOtherSq) || 1;
+            const overlap = combinedRadii - distToOther;
+            
+            // Push this agent away from the other agent
+            nextX += (distToOtherX / distToOther) * overlap;
+            nextY += (distToOtherY / distToOther) * overlap;
+        }
+
+        // Keep inside bounds
+        const s = TILE_SIZE
+        const roomW = COLS * s
+        const roomH = ROWS * s
+        nextX = Math.max(agentRadius, Math.min(roomW - agentRadius, nextX))
+        nextY = Math.max(agentRadius, Math.min(roomH - agentRadius, nextY))
+
+
+        // If we are stuck against an object and our target is far, pick a new target to avoid infinite sliding loops
+        // Only if not actively heading to seat
+        if (!agent.isActive && collided && dist > 10 && agent.wanderTimer > 0) {
+            agent.wanderTimer -= dt * 5; // fast forward wander timer when stuck
+            if (agent.wanderTimer <= 0) {
+                 agent.targetX = agent.x;
+                 agent.targetY = agent.y;
+            }
+        }
+
+        agent.x = nextX
+        agent.y = nextY
         agent.facingRight = dx > 0
         if (agent.anim !== 'walk') {
           agent.anim = 'walk'
@@ -222,13 +304,15 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected }: Age
 
       ctx.clearRect(0, 0, rect.width, rect.height)
 
-      const mapW = COLS * TILE_SIZE * ZOOM
-      const mapH = ROWS * TILE_SIZE * ZOOM
-      const ox = Math.floor((rect.width - mapW) / 2)
-      const oy = Math.floor((rect.height - mapH) / 2)
+      const s = TILE_SIZE * ZOOM
+      const roomW = COLS * s
+      const roomH = (ROWS + 2.5) * s // +1 for the wall strip
+
+      // Center the room
+      const ox = Math.round((rect.width - roomW) / 2)
+      const oy = Math.round((rect.height - roomH) / 2) + s // s is offset for the wall
 
       // Floor tiles
-      const s = TILE_SIZE * ZOOM
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           ctx.fillStyle = (r + c) % 2 === 0 ? '#3a3524' : '#342f20'
@@ -264,21 +348,13 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected }: Age
   }, [isConnected, isGenerating, intensityRef])
 
   return (
-    <div className="relative w-full rounded-2xl border border-white/[0.06] bg-black/40 backdrop-blur-sm overflow-hidden"
-         style={{ height: `${(ROWS + 2) * TILE_SIZE * ZOOM + 40}px` }}>
+    <div className={className || "relative w-full rounded-2xl border border-white/[0.06] bg-black/40 backdrop-blur-sm overflow-hidden"}
+      style={style || { height: `${(ROWS + 2) * TILE_SIZE * ZOOM + 40}px` }}>
       <canvas
         ref={canvasRef}
         className="w-full h-full"
         style={{ imageRendering: 'pixelated' }}
       />
-      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-2 bg-black/60 border-t border-white/[0.06] text-[11px] font-mono">
-        <span className={isConnected ? 'text-amber-400' : 'text-stone-600'}>
-          ● Gemini {isConnected ? 'Active' : 'Offline'}
-        </span>
-        <span className={isGenerating ? 'text-blue-400' : 'text-stone-600'}>
-          ● Flash {isGenerating ? 'Working' : 'Idle'}
-        </span>
-      </div>
     </div>
   )
 }

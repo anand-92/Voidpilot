@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { BlurFade } from '@/components/ui/blur-fade';
-import AnimatedTextRoller, { voidpilotHeroItems } from '@/components/shadcn-space/animated-text/animated-text-04';
+import AnimatedTextRoller from '@/components/shadcn-space/animated-text/animated-text-04';
+import { voidpilotHeroItems } from '@/components/shadcn-space/animated-text/constants';
 import { GeminiArrowRight } from '../icons/GeminiIcons';
 import { PulseDot } from './PulseDot';
 import { sectionVariants } from './LandingConstants';

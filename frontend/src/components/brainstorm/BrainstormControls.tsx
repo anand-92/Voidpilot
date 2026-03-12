@@ -126,9 +126,9 @@ export function BrainstormControls({
     )
   }
 
-  // Floating Control Center for Desktop Redesign
+  // Unified Desktop Controls
   return (
-    <div className="flex flex-col gap-3 rounded-[2rem] border border-white/[0.08] bg-black/60 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl">
+    <div className="flex flex-col gap-3 p-4 shrink-0 border-t border-white/[0.08] bg-black/20 relative z-10">
       <div className="flex items-center gap-2">
         {!isConnected ? (
           <ShimmerButton

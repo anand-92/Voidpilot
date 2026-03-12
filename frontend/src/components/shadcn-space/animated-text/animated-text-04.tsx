@@ -3,20 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
-
-type RollerItem = {
-  text: string;
-  className?: string;
-};
-
-export const voidpilotHeroItems: RollerItem[] = [
-  { text: "sees your screen.", className: "text-cyan-300" },
-  { text: "hears your voice.", className: "text-amber-300" },
-  { text: "takes the wheel.", className: "text-sky-300" },
-  { text: "guides your work.", className: "text-violet-300" },
-  { text: "shapes ideas live.", className: "text-emerald-300" },
-  { text: "spins up visuals.", className: "text-rose-300" },
-];
+import { voidpilotHeroItems, type RollerItem } from "./constants";
 
 type AnimatedTextRollerProps = {
   prefix?: string;
@@ -38,6 +25,7 @@ const AnimatedTextRoller = ({
   const [index, setIndex] = useState(0);
   const [activeWidth, setActiveWidth] = useState<number>();
   const [activeHeight, setActiveHeight] = useState<number>();
+  const [translateY, setTranslateY] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const itemRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
@@ -67,10 +55,6 @@ const AnimatedTextRoller = ({
     return () => clearInterval(interval);
   }, [intervalMs, normalizedItems.length]);
 
-  useEffect(() => {
-    setIndex((prev) => (prev >= normalizedItems.length ? 0 : prev));
-  }, [normalizedItems.length]);
-
   useLayoutEffect(() => {
     const updateMeasurements = () => {
       const currentItem = itemRefs.current[index];
@@ -81,6 +65,11 @@ const AnimatedTextRoller = ({
       const { width, height } = currentItem.getBoundingClientRect();
       setActiveWidth(Math.ceil(width) + 28);
       setActiveHeight(height);
+      
+      const ty = itemRefs.current
+        .slice(0, index)
+        .reduce((total, item) => total + (item?.getBoundingClientRect().height ?? height ?? 0), 0);
+      setTranslateY(ty);
     };
 
     updateMeasurements();
@@ -97,10 +86,6 @@ const AnimatedTextRoller = ({
 
     return () => window.removeEventListener("resize", updateMeasurements);
   }, [index, normalizedItems, itemClassName]);
-
-  const translateY = itemRefs.current
-    .slice(0, index)
-    .reduce((total, item) => total + (item?.getBoundingClientRect().height ?? activeHeight ?? 0), 0);
 
   return (
     <div
