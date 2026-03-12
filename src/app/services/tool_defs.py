@@ -7,9 +7,10 @@ SEARCH_PROJECT_CONTEXT_TOOL_DEF = {
         {
             "name": "search_project_context",
             "description": (
-                "Search the Voidpilot project codebase and documentation "
-                "for relevant context. Use this to answer questions about "
-                "the project's architecture, code, setup, or any technical details."
+                "REQUIRED: Search the Voidpilot project codebase and "
+                "documentation. You MUST call this tool before answering "
+                "any question about the project. Never guess — always "
+                "search first. Use specific technical terms in the query."
             ),
             "parameters": {
                 "type": "object",

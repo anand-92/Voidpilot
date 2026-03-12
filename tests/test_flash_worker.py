@@ -226,6 +226,6 @@ async def test_flash_worker_uses_correct_models(mock_client):
     """FlashWorker exposes the supported text/image model IDs."""
     assert DEFAULT_FLASH_TEXT_MODEL_KEY == 'gemini-3.1-flash-lite'
     assert FLASH_LITE_MODEL == 'gemini-3.1-flash-lite-preview'
-    assert FLASH_MODEL == 'gemini-3-flash-preview'
+    assert FLASH_MODEL == 'gemini-flash-latest'
     assert FLASH_PRO_MODEL == 'gemini-3.1-pro-preview'
     assert FLASH_IMAGE_MODEL == 'gemini-3.1-flash-image-preview'

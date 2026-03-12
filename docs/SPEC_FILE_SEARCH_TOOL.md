@@ -1,7 +1,7 @@
 ## Spec: Add Project Context Search Tool to Walkthrough Agent
 
 ### Goal
-Add a custom **blocking** tool to the walkthrough agent that delegates to `gemini-3-flash-preview` with file search, replacing the large hardcoded system prompt with a lightweight identity prompt + instructions to use the tool.
+Add a custom **blocking** tool to the walkthrough agent that delegates to `gemini-flash-latest` with file search, replacing the large hardcoded system prompt with a lightweight identity prompt + instructions to use the tool.
 
 ### Verified Approach (via Google Dev Docs)
 - **Function calling in Live API**: Tools declared via `tools=[{function_declarations: [...]}]` in `LiveConnectConfig`
@@ -15,7 +15,7 @@ Walkthrough Agent (gemini-2.5-flash-native-audio-preview-12-2025) [Live API]
     │
     └──► BLOCKING tool: "search_project_context" (function_declarations)
               │
-              └──► gemini-3-flash-preview + FileSearch [generate_content]
+              └──► gemini-flash-latest + FileSearch [generate_content]
                         │
                         └──► File Search Store (populated with /src, /frontend, README, docs)
 ```
@@ -68,7 +68,7 @@ Walkthrough Agent (gemini-2.5-flash-native-audio-preview-12-2025) [Live API]
       client = genai.Client(api_key=api_key, http_options={"api_version": "v1beta"})
       
       response = client.models.generate_content(
-          model="gemini-3-flash-preview",
+          model="gemini-flash-latest",
           contents=query,
           config=types.GenerateContentConfig(
               tools=[types.Tool(

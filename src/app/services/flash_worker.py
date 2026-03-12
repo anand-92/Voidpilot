@@ -9,7 +9,7 @@ from google.genai import types
 logger = logging.getLogger(__name__)
 
 FLASH_LITE_MODEL = "gemini-3.1-flash-lite-preview"
-FLASH_MODEL = "gemini-3-flash-preview"
+FLASH_MODEL = "gemini-flash-latest"
 FLASH_PRO_MODEL = "gemini-3.1-pro-preview"
 FLASH_IMAGE_MODEL = "gemini-3.1-flash-image-preview"
 FLASH_IMAGE_SYSTEM_INSTRUCTION = (

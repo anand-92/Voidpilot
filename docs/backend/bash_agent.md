@@ -32,7 +32,7 @@ A multi-turn agent that plans and executes bash commands via Gemini 3 Flash.
 
 #### Behavior
 
-1. **Initialization**: Creates a Gemini client with the `gemini-3-flash-preview` model
+1. **Initialization**: Creates a Gemini client with the `gemini-flash-latest` model
 2. **System Prompt**: Builds a custom system prompt with OS information and current datetime
 3. **Turn-Based Execution**: Runs for up to `MAX_TURNS` (10) iterations:
    - Sends the task/context to Gemini
@@ -45,7 +45,7 @@ A multi-turn agent that plans and executes bash commands via Gemini 3 Flash.
 
 ### Model Configuration
 
-- **Model**: `gemini-3-flash-preview`
+- **Model**: `gemini-flash-latest`
 - **Max Output Tokens**: 8192
 - **Automatic Function Calling**: Disabled (manual control)
 
@@ -121,5 +121,5 @@ Used by the brainstorm endpoint (`src/app/api/v1/endpoints/brainstorm.py`) to ha
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `BASH_AGENT_MODEL` | `"gemini-3-flash-preview"` | The model used for bash agent |
+| `BASH_AGENT_MODEL` | `"gemini-flash-latest"` | The model used for bash agent |
 | `MAX_TURNS` | `10` | Maximum number of agent turns |

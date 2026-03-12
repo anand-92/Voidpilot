@@ -23,7 +23,7 @@ def search_project_context(
     logger.info("Searching project context for: %s", query)
 
     response = client.models.generate_content(
-        model="gemini-3-flash-preview",
+        model="gemini-flash-latest",
         contents=query,
         config=types.GenerateContentConfig(
             tools=[types.Tool(

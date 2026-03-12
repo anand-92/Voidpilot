@@ -9,7 +9,7 @@ from google.genai import types
 
 logger = logging.getLogger(__name__)
 
-BASH_AGENT_MODEL = "gemini-3-flash-preview"
+BASH_AGENT_MODEL = "gemini-flash-latest"
 MAX_TURNS = 10
 
 _SYSTEM_PROMPT = """\

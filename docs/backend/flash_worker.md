@@ -102,7 +102,7 @@ Generates a video using Veo 3.1.
 | Key | Label | API Model | Supports Grounding |
 |-----|-------|-----------|-------------------|
 | `gemini-3.1-flash-lite` | Gemini 3.1 Flash Lite | `gemini-3.1-flash-lite-preview` | Yes |
-| `gemini-3-flash` | Gemini 3 Flash | `gemini-3-flash-preview` | Yes |
+| `gemini-3-flash` | Gemini 3 Flash | `gemini-flash-latest` | Yes |
 | `gemini-3.1-pro` | Gemini 3.1 Pro | `gemini-3.1-pro-preview` | Yes |
 
 ### Image Model
@@ -173,7 +173,7 @@ Video Prompt → generate_video() → Video Bytes
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `FLASH_LITE_MODEL` | `"gemini-3.1-flash-lite-preview"` | Default text model |
-| `FLASH_MODEL` | `"gemini-3-flash-preview"` | Alternative text model |
+| `FLASH_MODEL` | `"gemini-flash-latest"` | Alternative text model |
 | `FLASH_PRO_MODEL` | `"gemini-3.1-pro-preview"` | Pro text model |
 | `FLASH_IMAGE_MODEL` | `"gemini-3.1-flash-image-preview"` | Image generation model |
 | `VEO_VIDEO_MODEL` | `"veo-3.1-generate-preview"` | Video generation model |
