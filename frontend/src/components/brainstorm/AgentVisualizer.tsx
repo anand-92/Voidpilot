@@ -30,6 +30,42 @@ const ZOOM = 5
 const COLS = 10
 const ROWS = 6
 
+// ── Agent Speech Text Maps ──────────────────────────────────
+const AGENT_DIALOGUE = {
+  Gemini: {
+    active: [
+      "Listening...",
+      "I can help with that",
+      "Let me think...",
+      "Analyzing...",
+      "On it!"
+    ],
+    idle: [
+      "Just chilling",
+      "Zzz...",
+      "Nice office",
+      "Ready when you are",
+      "Waiting for input..."
+    ]
+  },
+  Flash: {
+    active: [
+      "Generating...",
+      "Writing code...",
+      "Almost done...",
+      "Compiling...",
+      "Working on it!"
+    ],
+    idle: [
+      "Waiting for task",
+      "Need anything?",
+      "Taking a break",
+      "All caught up",
+      "Standing by"
+    ]
+  }
+} as const;
+
 interface ToastAgent {
   name: string
   label: string
@@ -46,6 +82,8 @@ interface ToastAgent {
   seatY: number
   isActive: boolean
   wanderTimer: number
+  bubbleText: string | null
+  bubbleTimer: number
 }
 
 function createAgent(name: string, label: string, color: string, seatCol: number, seatRow: number): ToastAgent {
@@ -59,6 +97,8 @@ function createAgent(name: string, label: string, color: string, seatCol: number
     seatX: sx, seatY: sy,
     isActive: false,
     wanderTimer: 2 + Math.random() * 3,
+    bubbleText: null,
+    bubbleTimer: Math.random() * 5,
   }
 }
 
@@ -123,6 +163,29 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       if (agent.frameTimer >= animDef.speed) {
         agent.frameTimer -= animDef.speed
         agent.frame = (agent.frame + 1) % animDef.frames
+      }
+
+      // --- Speech Bubble Update ---
+      agent.bubbleTimer -= dt
+      if (agent.bubbleTimer <= 0) {
+        if (agent.bubbleText) {
+          // Hide text for a while
+          agent.bubbleText = null
+          agent.bubbleTimer = 2 + Math.random() * 5 // Wait 2-7s before speaking again
+        } else {
+          // Show new text based on state
+          const dialogMap = AGENT_DIALOGUE[agent.name as keyof typeof AGENT_DIALOGUE]
+          if (dialogMap) {
+            const list = shouldBeActive ? dialogMap.active : dialogMap.idle
+            // Only 40% chance to say something when idle
+            if (shouldBeActive || Math.random() > 0.6) {
+                agent.bubbleText = list[Math.floor(Math.random() * list.length)]
+                agent.bubbleTimer = 3 + Math.random() * 3 // Show for 3-6s
+            } else {
+                agent.bubbleTimer = 3 + Math.random() * 5
+            }
+          }
+        }
       }
 
       // Movement
@@ -276,6 +339,57 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       ctx.font = `${Math.max(7, ZOOM * 2.5)}px monospace`
       ctx.fillStyle = '#888'
       ctx.fillText(agent.label, ox + agent.x * ZOOM, oy + agent.y * ZOOM + 4 * ZOOM + ZOOM * 3.5)
+
+      // --- Draw Speech Bubble ---
+      if (agent.bubbleText) {
+          ctx.font = `bold ${Math.max(8, ZOOM * 2.5)}px monospace`
+          const metrics = ctx.measureText(agent.bubbleText)
+          const padX = 8 * (ZOOM / 3)
+          const padY = 6 * (ZOOM / 3)
+          const bw = metrics.width + padX * 2
+          const bh = 12 * (ZOOM / 3) + padY * 2
+          
+          // Position above head, adjusting if it goes offscreen is complex here, 
+          // let's just draw it relative to the agent sprite.
+          const bx = ox + agent.x * ZOOM - bw / 2
+          const by = drawY - bh - 5 * ZOOM // slightly above the sprite
+          
+          ctx.save()
+          ctx.fillStyle = 'rgba(20, 20, 30, 0.85)'
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+          ctx.lineWidth = 1 * (ZOOM / 2)
+          
+          // Draw rounded rect
+          const radius = 6 * (ZOOM / 3)
+          ctx.beginPath()
+          ctx.moveTo(bx + radius, by)
+          ctx.lineTo(bx + bw - radius, by)
+          ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + radius)
+          ctx.lineTo(bx + bw, by + bh - radius)
+          ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - radius, by + bh)
+          
+          // Draw pointer triangle
+          const tx = bx + bw / 2
+          ctx.lineTo(tx + 4 * (ZOOM / 3), by + bh)
+          ctx.lineTo(tx, by + bh + 4 * (ZOOM / 3))
+          ctx.lineTo(tx - 4 * (ZOOM / 3), by + bh)
+          
+          ctx.lineTo(bx + radius, by + bh)
+          ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - radius)
+          ctx.lineTo(bx, by + radius)
+          ctx.quadraticCurveTo(bx, by, bx + radius, by)
+          ctx.closePath()
+          
+          ctx.fill()
+          ctx.stroke()
+          
+          // Draw Text
+          ctx.fillStyle = '#f3f4f6' // tailwind gray-100
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(agent.bubbleText, bx + bw / 2, by + bh / 2 + 1)
+          ctx.restore()
+      }
     }
 
     const loop = (time: number) => {
