@@ -7,9 +7,8 @@ export const SAMPLE_RATE = 24000
 export const AUDIO_BUFFER_SIZE = 512
 export const MIC_TARGET_RATE = 16000
 
-const isElectron = window.electronAPI !== undefined
-const wsProtocol = isElectron ? 'wss:' : window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-const wsHost = isElectron ? 'voidpilot-bcz5ilsa6q-ue.a.run.app' : window.location.host
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+const wsHost = window.location.host
 export const API_BASE_URL = `${wsProtocol}//${wsHost}`
 
 export function pcm16ToFloat32(pcmData: Int16Array): Float32Array {

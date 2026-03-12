@@ -56,8 +56,8 @@ const indexCards = [
 ];
 
 const socialProofItems = [
-  'Voice + Vision in Real-time',
-  'Desktop Automation via Gemini',
+  'Voice in Real-time',
+  'AI-Powered Assistance',
   '3D Scene Generation',
   'Hackathon Ready',
   'Multimodal Agents',

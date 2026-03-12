@@ -8,8 +8,6 @@ import { PulseDot } from './PulseDot';
 import { sectionVariants } from './LandingConstants';
 
 export function HeroSection({ onLaunch }: { onLaunch: () => void }) {
-  const isElectron = /electron/i.test(navigator.userAgent.toLowerCase()) || window.electronAPI !== undefined;
-
   return (
     <motion.div
       className="absolute inset-x-0 top-16 bottom-0 flex flex-col items-center justify-center px-4 md:px-6 text-center"
@@ -24,7 +22,7 @@ export function HeroSection({ onLaunch }: { onLaunch: () => void }) {
           className="group relative mb-4 md:mb-8 h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-3 md:px-5 py-1.5 md:py-2 text-[10px] md:text-xs font-medium tracking-widest text-amber-200 uppercase pointer-events-auto transition-all hover:bg-amber-500/20 hover:scale-105"
         >
           <PulseDot />
-          Voidpilot — Live AI Desktop Agent
+          Voidpilot — Live AI Assistant
         </Badge>
       </BlurFade>
 
@@ -48,22 +46,19 @@ export function HeroSection({ onLaunch }: { onLaunch: () => void }) {
 
       <BlurFade delay={0.25}>
         <p className="mt-3 md:mt-6 max-w-2xl text-sm text-stone-300 sm:text-lg md:text-xl font-normal leading-relaxed pointer-events-auto drop-shadow-[0_1px_12px_rgba(0,0,0,0.35)]">
-          Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
+          Talk to Gemini and let it assist you — all in real time.
         </p>
       </BlurFade>
 
       <BlurFade delay={0.35}>
-        <motion.a
-          href={isElectron ? "#/" : "https://github.com/anand-92/gemini-live-3d-bridge/releases/latest"}
-          target={isElectron ? undefined : "_blank"}
-          rel={isElectron ? undefined : "noreferrer"}
-          onClick={isElectron ? onLaunch : undefined}
+        <motion.button
+          onClick={onLaunch}
           className="mt-6 md:mt-10 inline-flex items-center gap-2 rounded-full bg-amber-600 px-6 md:px-8 py-2.5 md:py-3 text-sm md:text-base font-semibold text-stone-950 hover:bg-amber-500 transition-all pointer-events-auto shadow-[0_8px_30px_rgba(217,119,6,0.25)]"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.97 }}
         >
-          {isElectron ? "Launch App" : "Download App"} <GeminiArrowRight className="h-5 w-5" />
-        </motion.a>
+          Get Started <GeminiArrowRight className="h-5 w-5" />
+        </motion.button>
       </BlurFade>
     </motion.div>
   );

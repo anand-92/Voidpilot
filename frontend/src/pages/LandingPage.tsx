@@ -4,7 +4,7 @@ import { useWebHaptics } from 'web-haptics/react';
 import { GeminiArrowLeft } from '../components/icons/GeminiIcons';
 import { ThreeBackground } from '../components/ThreeBackground';
 import { CustomCursor } from '../components/CustomCursor';
-import { GeminiLiveLogo, CustomIconDownload } from '../components/icons/CustomIcons';
+import { GeminiLiveLogo } from '../components/icons/CustomIcons';
 import WalkthroughModal from '../components/WalkthroughModal';
 import { Button } from '@/components/ui/button';
 import { DotPattern } from '@/components/ui/dot-pattern';
@@ -91,15 +91,6 @@ export default function LandingPage() {
             </div>
 
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-stone-300">
-              <Button
-                variant="outline"
-                size="sm"
-                render={<a href="https://github.com/anand-92/gemini-live-3d-bridge/releases/latest" target="_blank" rel="noreferrer" />}
-                className="gap-2 rounded-full border-stone-700 bg-stone-800/60 hover:bg-stone-800 pointer-events-auto"
-              >
-                <CustomIconDownload data-icon="inline-start" />
-                Download
-              </Button>
             </div>
           </div>
         </header>

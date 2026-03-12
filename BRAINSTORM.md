@@ -51,7 +51,7 @@ The key architectural insight: **Gemini Live should never block on artifact work
 │                ▼                                     │
 │   ┌─────────────────────┐                           │
 │   │  Artifact Storage   │                           │
-│   │  Electron: local fs │                           │
+│   │  In-memory         │                           │
 │   │  Web: virtual ws    │                           │
 │   └─────────────────────┘                           │
 └─────────────────────────────────────────────────────┘
@@ -91,13 +91,12 @@ For brainstorm artifacts, we use:
 
 Brainstorm Mode works in **both** deployment targets with platform-appropriate artifact handling:
 
-| | Electron (Desktop) | Web (Cloud Run) |
-|---|---|---|
-| **Artifact storage** | Written directly to the local filesystem via Electron IPC | Held in-memory on the backend, served to a virtual workspace UI |
-| **File access** | User chooses a folder; files appear in Finder/Explorer instantly | Virtual workspace panel shows all artifacts; download individually or as .zip |
-| **Image generation** | Saved as local `.png` files alongside the markdown | Served as base64 or temporary URLs in the workspace |
-| **Session persistence** | Files persist on disk after session ends | Artifacts live for the session duration; user must download to keep them |
-| **Midscene integration** | Available — Voidpilot can see screen context while brainstorming | N/A — web mode is audio-only |
+| | Web (Cloud Run) |
+|---|---|
+| **Artifact storage** | Held in-memory on the backend, served to a virtual workspace UI |
+| **File access** | Virtual workspace panel shows all artifacts; download individually or as .zip |
+| **Image generation** | Served as base64 or temporary URLs in the workspace |
+| **Session persistence** | Artifacts live for the session duration; user must download to keep them |
 
 ---
 
@@ -106,7 +105,7 @@ Brainstorm Mode works in **both** deployment targets with platform-appropriate a
 - **Activation**: Brainstorm Mode lives on its own route (`/#/brainstorm`) with a dedicated layout — separate from the main assistant view at `/#/app`.
 - **Artifact updates**: Flash Lite always **rewrites the full document** on each save. Simpler, and Flash Lite sees the full picture each time. The `mode` param on the tool is kept for future incremental support but MVP always does a full rewrite.
 - **Web preview**: Full inline preview from day one — rendered markdown via `react-markdown` and displayed images in the workspace panel. Not just a file list.
-- **System prompt**: Brainstorm mode **completely replaces** the assistant prompt. No weather, bash, or midscene tools — it's a focused brainstorming experience with only the brainstorm tool set.
+- **System prompt**: Brainstorm mode **completely replaces** the assistant prompt. It's a focused brainstorming experience with only the brainstorm tool set.
 
 ---
 
@@ -384,36 +383,10 @@ async def handle_delegate(task: str, context: str, output_format: str = "markdow
 
 ```
 Client connects to /api/v1/live/brainstorm → backend creates GeminiLive with brainstorm system prompt + tools
-Client sends { type: "platform_info", platform: "electron" | "web", outputDir?: string }
 
 Tool response arrives from Flash Lite worker → backend:
-  → push artifact payload to frontend via WebSocket (always)
-  if platform == "electron":
-    → frontend writes to local filesystem via Electron IPC
-    → file appears in user's chosen folder immediately
-  if platform == "web":
-    → frontend holds artifact in React state for virtual workspace display
-    → all downloads (single + zip) happen client-side
-```
-
-#### Electron Path (Local Filesystem)
-
-New IPC handler in `main.ts`:
-
-```typescript
-ipcMain.handle('write-brainstorm-file', async (_, args: { dir: string, filename: string, content: string | Buffer }) => {
-  const filePath = join(args.dir, args.filename)
-  await fs.promises.mkdir(dirname(filePath), { recursive: true })
-  await fs.promises.writeFile(filePath, args.content)
-  return filePath
-})
-```
-
-New preload exposure:
-
-```typescript
-writeBrainstormFile: (args: { dir: string; filename: string; content: string | Buffer }) =>
-  ipcRenderer.invoke('write-brainstorm-file', args)
+  → push artifact payload to frontend via WebSocket
+  → frontend holds artifact in React state for virtual workspace display
 ```
 
 #### Web Path (Virtual Workspace) — Detailed Walkthrough
@@ -547,32 +520,29 @@ Brainstorm Mode gets its own route in `main.tsx` and its own WebSocket endpoint:
 Brainstorm Mode uses a **separate WebSocket endpoint** (`/api/v1/live/brainstorm`) rather than sharing `/api/v1/live/ws`. This is cleaner than a `brainstorm_init` message because the current backend creates the `GeminiLive` instance (with system prompt and tools) before reading any client messages — a dynamic switch isn't possible without restructuring the handler. A dedicated endpoint keeps both code paths clean.
 
 ```
-/api/v1/live/ws          → existing assistant mode (weather, midscene, bash tools)
+/api/v1/live/live        → main live assistant (voice conversation)
 /api/v1/live/brainstorm  → brainstorm mode (save_brainstorm_artifact, generate_brainstorm_image, delegate_to_flash)
 ```
 
 The `BrainstormPage` component has its own layout optimized for brainstorming:
-- No screen sharing controls, no display picker, no Midscene settings
+- No screen sharing controls — focused brainstorm experience
 - Voice controls (mic, connect/disconnect) on the left or top
 - Conversation transcript in the center
 - Artifact workspace panel on the right (full inline preview)
 
 ### 8. Frontend — UI Components
 
-#### Electron: Artifact Sidebar
+The `BrainstormPage` component has its own layout optimized for brainstorming:
 
-The `BrainstormPage` layout in Electron includes:
-
-- Folder picker (where to save artifacts — uses Electron `dialog.showOpenDialog`)
-- Live list of generated files with open-in-finder buttons
-- Inline markdown preview of the current brainstorm document
+- No screen sharing controls — focused brainstorm experience
+- Voice controls (mic, connect/disconnect) on the left or top
+- Conversation transcript in the center
+- Artifact workspace panel on the right (full inline preview)
 - Status indicators showing when Flash Lite workers are active
-- **"Save snapshot" button** — sends a system-level text message to Gemini (e.g., `"[SYSTEM: User requested a brainstorm save. Call save_brainstorm_artifact now with all current ideas.]"`) as a manual save trigger, complementing Gemini's autonomous saves
-- No screen sharing / Midscene controls — focused brainstorm experience
+- **"Save snapshot" button** — sends a system-level text message to Gemini as a manual save trigger
+- Warning banner: "Artifacts are stored in your session. Download before disconnecting."
 
-#### Web: Virtual Workspace Panel
-
-The `BrainstormPage` layout in web mode includes a right-side workspace panel with full inline preview:
+The workspace panel includes:
 
 - File tree of all session artifacts (updates in real-time as artifacts arrive over WebSocket)
 - Markdown rendered inline via `react-markdown` (new dependency — must be added to `package.json`) for `.md` files
@@ -625,13 +595,12 @@ The `BrainstormPage` layout in web mode includes a right-side workspace panel wi
 3. Implement backend tool handler with Flash Lite delegation + `scheduling: "SILENT"`
 4. Create **separate WebSocket endpoint** at `/api/v1/live/brainstorm` with brainstorm-specific system prompt and tools
 5. Add `session_resumption` to brainstorm endpoint's `LiveConnectConfig` (not yet configured in codebase)
-6. Wire up platform-aware artifact routing (Electron IPC + Web in-memory → WebSocket push)
+6. Wire up platform-aware artifact routing (WebSocket push to frontend)
 7. Add dedicated brainstorm system prompt (replaces default assistant prompt entirely)
 8. Create `/#/brainstorm` route with `BrainstormPage` component (note: `/#/app` doesn't exist yet in web mode — only `/#/` → LandingPage)
 9. Install `react-markdown` and `jszip` as new frontend dependencies
 10. Build workspace panel with inline markdown preview + client-side download (single + zip via JSZip)
 11. Add **"Save snapshot" button** — sends system-level text to Gemini as manual save trigger
-12. Electron: add `write-brainstorm-file` IPC handler + folder picker UI
 
 ### Phase 2: Image Artifacts + Delegation
 
@@ -643,7 +612,7 @@ The `BrainstormPage` layout in web mode includes a right-side workspace panel wi
 
 ### Phase 3: Polish
 
-1. Brainstorm session list — view past brainstorms (Electron: scan folder; Web: session history)
+1. Brainstorm session list — view past brainstorms (session history)
 2. Session resumption — load previous artifact as context for a new session
 3. Export to PDF option
 4. Google Search grounding — let Gemini research mid-brainstorm via `delegate_to_flash`
@@ -672,5 +641,5 @@ This feature fits the **Live Agent** category:
 **Scoring alignment:**
 
 - **Innovation & Multimodal UX (40%)**: Voice-driven brainstorm with real-time artifact generation that **never interrupts the conversation**. The async two-model architecture is a novel pattern. Dual-mode (desktop local files + web virtual workspace) shows platform awareness.
-- **Technical Implementation (30%)**: Live API + NON_BLOCKING tool calling + Flash Lite worker pool + image generation + structured output + context compression + Electron IPC — deep integration across multiple Google APIs and platform layers.
+- **Technical Implementation (30%)**: Live API + NON_BLOCKING tool calling + Flash Lite worker pool + image generation + structured output + context compression — deep integration across multiple Google APIs.
 - **Demo & Presentation (30%)**: Highly demo-friendly. User talks about an idea, the conversation flows naturally, and artifacts silently materialize in the background. Desktop demo shows files appearing in Finder mid-conversation. Web demo shows the virtual workspace filling up. The "never blocks" behavior is the wow factor.

@@ -2,14 +2,11 @@ import asyncio
 import base64
 import logging
 import traceback
-import uuid
 
 from fastapi import APIRouter, WebSocket
 
 from src.app.core.config import settings
-from src.app.services.bash_agent import run_bash_agent
 from src.app.services.gemini_audio import GeminiLive
-from src.app.services.tool_defs import BASH_AGENT_TOOL_DEF, MIDSCENE_TOOL_DEF
 from src.app.services.ws_manager import WebSocketManager
 
 logger = logging.getLogger(__name__)
@@ -18,12 +15,10 @@ router = APIRouter()
 
 MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 MAX_RETRIES = 3
-TOOL_CALL_TIMEOUT = 60.0
-
 
 
 @router.websocket("/live")
-async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
+async def gemini_live_ws(websocket: WebSocket):
     """WebSocket endpoint for Gemini Live connection."""
     logger.info("New Gemini Live WebSocket connection request")
     await websocket.accept()
@@ -33,91 +28,12 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
     manager = WebSocketManager(websocket, "Live")
     pending_tool_calls: dict[str, asyncio.Future] = {}
 
-    async def execute_midscene_action(action: str) -> str:
-        call_id = str(uuid.uuid4())
-        future = asyncio.get_running_loop().create_future()
-        pending_tool_calls[call_id] = future
-
-        try:
-            logger.info(f"Sending tool call {call_id} to client: {action}")
-            await manager.send_to_client(
-                {
-                    "type": "tool_call",
-                    "name": "execute_midscene_action",
-                    "call_id": call_id,
-                    "args": {"action": action},
-                }
-            )
-
-            result = await asyncio.wait_for(future, timeout=TOOL_CALL_TIMEOUT)
-            logger.info(f"Tool result for {call_id}: {result}")
-            return str(result)
-        except TimeoutError:
-            logger.error(f"Tool call {call_id} timed out after {TOOL_CALL_TIMEOUT}s")
-            return "Error: Action execution timed out"
-        except Exception as e:
-            logger.error(f"Tool call {call_id} failed: {e}")
-            return f"Error: {e}"
-        finally:
-            pending_tool_calls.pop(call_id, None)
-
-    async def run_bash(command: str, timeout: int = 30) -> str:
-        call_id = str(uuid.uuid4())
-        future = asyncio.get_running_loop().create_future()
-        pending_tool_calls[call_id] = future
-
-        effective_timeout = max(TOOL_CALL_TIMEOUT * 2, timeout + 120)
-
-        try:
-            logger.info(
-                "Sending run_bash %s to client for confirmation: %s",
-                call_id,
-                command,
-            )
-            await manager.send_to_client(
-                {
-                    "type": "tool_call",
-                    "name": "run_bash",
-                    "call_id": call_id,
-                    "args": {"command": command, "timeout": timeout},
-                }
-            )
-
-            result = await asyncio.wait_for(future, timeout=effective_timeout)
-            logger.info("run_bash result for %s: %s", call_id, result)
-            return str(result)
-        except TimeoutError:
-            logger.error(
-                "run_bash %s timed out after %ss",
-                call_id,
-                effective_timeout,
-            )
-            return (
-                "Error: Command confirmation timed out — "
-                "user did not approve or deny in time"
-            )
-        except Exception as e:
-            logger.error("run_bash %s failed: %s", call_id, e)
-            return f"Error: {e}"
-        finally:
-            pending_tool_calls.pop(call_id, None)
-
-    async def handle_bash_agent(task: str) -> str:
-        return await run_bash_agent(
-            task=task,
-            api_key=api_key,
-            execute_bash_fn=run_bash,
-        )
-
     gemini_client = GeminiLive(
         api_key=api_key,
         model=MODEL,
         input_sample_rate=16000,
-        tools=[MIDSCENE_TOOL_DEF, BASH_AGENT_TOOL_DEF],
-        tool_mapping={
-            "execute_midscene_action": execute_midscene_action,
-            "bash_agent": handle_bash_agent,
-        },
+        tools=[],
+        tool_mapping={},
     )
 
     async def handle_client_message(payload: dict) -> bool:
@@ -196,6 +112,7 @@ async def gemini_live_ws(websocket: WebSocket):  # noqa: C901
             await websocket.close()
         except Exception:
             pass
+
 
 @router.websocket("/ping")
 async def ping_pong(websocket: WebSocket):

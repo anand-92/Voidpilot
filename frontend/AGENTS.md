@@ -20,21 +20,21 @@ This directory houses all React components. It's organized to prevent god-compon
     *   `BrainstormLayouts.tsx`: Defines `BrainstormLayoutProps` type for both desktop and mobile layouts.
     *   `BrainstormDesktopLayout.tsx`: Desktop layout with AgentVisualizer (top 55%), WorkspacePanel (bottom), and ConversationPanel + Controls (right sidebar).
     *   `BrainstormMobileLayout.tsx`: Mobile-responsive layout with tabbed Chat/Workspace views.
-    *   `AgentVisualizer.tsx`: **NEW** - Canvas-based pixel-art office renderer with animated "Gemini" and "Flash" agents, speech bubbles, collision detection, and wander behavior.
+    *   `AgentVisualizer.tsx`: Canvas-based pixel-art office renderer with animated "Gemini" and "Flash" agents, speech bubbles, collision detection, and wander behavior.
     *   `WorkspacePanel.tsx`: Displays generated artifacts (images, videos, markdown) with preview, download individual/ZIP functionality.
     *   `ArtifactRow.tsx`: Individual artifact card with thumbnail, filename, size, and download button.
     *   `ArtifactPreview.tsx`: Preview component for selected artifacts with markdown rendering and shine borders.
     *   `ConversationPanel.tsx`: Chat message display area with scrollable history.
     *   `ActivitySpinner.tsx`: Animated loading indicator.
     *   `utils.ts`: Helper functions for file size formatting, blob conversion, and ZIP download.
-    *   **`pixelOffice/`** (NEW): Pixel-art office rendering system
+    *   **`pixelOffice/`**: Pixel-art office rendering system
         *   `types.ts`: Interfaces for Characters, FurnitureInstance, SpriteData, animation states
         *   `spriteData.ts`: Hardcoded pixel sprites for furniture (desk, chair, PC, plant) and character animations
         *   `spriteCache.ts`: Off-screen canvas caching for crisp pixel rendering
         *   `renderer.ts`: Main 2D canvas renderer with floor tiles, furniture, characters, speech bubbles, z-sorting
 
-*   **`landing/`**: Components for the web-only Landing Page.
-    *   `HeroSection.tsx`: Main hero with animated text roller, pulsing badge, launch/download button.
+*   **`landing/`**: Components for the Landing Page.
+    *   `HeroSection.tsx`: Main hero with animated text roller, pulsing badge.
     *   `IndexView.tsx`: Main index combining hero, navigation grid, and social proof marquee.
     *   `CapabilitiesSection.tsx`: Core app capabilities using animated tilt cards.
     *   `EnhancedTiltCard.tsx`: Reusable 3D tilt card with mouse-tracking perspective transform.
@@ -43,16 +43,15 @@ This directory houses all React components. It's organized to prevent god-compon
     *   `LandingConstants.ts`: Section IDs, scroll mappings, animation variants.
     *   `useAnimatedScroll.ts`: Custom hook for smooth animated scroll transitions.
 
-*   **`shadcn-space/`** (NEW): Additional animated components
+*   **`shadcn-space/`**: Additional animated components
     *   `animated-text/animated-text-04.tsx`: AnimatedTextRoller cycling through hero phrases with color styling.
     *   `animated-text/constants.ts`: voidpilotHeroItems array with color definitions.
 
 *   **`icons/`**: Custom SVG icons.
     *   `CustomIcons.tsx`: Custom icon wrappers.
     *   `GeminiIcons.tsx`: Gemini-specific icons (e.g., GeminiStar).
-*   **Root level components**: These are typically major layout pieces or cross-cutting features used in Live mode:
+*   **Root level components**: These are typically major layout pieces or cross-cutting features:
     *   `ChatArea.tsx`: The primary messaging interface.
-    *   `ScreenSharePanel.tsx`: Electron-specific screen/region sharing UI.
     *   `ThreeBackground.tsx`: The core 3D visual background canvas.
     *   `WalkthroughModal.tsx`: The voice-focused walkthrough interface.
     *   `CustomCursor.tsx` & `SharedUI.tsx`: Global UI enhancements.
@@ -60,36 +59,26 @@ This directory houses all React components. It's organized to prevent god-compon
 ### `src/pages/` (Route Views)
 These are the top-level route components mounted by `main.tsx`.
 *   `BrainstormPage.tsx`: The main view for the `/brainstorm` route.
-*   `LandingPage.tsx`: The main view for the `/` route in the web environment.
-*   *(Note: The main Electron desktop view is `App.tsx` at the `src/` root, acting as both layout and page).*
+*   `LandingPage.tsx`: The main view for the `/` route.
 
 ### `src/hooks/` (State & Logic)
 Custom React hooks that extract complex logic, especially websocket communication and device APIs, away from the UI components.
 *   `useGeminiLive.ts`: Core transport and state for the main Live assistant websocket.
-    *   **Exports:** `MessageRole`, `Message`, `CaptureConfig`, `useGeminiLive()` hook
-    *   **Features:** WebSocket to `/api/v1/live/live`, mic/audio capture (16kHz/24kHz), screen sharing with region cropping, tool execution (Midscene, bash), loudness detection
+    *   **Exports:** `MessageRole`, `Message`, `useGeminiLive()` hook
+    *   **Features:** WebSocket to `/api/v1/live/live`, mic/audio capture (16kHz/24kHz), loudness detection
 *   `useGeminiBrainstorm.ts`: Transport and state for the Brainstorm mode websocket.
     *   **Exports:** `BRAINSTORM_TOOL_OPTIONS`, `BRAINSTORM_FLASH_MODEL_OPTIONS`, `BrainstormToolId`, `BrainstormFlashModel`, `BrainstormArtifact`, `useGeminiBrainstorm()` hook
     *   **Features:** WebSocket to `/api/v1/live/brainstorm`, artifact management (upsert by filename), Flash model selection, tool configuration, session resumption
 *   `useWalkthroughAgent.ts`: Voice-focused walkthrough mode.
     *   **Exports:** `useWalkthroughAgent()` hook
     *   **Features:** WebSocket to `/api/v1/live/walkthrough`, smoothed intensity visualization for VU meter
-*   `useScreenSharing.ts`: Electron-specific screen capture and region selection.
-    *   **Exports:** `ShareMode`, `useScreenSharing()` hook
-    *   **Features:** Desktop source selection, region picker integration, validation before start
 
 ### `src/lib/` & `src/utils/` (Helpers)
 *   **`src/lib/utils.ts`**: Contains the `cn()` utility used extensively for merging Tailwind classes (a shadcn/ui standard).
 *   **`src/utils/audio.ts`**: Audio processing utilities, specifically for handling the 24000Hz (playback) to 16000Hz (capture) resampling required by the Gemini backend.
 
-### Electron Specifics
-*   **`main.ts`**: The Electron main process entry point. Handles window creation, native dialogs, and the `@midscene/computer` lifecycle.
-*   **`preload.ts`**: The IPC bridge context.
-*   **`public/region-selector.html`**: A special un-sandboxed overlay used purely for the Electron screen region selection feature.
-
 ### Build & Tooling
 *   **`scripts/`**: Contains utility scripts like `generate-icons.mjs` used during the build process or for asset management.
-*   **`tests/`**: Contains Playwright e2e tests (`electron.spec.ts`).
 *   **`DESIGN_SYSTEM.md`**: The source of truth for the Dark Sci-Fi / Glass Morphism visual language. Read this before making any CSS changes.
 
 ## 🎯 Where to make your edits?
@@ -102,4 +91,3 @@ Custom React hooks that extract complex logic, especially websocket communicatio
 *   **Modifying landing page animations or tilt cards?** -> `src/components/landing/EnhancedTiltCard.tsx` or `src/components/shadcn-space/`.
 *   **Adding or modifying brainstorm tools?** -> Update `BRAINSTORM_TOOL_OPTIONS` in `useGeminiBrainstorm.ts` and the backend tool definitions in `src/app/services/tool_defs.py`.
 *   **Modifying what Tailwind classes are merged?** -> `src/lib/utils.ts`.
-*   **Adding a new native desktop feature?** -> Update `main.ts`, expose it in `preload.ts`, and define the types in `src/electron-env.d.ts`.

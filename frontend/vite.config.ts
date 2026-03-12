@@ -2,11 +2,10 @@ import path from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import electron from 'vite-plugin-electron/simple'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './', // Use relative paths for Electron
+  base: '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -15,22 +14,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    electron({
-      main: {
-        entry: 'main.ts',
-        vite: {
-          build: {
-            rollupOptions: {
-              external: ['@midscene/computer', 'dotenv'],
-            },
-          },
-        },
-      },
-      preload: {
-        input: 'preload.ts',
-      },
-      renderer: {},
-    }),
   ],
   server: {
     proxy: {
