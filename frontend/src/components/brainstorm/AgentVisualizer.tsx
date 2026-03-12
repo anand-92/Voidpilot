@@ -121,8 +121,8 @@ function createFurniture(): FurnitureInstance[] {
 
 export function AgentVisualizer({ intensityRef, isGenerating, isConnected, className, style }: AgentVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const geminiRef = useRef(createAgent('Gemini', 'Voice', '#fbbf24', 2, 3))
-  const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 7, 3))
+  const geminiRef = useRef(createAgent('Gemini', 'Voice', '#fbbf24', 2, 4))
+  const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 7, 4))
   const furnitureRef = useRef(createFurniture())
   const spriteImgRef = useRef<HTMLImageElement | null>(null)
   const lastTimeRef = useRef(0)
@@ -292,19 +292,14 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
           }
           // Lock on the "typing" animation (hide = working at desk)
         } else {
-          // Wander
+          // Stay in place - no wandering when not working
           if (agent.anim === 'walk') {
             agent.anim = 'idle'
             agent.frame = 0
           }
-          agent.wanderTimer -= dt
-          if (agent.wanderTimer <= 0) {
-            const tc = Math.max(0, Math.min(COLS - 1, Math.floor(agent.x / TILE_SIZE) + Math.floor(Math.random() * 5) - 2))
-            const tr = Math.max(1, Math.min(ROWS - 1, Math.floor(agent.y / TILE_SIZE) + Math.floor(Math.random() * 3) - 1))
-            agent.targetX = tc * TILE_SIZE + TILE_SIZE / 2
-            agent.targetY = tr * TILE_SIZE + TILE_SIZE / 2
-            agent.wanderTimer = 3 + Math.random() * 5
-          }
+          // Keep target at current position
+          agent.targetX = agent.x
+          agent.targetY = agent.y
         }
       }
     }
