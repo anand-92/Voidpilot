@@ -5,7 +5,9 @@ import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { PulsatingButton } from '@/components/ui/pulsating-button'
 import {
   BRAINSTORM_FLASH_MODEL_OPTIONS,
+  BRAINSTORM_TOOL_OPTIONS,
   type BrainstormFlashModel,
+  type BrainstormToolId,
 } from '../../hooks/useGeminiBrainstorm'
 import {
   GeminiMicOff,
@@ -19,6 +21,8 @@ type BrainstormControlsProps = {
   isStarting: boolean
   selectedFlashModel: BrainstormFlashModel
   setSelectedFlashModel: Dispatch<SetStateAction<BrainstormFlashModel>>
+  selectedTools: BrainstormToolId[]
+  setSelectedTools: Dispatch<SetStateAction<BrainstormToolId[]>>
   inputText: string
   setInputText: (value: string) => void
   handleSend: () => void
@@ -32,6 +36,8 @@ export function BrainstormControls({
   isStarting,
   selectedFlashModel,
   setSelectedFlashModel,
+  selectedTools,
+  setSelectedTools,
   inputText,
   setInputText,
   handleSend,
@@ -47,11 +53,38 @@ export function BrainstormControls({
     setSelectedFlashModel(BRAINSTORM_FLASH_MODEL_OPTIONS[nextIndex].value)
   }
 
+  const handleToolToggle = (toolId: BrainstormToolId) => {
+    setSelectedTools(prev => 
+      prev.includes(toolId)
+        ? prev.filter(t => t !== toolId)
+        : [...prev, toolId]
+    )
+  }
+
   const selectedModelLabel = BRAINSTORM_FLASH_MODEL_OPTIONS.find(opt => opt.value === selectedFlashModel)?.label ?? 'LITE'
 
   if (isMobile) {
     return (
       <>
+        {/* Tool selector - mobile */}
+        <div className="flex items-center gap-1.5 mb-3 px-1">
+          {BRAINSTORM_TOOL_OPTIONS.map(tool => (
+            <button
+              key={tool.id}
+              onClick={() => handleToolToggle(tool.id)}
+              disabled={isConnected || isStarting}
+              className={cn(
+                "flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
+                selectedTools.includes(tool.id)
+                  ? "bg-amber-600/80 text-stone-950"
+                  : "bg-white/[0.05] text-stone-400 border border-white/[0.08]"
+              )}
+            >
+              {tool.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-2">
           <div className="relative overflow-hidden rounded-2xl border border-white/[0.05] bg-white/[0.02]">
             {selectedFlashModel === 'gemini-3.1-pro' && (
@@ -129,6 +162,25 @@ export function BrainstormControls({
   // Unified Desktop Controls
   return (
     <div className="flex flex-col gap-3 p-4 shrink-0 border-t border-white/[0.08] bg-black/20 relative z-10">
+      {/* Tool selector - desktop */}
+      <div className="flex items-center gap-2">
+        {BRAINSTORM_TOOL_OPTIONS.map(tool => (
+          <button
+            key={tool.id}
+            onClick={() => handleToolToggle(tool.id)}
+            disabled={isConnected || isStarting}
+            className={cn(
+              "flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
+              selectedTools.includes(tool.id)
+                ? "bg-amber-600/80 text-stone-950 shadow-md"
+                : "bg-white/[0.05] text-stone-400 border border-white/[0.08] hover:bg-white/[0.08]"
+            )}
+          >
+            {tool.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center gap-2">
         {!isConnected ? (
           <ShimmerButton

@@ -1,7 +1,6 @@
 """Tests for GeminiLive tool scheduling and default tool fixes.
 
 Covers:
-- Bug 1: include_default_tools=False excludes weather tool
 - Bug 2: Dict handler results with 'scheduling' key are respected
 - Bug 3: String handler results still default to WHEN_IDLE
 - Bug 3b: FlashWorker None guard for response.text
@@ -13,122 +12,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.app.services.gemini_audio import GeminiLive
-
-
-# ── Bug 1: include_default_tools parameter ───────────────────────
-
-
-class TestIncludeDefaultTools:
-    """include_default_tools controls whether weather tool is
-    registered."""
-
-    def test_default_includes_weather(self):
-        """Default behavior (include_default_tools=True) includes
-        weather tool."""
-        gl = GeminiLive(
-            api_key="test",
-            model="test-model",
-            input_sample_rate=16000,
-        )
-
-        tool_names = {
-            fn["name"]
-            for t in gl.tools
-            for fn in t.get("function_declarations", [])
-        }
-        assert "get_weather" in tool_names
-        assert "get_weather" in gl.tool_mapping
-
-    def test_false_excludes_weather(self):
-        """include_default_tools=False starts with no tools."""
-        gl = GeminiLive(
-            api_key="test",
-            model="test-model",
-            input_sample_rate=16000,
-            include_default_tools=False,
-        )
-
-        tool_names = {
-            fn["name"]
-            for t in gl.tools
-            for fn in t.get("function_declarations", [])
-        }
-        assert "get_weather" not in tool_names
-        assert "get_weather" not in gl.tool_mapping
-
-    def test_false_with_custom_tools_only_has_custom(self):
-        """include_default_tools=False with custom tools only
-        registers those custom tools."""
-        custom_tools = [
-            {
-                "function_declarations": [
-                    {
-                        "name": "my_tool",
-                        "description": "A custom tool",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {},
-                        },
-                    }
-                ]
-            }
-        ]
-
-        gl = GeminiLive(
-            api_key="test",
-            model="test-model",
-            input_sample_rate=16000,
-            tools=custom_tools,
-            tool_mapping={"my_tool": lambda: "ok"},
-            include_default_tools=False,
-        )
-
-        tool_names = {
-            fn["name"]
-            for t in gl.tools
-            for fn in t.get("function_declarations", [])
-        }
-        assert tool_names == {"my_tool"}
-        assert "my_tool" in gl.tool_mapping
-        assert "get_weather" not in gl.tool_mapping
-
-    def test_true_with_custom_tools_merges(self):
-        """include_default_tools=True merges custom tools
-        with weather."""
-        custom_tools = [
-            {
-                "function_declarations": [
-                    {
-                        "name": "my_tool",
-                        "description": "Custom",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {},
-                        },
-                    }
-                ]
-            }
-        ]
-
-        gl = GeminiLive(
-            api_key="test",
-            model="test-model",
-            input_sample_rate=16000,
-            tools=custom_tools,
-            tool_mapping={"my_tool": lambda: "ok"},
-            include_default_tools=True,
-        )
-
-        tool_names = {
-            fn["name"]
-            for t in gl.tools
-            for fn in t.get("function_declarations", [])
-        }
-        assert "get_weather" in tool_names
-        assert "my_tool" in tool_names
-        assert "get_weather" in gl.tool_mapping
-        assert "my_tool" in gl.tool_mapping
-
 
 # ── Bug 2: Dict result scheduling is respected ───────────────────
 
@@ -161,7 +44,6 @@ async def test_dict_result_scheduling_respected():
                 "scheduling": "SILENT",
             }
         },
-        include_default_tools=False,
     )
 
     # Create a mock session that yields a tool_call, then
@@ -257,7 +139,6 @@ async def test_string_result_defaults_to_when_idle():
         tool_mapping={
             "string_tool": lambda: "plain string result"
         },
-        include_default_tools=False,
     )
 
     captured_responses = []
@@ -418,13 +299,12 @@ async def test_generate_image_empty_candidates_raises():
             await worker.generate_image(prompt="test")
 
 
-# ── Brainstorm endpoint uses include_default_tools=False ─────────
+# ── Brainstorm endpoint has no default tools ─────────────────────
 
 
 @pytest.mark.asyncio
-async def test_brainstorm_endpoint_excludes_default_tools():
-    """Brainstorm endpoint passes include_default_tools=False
-    to GeminiLive, so weather tool is not registered."""
+async def test_brainstorm_endpoint_no_default_tools():
+    """Brainstorm endpoint starts with no default tools."""
     import time
     from unittest.mock import patch
 
@@ -459,4 +339,5 @@ async def test_brainstorm_endpoint_excludes_default_tools():
             time.sleep(0.5)
 
     call_kwargs = MockGeminiLive.call_args[1]
-    assert call_kwargs["include_default_tools"] is False
+    # Brainstorm should only have custom tools, no defaults
+    assert call_kwargs.get("tools") is not None

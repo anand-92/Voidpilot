@@ -29,6 +29,8 @@ export function BrainstormMobileLayout({
   currentArtifact,
   selectedFlashModel,
   setSelectedFlashModel,
+  selectedTools,
+  setSelectedTools,
   messagesEndRef,
   setInputText,
   setSelectedArtifact,
@@ -126,6 +128,8 @@ export function BrainstormMobileLayout({
                 isStarting={isStarting}
                 selectedFlashModel={selectedFlashModel}
                 setSelectedFlashModel={setSelectedFlashModel}
+                selectedTools={selectedTools}
+                setSelectedTools={setSelectedTools}
                 inputText={inputText}
                 setInputText={setInputText}
                 handleSend={handleSend}

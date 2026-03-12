@@ -21,6 +21,8 @@ export function BrainstormDesktopLayout({
   currentArtifact,
   selectedFlashModel,
   setSelectedFlashModel,
+  selectedTools,
+  setSelectedTools,
   messagesEndRef,
   setInputText,
   setSelectedArtifact,
@@ -72,6 +74,8 @@ export function BrainstormDesktopLayout({
           isStarting={isStarting}
           selectedFlashModel={selectedFlashModel}
           setSelectedFlashModel={setSelectedFlashModel}
+          selectedTools={selectedTools}
+          setSelectedTools={setSelectedTools}
           inputText={inputText}
           setInputText={setInputText}
           handleSend={handleSend}

@@ -93,17 +93,18 @@ class TestToolDeclarations:
         ]
         assert set(params["required"]) == {"task", "context"}
 
-    def test_brainstorm_tools_has_all_three(self):
-        """BRAINSTORM_TOOLS contains exactly the three brainstorm
+    def test_brainstorm_tools_has_all_four(self):
+        """BRAINSTORM_TOOLS contains the four brainstorm
         tool declarations."""
         decls = BRAINSTORM_TOOLS[0]["function_declarations"]
         names = {d["name"] for d in decls}
         assert names == {
             "save_brainstorm_artifact",
             "generate_brainstorm_image",
+            "generate_brainstorm_video",
             "delegate_to_flash",
         }
-        assert len(decls) == 3
+        assert len(decls) == 4
 
 
 # ── System prompt test ───────────────────────────────────────────
@@ -509,6 +510,7 @@ async def test_brainstorm_registers_only_brainstorm_tools():
     assert tool_names == {
         "save_brainstorm_artifact",
         "generate_brainstorm_image",
+        "generate_brainstorm_video",
         "delegate_to_flash",
     }
 
@@ -517,6 +519,7 @@ async def test_brainstorm_registers_only_brainstorm_tools():
     assert set(tool_mapping.keys()) == {
         "save_brainstorm_artifact",
         "generate_brainstorm_image",
+        "generate_brainstorm_video",
         "delegate_to_flash",
     }
 

@@ -3,31 +3,10 @@ import inspect
 import logging
 import traceback
 
-import httpx
 from google import genai
 from google.genai import types
 
 logger = logging.getLogger(__name__)
-
-GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
-WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
-
-
-def _weather_code_desc(code: int) -> str:
-    """Map Open-Meteo weather code to human-readable description."""
-    match code:
-        case 0:
-            return "Clear sky"
-        case c if c <= 3:
-            return "Partly cloudy"
-        case c if c <= 49:
-            return "Foggy"
-        case c if c <= 69:
-            return "Rainy"
-        case c if c <= 79:
-            return "Snowy"
-        case _:
-            return "Stormy"
 
 
 async def _call_maybe_async(func, *args, **kwargs):
@@ -36,147 +15,6 @@ async def _call_maybe_async(func, *args, **kwargs):
         return await func(*args, **kwargs)
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
-
-
-async def get_weather(location: str, unit: str = "fahrenheit", days: int = 0) -> str:
-    """Get current weather or forecast for a location using Open-Meteo
-    (free, no API key)."""
-    try:
-        logger.info(
-            "get_weather called: location=%s, unit=%s, days=%d",
-            location,
-            unit,
-            days,
-        )
-
-        location_clean = location.split(",")[0].strip()
-        is_celsius = unit.lower() in ("c", "celsius")
-        temp_unit = "celsius" if is_celsius else "fahrenheit"
-
-        async with httpx.AsyncClient() as client:
-            # Geocode location to coordinates
-            geo_resp = await client.get(
-                GEOCODING_URL,
-                params={"name": location_clean, "count": 1},
-            )
-            geo_results = geo_resp.json().get("results")
-            if not geo_results:
-                return f"Could not find location: {location}"
-
-            place = geo_results[0]
-            lat, lon = place["latitude"], place["longitude"]
-            location_name = place["name"]
-
-            params: dict = {
-                "latitude": lat,
-                "longitude": lon,
-                "temperature_unit": temp_unit,
-            }
-
-            if days > 0:
-                return await _get_forecast(
-                    client, params, location_name, is_celsius, days
-                )
-            return await _get_current_weather(client, params, location_name, unit)
-    except Exception as e:
-        return f"Error getting weather: {e}"
-
-
-async def _get_forecast(
-    client: httpx.AsyncClient,
-    params: dict,
-    location_name: str,
-    is_celsius: bool,
-    days: int,
-) -> str:
-    """Fetch multi-day forecast from Open-Meteo."""
-    params["daily"] = "temperature_2m_max,temperature_2m_min,weather_code"
-    params["timezone"] = "auto"
-    params["forecast_days"] = min(days, 16)
-
-    resp = await client.get(WEATHER_URL, params=params)
-    daily = resp.json()["daily"]
-    unit_symbol = "°C" if is_celsius else "°F"
-
-    lines = [f"Weather forecast for {location_name}:"]
-    for i, (date, hi, lo, code) in enumerate(
-        zip(
-            daily["time"],
-            daily["temperature_2m_max"],
-            daily["temperature_2m_min"],
-            daily["weather_code"],
-            strict=False,
-        )
-    ):
-        if i == 0:
-            day_label = "Today"
-        elif i == 1:
-            day_label = "Tomorrow"
-        else:
-            day_label = date
-
-        desc = _weather_code_desc(code)
-        lines.append(
-            f"{day_label}: {desc}, High: {hi}{unit_symbol}, Low: {lo}{unit_symbol}"
-        )
-    return "\n".join(lines)
-
-
-async def _get_current_weather(
-    client: httpx.AsyncClient,
-    params: dict,
-    location_name: str,
-    unit: str,
-) -> str:
-    """Fetch current weather from Open-Meteo."""
-    params["current_weather"] = "true"
-
-    resp = await client.get(WEATHER_URL, params=params)
-    current = resp.json()["current_weather"]
-    desc = _weather_code_desc(current.get("weathercode", 0))
-    temp = current["temperature"]
-    wind = current["windspeed"]
-
-    return (
-        f"Current weather in {location_name}: {desc}, "
-        f"{temp}°{unit[0].upper()}, Wind: {wind} km/h"
-    )
-
-
-_WEATHER_TOOL_DECL = {
-    "name": "get_weather",
-    "behavior": "NON_BLOCKING",
-    "description": (
-        "Get the current weather or forecast for a location in"
-        " Fahrenheit. Use this when the user asks about weather."
-        " Set days=0 for current weather, or days=1-7 for forecast."
-    ),
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "location": {
-                "type": "string",
-                "description": (
-                    "The city name or location to get weather for"
-                    " (e.g., 'New York', 'London', 'Tokyo')"
-                ),
-            },
-            "unit": {
-                "type": "string",
-                "enum": ["celsius", "fahrenheit"],
-                "description": "Temperature unit - defaults to fahrenheit",
-            },
-            "days": {
-                "type": "integer",
-                "description": (
-                    "Number of days to forecast"
-                    " (0 for current weather, 1-7 for multi-day forecast)"
-                ),
-            },
-        },
-        "required": ["location"],
-    },
-}
 
 
 class GeminiLive:
@@ -191,7 +29,6 @@ class GeminiLive:
         tool_mapping=None,
         system_prompt=None,
         session_resumption_handle: str | None = None,
-        include_default_tools: bool = True,
     ):
         self.api_key = api_key
         self.model = model
@@ -202,12 +39,8 @@ class GeminiLive:
             api_key=api_key, http_options={"api_version": "v1beta"}
         )
 
-        if include_default_tools:
-            self.tools = [{"function_declarations": [_WEATHER_TOOL_DECL]}]
-            self.tool_mapping = {"get_weather": get_weather}
-        else:
-            self.tools = []
-            self.tool_mapping = {}
+        self.tools: list[dict] = []
+        self.tool_mapping: dict = {}
 
         if tools:
             for tool_def in tools:

@@ -115,6 +115,32 @@ IMAGE_TOOL_DEF = {
     },
 }
 
+VIDEO_TOOL_DEF = {
+    "name": "generate_brainstorm_video",
+    "behavior": "NON_BLOCKING",
+    "description": (
+        "Generate a video to support the brainstorm using Veo 3.1."
+        " Call this when a video would help illustrate an idea."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "prompt": {
+                "type": "string",
+                "description": (
+                    "Video generation prompt describing"
+                    " the scene and motion"
+                ),
+            },
+            "label": {
+                "type": "string",
+                "description": ("Short label describing what the video shows"),
+            },
+        },
+        "required": ["prompt", "label"],
+    },
+}
+
 DELEGATE_TOOL_DEF = {
     "name": "delegate_to_flash",
     "behavior": "NON_BLOCKING",
@@ -152,6 +178,7 @@ BRAINSTORM_TOOLS = [
         "function_declarations": [
             SAVE_ARTIFACT_TOOL_DEF,
             IMAGE_TOOL_DEF,
+            VIDEO_TOOL_DEF,
             DELEGATE_TOOL_DEF,
         ]
     }

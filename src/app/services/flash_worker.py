@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -10,6 +11,7 @@ FLASH_LITE_MODEL = "gemini-3.1-flash-lite-preview"
 FLASH_MODEL = "gemini-3-flash-preview"
 FLASH_PRO_MODEL = "gemini-3.1-pro-preview"
 FLASH_IMAGE_MODEL = "gemini-3.1-flash-image-preview"
+VEO_VIDEO_MODEL = "veo-3.1-generate-preview"
 FLASH_LITE_CONFIG = types.GenerateContentConfig(
     tools=[types.Tool(google_search=types.GoogleSearch())],
 )
@@ -156,3 +158,28 @@ class FlashWorker:
         )
 
         return await self._generate_text(prompt)
+
+    async def generate_video(self, prompt: str) -> bytes:
+        """Generate video via Veo 3.1 and return video bytes."""
+        logger.info("FlashWorker.generate_video: prompt=%r", prompt)
+
+        config = types.GenerateVideosConfig(
+            aspect_ratio="16:9",
+            duration_seconds="4",
+        )
+
+        operation = await self.client.aio.models.generate_videos(
+            model=VEO_VIDEO_MODEL,
+            prompt=prompt,
+            config=config,
+        )
+
+        while not operation.done:
+            logger.info("Waiting for video generation to complete...")
+            await asyncio.sleep(10)
+            operation = await self.client.operations.get(operation)
+
+        generated_video = operation.response.generated_videos[0]
+        await self.client.aio.files.download(file=generated_video.video)
+
+        return generated_video.video.video_bytes

@@ -8,7 +8,7 @@ export function formatFileSize(bytes: number): string {
 }
 
 export function getArtifactSize(artifact: BrainstormArtifact): number {
-  if (artifact.mimeType.startsWith('image/')) {
+  if (artifact.mimeType.startsWith('image/') || artifact.mimeType.startsWith('video/')) {
     return Math.floor((artifact.content.length * 3) / 4)
   }
   return new Blob([artifact.content]).size
@@ -26,7 +26,7 @@ export function downloadBlob(blob: Blob, filename: string) {
 }
 
 export function artifactToBlob(artifact: BrainstormArtifact): Blob {
-  if (artifact.mimeType.startsWith('image/')) {
+  if (artifact.mimeType.startsWith('image/') || artifact.mimeType.startsWith('video/')) {
     const binary = atob(artifact.content)
     const bytes = new Uint8Array(binary.length)
     for (let index = 0; index < binary.length; index += 1) {
@@ -46,7 +46,7 @@ export async function downloadAllArtifacts(artifacts: Map<string, BrainstormArti
   const zip = new JSZip()
 
   for (const [filename, artifact] of artifacts) {
-    if (artifact.mimeType.startsWith('image/')) {
+    if (artifact.mimeType.startsWith('image/') || artifact.mimeType.startsWith('video/')) {
       const binary = atob(artifact.content)
       const bytes = new Uint8Array(binary.length)
       for (let index = 0; index < binary.length; index += 1) {

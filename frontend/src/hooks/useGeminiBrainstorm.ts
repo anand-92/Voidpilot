@@ -20,17 +20,31 @@ export const BRAINSTORM_FLASH_MODEL_OPTIONS = [
   { value: 'gemini-3.1-pro', label: 'PRO' },
 ] as const
 
+export const BRAINSTORM_TOOL_OPTIONS = [
+  { id: 'save_brainstorm_artifact', label: 'Artifact' },
+  { id: 'generate_brainstorm_image', label: 'Image' },
+  { id: 'generate_brainstorm_video', label: 'Video' },
+] as const
+
+export type BrainstormToolId = (typeof BRAINSTORM_TOOL_OPTIONS)[number]['id']
+
 export type BrainstormFlashModel =
   (typeof BRAINSTORM_FLASH_MODEL_OPTIONS)[number]['value']
 
 const DEFAULT_BRAINSTORM_FLASH_MODEL: BrainstormFlashModel =
   'gemini-3.1-flash-lite'
 
+const DEFAULT_ENABLED_TOOLS: BrainstormToolId[] = [
+  'save_brainstorm_artifact',
+  'generate_brainstorm_image',
+  'generate_brainstorm_video',
+]
+
 export type BrainstormArtifact = {
   filename: string
-  content: string // markdown text or base64 image data
-  mimeType: string // 'text/markdown' or 'image/png'
-  label?: string // for images
+  content: string // markdown text, base64 image data, or base64 video data
+  mimeType: string // 'text/markdown', 'image/png', or 'video/mp4'
+  label?: string // for images and videos
   updatedAt: string // ISO timestamp
 }
 
@@ -42,6 +56,9 @@ export function useGeminiBrainstorm() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedFlashModel, setSelectedFlashModel] = useState<BrainstormFlashModel>(
     DEFAULT_BRAINSTORM_FLASH_MODEL,
+  )
+  const [selectedTools, setSelectedTools] = useState<BrainstormToolId[]>(
+    DEFAULT_ENABLED_TOOLS,
   )
   const intensityRef = useRef(0)
 
@@ -139,6 +156,7 @@ export function useGeminiBrainstorm() {
             type: 'session_config',
             handle: sessionHandleRef.current,
             flash_model: selectedFlashModel,
+            enabled_tools: selectedTools,
           }),
         )
       }
@@ -159,6 +177,15 @@ export function useGeminiBrainstorm() {
             filename: data.filename,
             content: data.data,
             mimeType: 'image/png',
+            label: data.label,
+            updatedAt: new Date().toISOString(),
+          })
+          setIsGenerating(false)
+        } else if (data.type === 'brainstorm_video') {
+          upsertArtifact(data.filename, {
+            filename: data.filename,
+            content: data.data,
+            mimeType: 'video/mp4',
             label: data.label,
             updatedAt: new Date().toISOString(),
           })
@@ -245,7 +272,7 @@ export function useGeminiBrainstorm() {
     } finally {
       setIsStarting(false)
     }
-  }, [addMessage, selectedFlashModel, stop, upsertArtifact, startToolCallTurn])
+  }, [addMessage, selectedFlashModel, selectedTools, stop, upsertArtifact, startToolCallTurn])
 
   const sendText = useCallback(
     (text: string) => {
@@ -272,6 +299,8 @@ export function useGeminiBrainstorm() {
     intensityRef,
     selectedFlashModel,
     setSelectedFlashModel,
+    selectedTools,
+    setSelectedTools,
     start,
     stop,
     sendText,

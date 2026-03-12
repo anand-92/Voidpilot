@@ -21,6 +21,24 @@ export function ArtifactPreview({ artifact }: { artifact: BrainstormArtifact }) 
     )
   }
 
+  if (artifact.mimeType === 'video/mp4') {
+    return (
+      <div className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-stone-950/60 p-2">
+        <ShineBorder
+          shineColor={['#9333ea', '#a855f7', '#7c3aed']}
+          borderWidth={1}
+          duration={12}
+        />
+        <video
+          src={`data:video/mp4;base64,${artifact.content}`}
+          controls
+          className="max-h-80 w-full rounded-lg"
+        />
+        {artifact.label && <p className="mt-2 text-center text-xs text-stone-500">{artifact.label}</p>}
+      </div>
+    )
+  }
+
   return (
     <div className="rounded-xl border border-white/[0.06] bg-stone-950/40 p-4">
       <div className="prose prose-invert prose-sm max-w-none prose-headings:text-stone-200 prose-p:text-stone-400 prose-a:text-amber-400 prose-strong:text-stone-200 prose-code:rounded prose-code:bg-white/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-amber-300 prose-pre:border prose-pre:border-white/[0.06] prose-pre:bg-stone-950 prose-li:text-stone-400 prose-blockquote:border-amber-500/30 prose-blockquote:text-stone-500">

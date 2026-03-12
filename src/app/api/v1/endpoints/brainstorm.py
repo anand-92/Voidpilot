@@ -2,8 +2,10 @@ import asyncio
 import base64
 import logging
 import traceback
+from typing import Any
 
 from fastapi import APIRouter, WebSocket
+from starlette.websockets import WebSocketState
 
 from src.app.core.config import settings
 from src.app.services.flash_worker import (
@@ -13,7 +15,12 @@ from src.app.services.flash_worker import (
     resolve_flash_text_model,
 )
 from src.app.services.gemini_audio import GeminiLive
-from src.app.services.tool_defs import BRAINSTORM_TOOLS
+from src.app.services.tool_defs import (
+    DELEGATE_TOOL_DEF,
+    IMAGE_TOOL_DEF,
+    SAVE_ARTIFACT_TOOL_DEF,
+    VIDEO_TOOL_DEF,
+)
 from src.app.services.ws_manager import WebSocketManager
 
 logger = logging.getLogger(__name__)
@@ -22,6 +29,19 @@ router = APIRouter()
 
 MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 MAX_RETRIES = 3
+
+# Available tool definitions for brainstorm mode (excluding delegate which is internal)
+AVAILABLE_TOOL_DEFS = [
+    SAVE_ARTIFACT_TOOL_DEF,
+    IMAGE_TOOL_DEF,
+    VIDEO_TOOL_DEF,
+]
+
+DEFAULT_ENABLED_TOOLS = [
+    "save_brainstorm_artifact",
+    "generate_brainstorm_image",
+    "generate_brainstorm_video",
+]
 
 BRAINSTORM_SYSTEM_PROMPT = """\
 You are Voidpilot in Brainstorm Mode — a creative thinking partner.
@@ -54,14 +74,27 @@ complete."""
 # ── Tool handler factories ───────────────────────────────────────  # noqa: E501
 
 
-def _make_tool_handlers(
+def _make_tool_handlers(  # noqa: C901
     websocket: WebSocket,
     api_key: str,
     text_model_key: str = DEFAULT_FLASH_TEXT_MODEL_KEY,
+    enabled_tools: list[str] | None = None,
 ):
     """Create brainstorm tool handler functions bound to a
-    specific WebSocket and API key."""
+    specific WebSocket and API key.
+
+    Args:
+        websocket: The WebSocket connection
+        api_key: Google API key
+        text_model_key: Flash text model to use
+        enabled_tools: List of tool names to enable. If None, all tools are enabled.
+                      Note: delegate_to_flash is always included as it's internal.
+    """
     flash = FlashWorker(api_key=api_key, text_model_key=text_model_key)
+
+    # Default to all tools enabled
+    if enabled_tools is None:
+        enabled_tools = DEFAULT_ENABLED_TOOLS.copy()
 
     async def handle_save_artifact(title: str, raw_ideas: str, filename: str) -> dict:
         """Generate markdown via FlashWorker and push to client."""
@@ -150,12 +183,67 @@ def _make_tool_handlers(
                 "scheduling": "WHEN_IDLE",
             }
 
-    mapping = {
-        "save_brainstorm_artifact": handle_save_artifact,
-        "generate_brainstorm_image": handle_generate_image,
-        "delegate_to_flash": handle_delegate,
-    }
+    async def handle_generate_video(prompt: str, label: str) -> dict:
+        """Generate video via FlashWorker and push to client."""
+        try:
+            video_bytes = await flash.generate_video(prompt=prompt)
+            b64_data = base64.b64encode(video_bytes).decode("utf-8")
+            filename = label.lower().replace(" ", "_") + ".mp4"
+            from starlette.websockets import WebSocketState
+
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json(
+                    {
+                        "type": "brainstorm_video",
+                        "filename": filename,
+                        "label": label,
+                        "data": b64_data,
+                    }
+                )
+            return {
+                "result": f"Video '{label}' generated.",
+                "scheduling": "WHEN_IDLE",
+            }
+        except Exception as e:
+            logger.error("generate_brainstorm_video failed: %s", e)
+            return {
+                "result": f"Error generating video: {e}",
+                "scheduling": "WHEN_IDLE",
+            }
+
+    mapping: dict[str, Callable[..., Any]] = {}
+    # Always include delegate_to_flash as it's the internal mechanism
+    mapping["delegate_to_flash"] = handle_delegate
+
+    # Only include handlers for enabled tools
+    if "save_brainstorm_artifact" in enabled_tools:
+        mapping["save_brainstorm_artifact"] = handle_save_artifact
+    if "generate_brainstorm_image" in enabled_tools:
+        mapping["generate_brainstorm_image"] = handle_generate_image
+    if "generate_brainstorm_video" in enabled_tools:
+        mapping["generate_brainstorm_video"] = handle_generate_video
+
     return mapping
+
+
+def _build_tool_defs(enabled_tools: list[str] | None = None) -> list[dict]:
+    """Build tool definitions based on enabled tools.
+
+    Args:
+        enabled_tools: List of tool names to enable. If None, all tools are enabled.
+
+    Returns:
+        List of tool definitions in Gemini format.
+    """
+    if enabled_tools is None:
+        enabled_tools = DEFAULT_ENABLED_TOOLS.copy()
+
+    tool_defs = [DELEGATE_TOOL_DEF]  # Always include delegate_to_flash
+    for tool_def in AVAILABLE_TOOL_DEFS:
+        if tool_def["name"] in enabled_tools:
+            tool_defs.append(tool_def)
+
+    return [{"function_declarations": tool_defs}]
 
 
 # ── WebSocket endpoint ───────────────────────────────────────────  # noqa: E501
@@ -171,16 +259,18 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
 
     manager = WebSocketManager(websocket, "Brainstorm")
 
-    tool_mapping = _make_tool_handlers(websocket, api_key)
+    # Track enabled tools (starts with defaults)
+    enabled_tools = DEFAULT_ENABLED_TOOLS.copy()
+    tool_defs = _build_tool_defs(enabled_tools)
+    tool_mapping = _make_tool_handlers(websocket, api_key, enabled_tools=enabled_tools)
 
     gemini_client = GeminiLive(
         api_key=api_key,
         model=MODEL,
         input_sample_rate=16000,
-        tools=BRAINSTORM_TOOLS,
+        tools=tool_defs,
         tool_mapping=tool_mapping,
         system_prompt=BRAINSTORM_SYSTEM_PROMPT,
-        include_default_tools=False,
     )
 
     async def handle_client_message(payload: dict) -> bool:
@@ -209,12 +299,24 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 DEFAULT_FLASH_TEXT_MODEL_KEY,
             )
 
+            # Handle tool selection
+            requested_tools = payload.get("enabled_tools")
+            if requested_tools is not None:
+                enabled_tools.clear()
+                enabled_tools.extend(requested_tools)
+                logger.info("Brainstorm enabled tools: %s", enabled_tools)
+
+            # Update tool definitions and handlers
+            new_tool_defs = _build_tool_defs(enabled_tools)
+            gemini_client.tools = new_tool_defs
+
             gemini_client.tool_mapping.clear()
             gemini_client.tool_mapping.update(
                 _make_tool_handlers(
                     websocket,
                     api_key,
                     text_model_key=selected_text_model_key,
+                    enabled_tools=enabled_tools,
                 )
             )
             logger.info(

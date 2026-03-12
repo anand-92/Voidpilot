@@ -1,4 +1,4 @@
-import { Download, FileText, ImageIcon } from 'lucide-react'
+import { Download, FileText, ImageIcon, Video } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,7 @@ export function ArtifactRow({
   downloadButtonClassName?: string
 }) {
   const isImage = artifact.mimeType === 'image/png'
+  const isVideo = artifact.mimeType === 'video/mp4'
   const isText = artifact.mimeType === 'text/markdown' || artifact.mimeType === 'text/plain'
   const size = getArtifactSize(artifact)
 
@@ -45,6 +46,22 @@ export function ArtifactRow({
         </div>
       )}
       
+      {isVideo && (
+        <div className="relative aspect-video w-full overflow-hidden border-b border-white/[0.06] bg-stone-950/50">
+          <video
+            src={`data:video/mp4;base64,${artifact.content}`}
+            className="h-full w-full object-contain"
+            muted
+            preload="metadata"
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            <div className="flex size-12 items-center justify-center rounded-full bg-amber-500/90 text-stone-900">
+              <Video className="size-6 ml-1" />
+            </div>
+          </div>
+        </div>
+      )}
+      
       {isText && (
         <div className="relative h-48 w-full border-b border-white/[0.06] bg-stone-950/50 p-4">
           <ScrollArea className="h-full w-full mask-image-bottom">
@@ -60,6 +77,10 @@ export function ArtifactRow({
         {isImage ? (
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
             <ImageIcon className="size-4" />
+          </div>
+        ) : isVideo ? (
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-500">
+            <Video className="size-4" />
           </div>
         ) : (
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-stone-800 text-stone-400 group-hover:bg-stone-700 group-hover:text-stone-300">
