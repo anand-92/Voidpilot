@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from dataclasses import dataclass
 
 from google import genai
@@ -168,18 +169,22 @@ class FlashWorker:
             duration_seconds="4",
         )
 
-        operation = await self.client.aio.models.generate_videos(
-            model=VEO_VIDEO_MODEL,
-            prompt=prompt,
-            config=config,
-        )
+        # Run sync video generation in thread pool since the SDK
+        # uses sync operations for long-running video generation
+        def generate_sync():
+            operation = self.client.models.generate_videos(
+                model=VEO_VIDEO_MODEL,
+                prompt=prompt,
+                config=config,
+            )
 
-        while not operation.done:
-            logger.info("Waiting for video generation to complete...")
-            await asyncio.sleep(10)
-            operation = await self.client.operations.get(operation)
+            while not operation.done:
+                logger.info("Waiting for video generation to complete...")
+                time.sleep(10)
+                operation = self.client.operations.get(operation)
 
-        generated_video = operation.response.generated_videos[0]
-        await self.client.aio.files.download(file=generated_video.video)
+            generated_video = operation.response.generated_videos[0]
+            self.client.files.download(file=generated_video.video)
+            return generated_video.video.video_bytes
 
-        return generated_video.video.video_bytes
+        return await asyncio.to_thread(generate_sync)
