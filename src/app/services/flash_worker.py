@@ -12,7 +12,7 @@ FLASH_LITE_MODEL = "gemini-3.1-flash-lite-preview"
 FLASH_MODEL = "gemini-3-flash-preview"
 FLASH_PRO_MODEL = "gemini-3.1-pro-preview"
 FLASH_IMAGE_MODEL = "gemini-3.1-flash-image-preview"
-VEO_VIDEO_MODEL = "veo-3.1-generate-preview"
+VEO_VIDEO_MODEL = "veo-3.1-fast-generate-preview"
 FLASH_LITE_CONFIG = types.GenerateContentConfig(
     tools=[types.Tool(google_search=types.GoogleSearch())],
 )
