@@ -14,7 +14,7 @@ Voidpilot is a web-based Gemini Live assistant:
 ### Running the App
 - **Backend:** `uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000`
 - **Frontend:** `cd frontend && npm run dev`
-- **Combined dev:** `bash dev.sh` (note: Bash environment required for `dev.sh`)
+- **Combined dev:** `bash scripts/dev.sh` (note: Bash environment required for `dev.sh`)
 
 ### Testing and Linting
 - **Backend Tests:** `uv run pytest tests/ -v`
