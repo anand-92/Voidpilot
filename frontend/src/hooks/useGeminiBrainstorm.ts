@@ -131,8 +131,10 @@ export function useGeminiBrainstorm() {
   }, [])
 
   const handleArtifactMessage = useCallback((data: Record<string, string>) => {
-    const { filename, content, label } = data
-    const artifact = createArtifact(filename, content, data.type, label)
+    const { filename, content, data: mediaData, label } = data
+    // Backend sends "content" for text artifacts but "data" for media (image/video)
+    const artifactContent = content ?? mediaData
+    const artifact = createArtifact(filename, artifactContent, data.type, label)
     upsertArtifact(filename, artifact)
     setIsGenerating(false)
   }, [upsertArtifact])
