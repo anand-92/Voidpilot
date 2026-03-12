@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { voidpilotHeroItems, type RollerItem } from "./constants";
@@ -55,7 +55,7 @@ const AnimatedTextRoller = ({
     return () => clearInterval(interval);
   }, [intervalMs, normalizedItems.length]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const updateMeasurements = () => {
       const currentItem = itemRefs.current[index];
       if (!currentItem) {

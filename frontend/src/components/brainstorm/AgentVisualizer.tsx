@@ -127,6 +127,7 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
   const spriteImgRef = useRef<HTMLImageElement | null>(null)
   const lastTimeRef = useRef(0)
   const rafRef = useRef(0)
+  const canvasSizeRef = useRef({ width: 0, height: 0, dpr: 1 })
 
   // Load spritesheet
   useEffect(() => {
@@ -141,6 +142,21 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+
+    // Update canvas size - only runs on resize
+    const updateCanvasSize = () => {
+      const rect = canvas.getBoundingClientRect()
+      const dpr = window.devicePixelRatio || 1
+      const w = Math.round(rect.width * dpr)
+      const h = Math.round(rect.height * dpr)
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w
+        canvas.height = h
+      }
+      canvasSizeRef.current = { width: rect.width, height: rect.height, dpr }
+    }
+    updateCanvasSize()
+    window.addEventListener('resize', updateCanvasSize)
 
     const updateAgent = (agent: ToastAgent, dt: number, shouldBeActive: boolean) => {
       // State transitions
@@ -397,29 +413,28 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       updateAgent(gemini, dt, isConnected)
       updateAgent(flash, dt, isGenerating)
 
-      // Resize canvas
-      const rect = canvas.getBoundingClientRect()
-      const dpr = window.devicePixelRatio || 1
-      const w = Math.round(rect.width * dpr)
-      const h = Math.round(rect.height * dpr)
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w
-        canvas.height = h
+      // Use cached dimensions instead of getBoundingClientRect every frame
+      const { width: rectWidth, height: rectHeight, dpr } = canvasSizeRef.current
+      
+      // Only clear if we have valid dimensions
+      if (rectWidth === 0 || rectHeight === 0) {
+        rafRef.current = requestAnimationFrame(loop)
+        return
       }
 
       ctx.save()
       ctx.scale(dpr, dpr)
       ctx.imageSmoothingEnabled = false
 
-      ctx.clearRect(0, 0, rect.width, rect.height)
+      ctx.clearRect(0, 0, rectWidth, rectHeight)
 
       const s = TILE_SIZE * ZOOM
       const roomW = COLS * s
       const roomH = (ROWS + 2.5) * s // +1 for the wall strip
 
       // Center the room
-      const ox = Math.round((rect.width - roomW) / 2)
-      const oy = Math.round((rect.height - roomH) / 2) + s // s is offset for the wall
+      const ox = Math.round((rectWidth - roomW) / 2)
+      const oy = Math.round((rectHeight - roomH) / 2) + s // s is offset for the wall
 
       // Floor tiles
       for (let r = 0; r < ROWS; r++) {
@@ -453,7 +468,10 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
     }
 
     rafRef.current = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(rafRef.current)
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize)
+      cancelAnimationFrame(rafRef.current)
+    }
   }, [isConnected, isGenerating, intensityRef])
 
   return (
