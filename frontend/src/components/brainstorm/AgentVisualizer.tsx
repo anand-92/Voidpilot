@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { getCachedSprite } from './pixelOffice/spriteCache'
-import { DESK_SPRITE, CHAIR_SPRITE, PC_SPRITE, PLANT_SPRITE } from './pixelOffice/spriteData'
+import { PLANT_SPRITE } from './pixelOffice/spriteData'
 import type { FurnitureInstance } from './pixelOffice/types'
 import { TILE_SIZE } from './pixelOffice/types'
 
@@ -62,18 +62,9 @@ function createAgent(name: string, label: string, color: string, seatCol: number
 
 function createFurniture(): FurnitureInstance[] {
   return [
-    // Left desk + chair + PC
-    { sprite: DESK_SPRITE, x: 1 * TILE_SIZE, y: 1 * TILE_SIZE, zY: 3 * TILE_SIZE },
-    { sprite: CHAIR_SPRITE, x: 2 * TILE_SIZE, y: 3 * TILE_SIZE, zY: 3.5 * TILE_SIZE },
-    { sprite: PC_SPRITE, x: 1 * TILE_SIZE, y: 0.5 * TILE_SIZE, zY: 1 * TILE_SIZE },
-    // Right desk + chair + PC
-    { sprite: DESK_SPRITE, x: 6 * TILE_SIZE, y: 1 * TILE_SIZE, zY: 3 * TILE_SIZE },
-    { sprite: CHAIR_SPRITE, x: 7 * TILE_SIZE, y: 3 * TILE_SIZE, zY: 3.5 * TILE_SIZE },
-    { sprite: PC_SPRITE, x: 6 * TILE_SIZE, y: 0.5 * TILE_SIZE, zY: 1 * TILE_SIZE },
-    // Plants
+    // Corner plants (trees)
     { sprite: PLANT_SPRITE, x: 0, y: 3 * TILE_SIZE, zY: 4.5 * TILE_SIZE },
     { sprite: PLANT_SPRITE, x: 9 * TILE_SIZE, y: 3 * TILE_SIZE, zY: 4.5 * TILE_SIZE },
-    { sprite: PLANT_SPRITE, x: 4.5 * TILE_SIZE, y: 0, zY: 1.5 * TILE_SIZE },
   ]
 }
 
@@ -83,15 +74,19 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected }: Age
   const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 7, 3))
   const furnitureRef = useRef(createFurniture())
   const spriteImgRef = useRef<HTMLImageElement | null>(null)
+  const bgImgRef = useRef<HTMLImageElement | null>(null)
   const lastTimeRef = useRef(0)
   const rafRef = useRef(0)
 
-  // Load spritesheet
+  // Load spritesheet + background
   useEffect(() => {
     const img = new Image()
     img.src = '/assets/sneaky-toast-clean.png'
     img.onload = () => { spriteImgRef.current = img }
-    return () => { spriteImgRef.current = null }
+    const bg = new Image()
+    bg.src = '/assets/gaming-background.jpg'
+    bg.onload = () => { bgImgRef.current = bg }
+    return () => { spriteImgRef.current = null; bgImgRef.current = null }
   }, [])
 
   useEffect(() => {
@@ -227,18 +222,18 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected }: Age
       const ox = Math.floor((rect.width - mapW) / 2)
       const oy = Math.floor((rect.height - mapH) / 2)
 
-      // Floor tiles
-      const s = TILE_SIZE * ZOOM
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          ctx.fillStyle = (r + c) % 2 === 0 ? '#3a3524' : '#342f20'
-          ctx.fillRect(ox + c * s, oy + r * s, s, s)
+      // Background image
+      if (bgImgRef.current) {
+        ctx.drawImage(bgImgRef.current, ox, oy - TILE_SIZE * ZOOM, mapW, mapH + TILE_SIZE * ZOOM)
+      } else {
+        // Fallback floor
+        const s = TILE_SIZE * ZOOM
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            ctx.fillStyle = (r + c) % 2 === 0 ? '#3a3524' : '#342f20'
+            ctx.fillRect(ox + c * s, oy + r * s, s, s)
+          }
         }
-      }
-      // Wall strip
-      for (let c = 0; c < COLS; c++) {
-        ctx.fillStyle = '#1a1a2e'
-        ctx.fillRect(ox + c * s, oy - s, s, s)
       }
 
       // Draw furniture (z-sorted)
