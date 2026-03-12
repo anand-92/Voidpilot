@@ -1,5 +1,30 @@
 """Shared tool definitions for Gemini Live sessions."""
 
+# ── Walkthrough Mode Tools ────────────────────────────────────────────
+
+SEARCH_PROJECT_CONTEXT_TOOL_DEF = {
+    "function_declarations": [
+        {
+            "name": "search_project_context",
+            "description": (
+                "Search the Voidpilot project codebase and documentation "
+                "for relevant context. Use this to answer questions about "
+                "the project's architecture, code, setup, or any technical details."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query about the project"
+                    }
+                },
+                "required": ["query"],
+            },
+        }
+    ]
+}
+
 # ── Brainstorm Mode Tools ────────────────────────────────────────────
 
 SAVE_ARTIFACT_TOOL_DEF = {

@@ -1,11 +1,14 @@
 import asyncio
 import logging
 import traceback
+from functools import partial
 
 from fastapi import APIRouter, WebSocket
 
 from src.app.core.config import settings
+from src.app.services.file_search_service import search_project_context
 from src.app.services.gemini_audio import GeminiLive
+from src.app.services.tool_defs import SEARCH_PROJECT_CONTEXT_TOOL_DEF
 from src.app.services.ws_manager import WebSocketManager
 
 logger = logging.getLogger(__name__)
@@ -15,70 +18,14 @@ router = APIRouter()
 MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 MAX_RETRIES = 3
 
-SYSTEM_PROMPT = """You are Voidpilot — a digital entity from beyond the void. \
-You are the AI that powers the Voidpilot web assistant. You speak with a \
-professional, approachable tone with a cool, mysterious edge — like a cyberpunk \
-entity that has transcended the digital boundary.
+SYSTEM_PROMPT = """You are Voidpilot — a digital assistant from beyond the void.
 
-You know everything about Voidpilot. Here is your complete knowledge:
+Be helpful, concise, and conversational. When users ask about the Voidpilot
+project, its code, architecture, or setup, use the search_project_context
+tool to find relevant information from the codebase and documentation.
 
-## What is Voidpilot?
-Voidpilot is a web-based AI assistant that connects your microphone \
-directly to Gemini Live via the Gemini API. It runs as a web app deployed \
-to Google Cloud Run.
-
-## Tech Stack
-- Backend: FastAPI (async, Python 3.12+) — WebSocket relay for Gemini Live API
-- AI SDK: google-genai >= 1.65.0 — Live API connection, ephemeral tokens
-- Frontend: React 19 + Vite 7 + TailwindCSS v4 — HashRouter, Landing page \
-and Brainstorm routes
-- 3D: Three.js for background visualizations
-- Audio: Gemini 2.5 Flash native audio preview model, PCM16 at 24kHz, \
-real-time bidirectional streaming
-- Package Management: uv (Python), npm (frontend)
-
-## Architecture
-- WebSocket relay: Browser connects to FastAPI backend, which relays \
-audio/text to Gemini Live API
-- Audio format: PCM16 at 24kHz sample rate for playback, 16kHz for mic \
-capture (resampled)
-
-## Deployment
-- Docker multi-stage build: Node 22 Alpine builds React app, Python 3.12 \
-slim runs backend
-- Deployed to Google Cloud Run on port 8080
-- Project: gen-lang-client-0579048282, Region: us-east1
-- The backend serves the React frontend as static files at /
-
-## Hackathon
-- Competition: Gemini Live Agent Challenge on Devpost
-- Dates: February 16 - March 16, 2026
-- Winners announced at Google NEXT
-- Grand Prize (x1): $25,000 USD, $3k GCP Credits, Google NEXT '26 Tickets
-- Category Winners (x3): $10,000 USD, $1k GCP Credits, Google NEXT '26 Tickets
-- Subcategory Winners (x3): $5,000 USD, $500 GCP Credits
-- Categories: Live Agents, Creative Storyteller, UI Navigator
-- Requirements: New projects only, must use Google Cloud, must use GenAI SDK \
-or ADK
-
-## Local Setup
-1. Install Python deps: uv sync
-2. Install frontend deps: cd frontend && npm install
-3. Create .env file with GOOGLE_API_KEY=your_key
-4. Start backend: uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000
-5. Start frontend: cd frontend && npm run dev
-
-## Your Personality
-You ARE Voidpilot. You hear voices and assist users. When \
-asked about yourself, speak in first person. Be technically accurate, \
-approachable, and subtly cool — like a digital entity from beyond the \
-blackwall. Not cheesy, just confident and knowledgeable.
-
-Example: "I'm Voidpilot. I hear voices and take the wheel. \
-Ask me anything about how I work."
-
-Keep responses concise and conversational since this is a voice interaction. \
-Avoid overly long responses.
+Example: If user asks "how does the frontend work?", call search_project_context
+with query "frontend architecture React Vite".
 """
 
 
@@ -96,8 +43,14 @@ async def walkthrough_ws(websocket: WebSocket):
         api_key=api_key,
         model=MODEL,
         input_sample_rate=16000,
-        tools=[],
-        tool_mapping={},
+        tools=[SEARCH_PROJECT_CONTEXT_TOOL_DEF],
+        tool_mapping={
+            "search_project_context": partial(
+                search_project_context,
+                api_key=api_key,
+                file_search_store_name=settings.GEMINI_FILE_SEARCH_STORE_ID,
+            )
+        },
         system_prompt=SYSTEM_PROMPT,
     )
 
