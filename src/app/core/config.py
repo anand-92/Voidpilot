@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     GOOGLE_API_KEY: str | None = Field(default=None)
     GEMINI_FILE_SEARCH_STORE_ID: str = (
-        "fileSearchStores/voidpilotdocscontext-enebz3rbib2i"
+        "fileSearchStores/voidpilotdocscontext-hka0fgfp7dbl"
     )
 
 
