@@ -1,9 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { BrainstormEntryModal } from '../components/brainstorm/BrainstormEntryModal'
 import { BrainstormDesktopLayout, BrainstormMobileLayout, type BrainstormLayoutProps } from '../components/brainstorm/BrainstormLayouts'
 import { getArtifactSize } from '../components/brainstorm/utils'
+import { useBrainstormEntryAuth } from '../hooks/useBrainstormEntryAuth'
 import { useGeminiBrainstorm } from '../hooks/useGeminiBrainstorm'
 
 export default function BrainstormPage() {
+  const {
+    status: authStatus,
+    user,
+    errorMessage,
+    isSubmitting: isAuthSubmitting,
+    clearError,
+    signInWithPassword,
+    signUpWithPassword,
+    signInWithGoogle,
+    signOutFromBrainstorm,
+  } = useBrainstormEntryAuth()
   const {
     isConnected,
     isStarting,
@@ -23,7 +36,16 @@ export default function BrainstormPage() {
   const [inputText, setInputText] = useState('')
   const [selectedArtifact, setSelectedArtifact] = useState<string | null>(null)
   const [isMobileLayout, setIsMobileLayout] = useState(false)
+  const [hasGuestAccess, setHasGuestAccess] = useState(false)
+  const [hasSignedInWorkspaceAccess, setHasSignedInWorkspaceAccess] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const isEntryModalOpen =
+    authStatus === 'loading'
+      ? true
+      : authStatus === 'signed_in'
+        ? !hasSignedInWorkspaceAccess
+        : !hasGuestAccess
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 767px), (pointer: coarse) and (max-width: 1024px)')
@@ -93,9 +115,41 @@ export default function BrainstormPage() {
     stop,
   }
 
-  return isMobileLayout ? (
-    <BrainstormMobileLayout {...sharedProps} />
-  ) : (
-    <BrainstormDesktopLayout {...sharedProps} />
+  return (
+    <>
+      <div
+        aria-hidden={isEntryModalOpen}
+        inert={isEntryModalOpen}
+        className={isEntryModalOpen ? 'pointer-events-none select-none blur-[2px] saturate-75' : ''}
+      >
+        {isMobileLayout ? (
+          <BrainstormMobileLayout {...sharedProps} />
+        ) : (
+          <BrainstormDesktopLayout {...sharedProps} />
+        )}
+      </div>
+
+      {isEntryModalOpen && (
+        <BrainstormEntryModal
+          status={authStatus}
+          user={user}
+          isSubmitting={isAuthSubmitting}
+          errorMessage={errorMessage}
+          onClearError={clearError}
+          onContinueAsGuest={() => {
+            clearError()
+            setHasGuestAccess(true)
+          }}
+          onContinueToWorkspace={() => {
+            clearError()
+            setHasSignedInWorkspaceAccess(true)
+          }}
+          onSignInWithPassword={signInWithPassword}
+          onSignUpWithPassword={signUpWithPassword}
+          onSignInWithGoogle={signInWithGoogle}
+          onSignOut={signOutFromBrainstorm}
+        />
+      )}
+    </>
   )
 }
