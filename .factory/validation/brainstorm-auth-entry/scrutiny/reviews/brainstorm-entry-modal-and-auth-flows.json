@@ -1,0 +1,34 @@
+{
+  "featureId": "brainstorm-entry-modal-and-auth-flows",
+  "reviewedAt": "2026-03-13T03:24:47.941767Z",
+  "commitId": "8be1194eaf84a220c80ded301eb49052934a6f3a",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature successfully adds the brainstorm entry gate, the auth forms, guest entry, inert background treatment, and preserves the landing-page walkthrough path. The main gap is that the signed-in 'library' state is only a placeholder screen: it never exposes actual session-library actions, even though the mission contract requires auth success to return to a usable library-first flow where the user can start a new session or reopen an existing one. There is also a smaller state-reset edge case around re-authenticating after the workspace has already been unlocked once.",
+    "issues": [
+      {
+        "file": "frontend/src/components/brainstorm/BrainstormEntryModal.tsx",
+        "line": 160,
+        "severity": "blocking",
+        "description": "The signed-in modal is not an actual session library. The component explicitly says 'Session creation and reopening plug into this surface next,' and the only primary action it exposes is 'Continue to workspace' instead of library actions. That misses the required behavior in validation-contract.md:114 and .factory/library/architecture.md:37, which say auth success must return to a library-first state from which the user can start a new session or reopen an existing one. As shipped, sign-up/sign-in/Google auth only land on a placeholder screen, so the feature does not fully implement the promised brainstorm library flow."
+      },
+      {
+        "file": "frontend/src/pages/BrainstormPage.tsx",
+        "line": 40,
+        "severity": "non_blocking",
+        "description": "`hasSignedInWorkspaceAccess` is local component state that is set to true when the user leaves the library modal, but it is never reset when auth changes. If a user has already unlocked the workspace once and later signs out / signs back in within the same page session (for example via another tab or an auth refresh), the `isEntryModalOpen` check at lines 43-47 will keep the modal closed and drop them straight back into the workspace instead of the required library-first modal state."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "The shared environment notes still do not capture that the brainstorm auth flow now depends on checked-in Firebase web app config in `frontend/src/lib/firebaseWebConfig.ts` and specific local web origins. The worker had to get OAuth values from the user mid-session before wiring Google sign-in, so this non-secret setup knowledge is still missing from the shared library.",
+      "evidence": "worker-transcripts.jsonl:2 includes a user message pasting Google OAuth / Firebase web values during the feature run; `.factory/library/environment.md` only has a generic note about future Firebase config; the implementation now hardcodes the public web config in `frontend/src/lib/firebaseWebConfig.ts`."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed. The auth gate, guest flow, and return-to-modal behavior mostly work, but the signed-in 'library' state is only a placeholder and does not provide the library actions required by the mission contract. I also noted a smaller auth-state reset edge case and one shared-state knowledge gap around Firebase web config setup."
+}

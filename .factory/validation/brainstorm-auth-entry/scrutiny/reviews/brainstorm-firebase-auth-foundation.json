@@ -1,0 +1,33 @@
+{
+  "featureId": "brainstorm-firebase-auth-foundation",
+  "reviewedAt": "2026-03-13T03:24:55.700285+00:00",
+  "commitId": "51fe622ce214a808dc6c75b1c0cfe02849c5b74e",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The feature adds brainstorm-scoped Firebase Admin setup, reusable token verification helpers, and Firestore/Cloud Storage factories without touching live or walkthrough flows. The implementation matches the requested backend foundation overall and preserves the existing Gemini key behavior, but one optional-auth helper currently blurs malformed bearer headers with missing auth.",
+    "issues": [
+      {
+        "file": "src/app/services/brainstorm_auth.py",
+        "line": 166,
+        "severity": "non_blocking",
+        "description": "`get_optional_brainstorm_user()` returns `None` for every `MissingBrainstormAuthError`, but `parse_brainstorm_bearer_token()` uses that same error both for a truly missing header and for malformed `Authorization: Bearer` headers with no token (`lines 74-87`). That means later public/mixed brainstorm routes using the optional helper will treat some invalid auth as anonymous instead of preserving the missing-vs-invalid distinction promised by `features.json:193-197`."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "library",
+      "observation": "The shared environment library was not updated after this feature introduced Firebase admin settings and Application Default Credentials fallback, so later workers still have to rediscover the required inputs for local/runtime setup.",
+      "evidence": "`src/app/core/config.py:12-15` adds `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_LOCATION`, and `FIREBASE_CREDENTIALS_JSON`; `src/app/services/firebase_admin.py:25-29` falls back to `credentials.ApplicationDefault()` and `:46-55` requires the project/bucket settings; `.factory/library/environment.md:27-30` still has no concrete Firebase admin variables or ADC/service-account setup note."
+    },
+    {
+      "area": "skills",
+      "observation": "The worker handoff reports a justified startup deviation because `.factory/init.sh` had to be run through `sh` after direct execution failed. If mission startup depends on that script, the worker startup guidance should mention the shell-invocation fallback when the executable bit is missing in a checkout.",
+      "evidence": "Handoff file `/Users/dks0662779/.factory/missions/60d2a0eb-c16d-4666-86da-4130eca06c85/handoffs/2026-03-13T02-09-47-055Z__brainstorm-firebase-auth-foundation__d8440e59-a1d1-4bd1-876f-798825bbaf79.json` -> `handoff.skillFeedback.deviations[0]`."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. The backend-only Firebase foundation is in scope and largely solid, with one non-blocking optional-auth edge case and shared-state follow-up around Firebase environment guidance/startup instructions."
+}

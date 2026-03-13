@@ -27,4 +27,8 @@ Environment variables, external dependencies, and setup notes.
 ## Required Environment Variables
 
 - There is no new required mission-level environment variable for the Gemini API key because the existing backend fallback must remain in place for this hackathon mission.
-- If workers introduce Firebase web/admin configuration, keep the setup minimal and document only the variables actually required by the implementation.
+- Brainstorm backend Firebase services now require `FIREBASE_PROJECT_ID` and `FIREBASE_STORAGE_BUCKET` before private brainstorm auth/persistence paths can initialize successfully.
+- `FIREBASE_LOCATION` defaults to `us-east1`, so workers only need to override it if the mission explicitly moves Firebase resources elsewhere.
+- `FIREBASE_CREDENTIALS_JSON` is optional. When it is unset, the backend falls back to Google Application Default Credentials; local validation can use ADC or a service-account JSON payload, but project/bucket settings still need to be present.
+- The brainstorm frontend auth flow uses checked-in public Firebase web config from `frontend/src/lib/firebaseWebConfig.ts`, so this mission does not require additional `VITE_` Firebase env vars for the browser app.
+- Google popup auth depends on the active frontend origin being allowed by Firebase Auth. Local validation should use the standard brainstorm dev origin (`http://127.0.0.1:5173`) unless the Firebase project is updated to allow additional origins.
