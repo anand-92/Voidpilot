@@ -415,11 +415,11 @@ export function BrainstormEntryModal({
         cr={0.8}
       />
 
-      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-12 w-full">
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-6 md:py-8 w-full">
         <BlurFade delay={0.1}>
           <Badge
             variant="outline"
-            className="mb-8 h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-5 py-2 text-[10px] sm:text-xs font-medium tracking-widest text-amber-200 uppercase"
+            className="mb-4 md:mb-5 h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-5 py-1.5 text-[10px] sm:text-xs font-medium tracking-widest text-amber-200 uppercase"
           >
             <PulseDot />
             VOIDPILOT — BRAINSTORM ENTRY
@@ -427,34 +427,34 @@ export function BrainstormEntryModal({
         </BlurFade>
 
         <BlurFade delay={0.15}>
-          <div className="rounded-[2rem] border border-white/10 bg-white/5 px-6 py-5 md:px-12 md:py-8 shadow-[0_0_60px_rgba(245,158,11,0.08)] backdrop-blur-xl text-center">
-            <h1 className="max-w-4xl text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-tight text-white">
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 px-6 py-4 md:px-10 md:py-5 shadow-[0_0_60px_rgba(245,158,11,0.08)] backdrop-blur-xl text-center">
+            <h1 className="max-w-4xl text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight text-white">
               AI that <span className="text-amber-500">hears your voice.</span>
             </h1>
           </div>
         </BlurFade>
 
         <BlurFade delay={0.25}>
-          <p className="mt-6 max-w-2xl text-center text-sm text-stone-400 sm:text-lg md:text-xl font-light leading-relaxed">
+          <p className="mt-3 md:mt-4 max-w-2xl text-center text-sm text-stone-400 sm:text-base md:text-lg font-light leading-relaxed">
             Talk to Gemini, build a scene, and ideate faster — all in real time.
           </p>
         </BlurFade>
 
-        <BlurFade delay={0.3} className="mt-12 w-full max-w-5xl">
+        <BlurFade delay={0.3} className="mt-6 md:mt-8 w-full max-w-5xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Email Auth Bento Box */}
             <div className="col-span-1 md:col-span-2 flex flex-col justify-between rounded-[2rem] border border-white/10 bg-[#1c1917]/50 p-6 md:p-8 backdrop-blur-xl">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
-                  <Mail className="h-6 w-6" />
+              <div className="flex items-center gap-3 mb-5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+                  <Mail className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white">Access Studio</h3>
-                  <p className="text-sm text-stone-400">Sign in to sync your workspace</p>
+                  <h3 className="text-lg font-bold text-white">Access Studio</h3>
+                  <p className="text-xs text-stone-400">Sign in to sync your workspace</p>
                 </div>
               </div>
 
-              <div className="mb-6 flex rounded-xl border border-white/5 bg-black/40 p-1">
+              <div className="mb-4 flex rounded-xl border border-white/5 bg-black/40 p-1">
                 {['sign_up', 'sign_in'].map((mode) => (
                   <button
                     key={mode}
@@ -473,7 +473,7 @@ export function BrainstormEntryModal({
                 ))}
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <AnimatePresence mode="wait">
                   {authMode === 'sign_up' && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
@@ -481,7 +481,7 @@ export function BrainstormEntryModal({
                         value={displayName}
                         onChange={(e) => { setDisplayName(e.target.value); setFieldError(null); onClearError(); }}
                         placeholder="Display Name"
-                        className="h-14 rounded-xl border-white/10 bg-black/40 px-4 text-white placeholder:text-stone-600 focus:border-amber-500/50 transition-all"
+                        className="h-11 rounded-xl border-white/10 bg-black/40 px-4 text-sm text-white placeholder:text-stone-600 focus:border-amber-500/50 transition-all"
                       />
                     </motion.div>
                   )}
@@ -491,14 +491,14 @@ export function BrainstormEntryModal({
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setFieldError(null); onClearError(); }}
                   placeholder="Email address"
-                  className="h-14 rounded-xl border-white/10 bg-black/40 px-4 text-white placeholder:text-stone-600 focus:border-amber-500/50 transition-all"
+                  className="h-11 rounded-xl border-white/10 bg-black/40 px-4 text-sm text-white placeholder:text-stone-600 focus:border-amber-500/50 transition-all"
                 />
                 <Input
                   type="password"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setFieldError(null); onClearError(); }}
                   placeholder="Password"
-                  className="h-14 rounded-xl border-white/10 bg-black/40 px-4 text-white placeholder:text-stone-600 focus:border-amber-500/50 transition-all"
+                  className="h-11 rounded-xl border-white/10 bg-black/40 px-4 text-sm text-white placeholder:text-stone-600 focus:border-amber-500/50 transition-all"
                 />
                 <AnimatePresence mode="wait">
                   {authMode === 'sign_up' && (
@@ -508,7 +508,7 @@ export function BrainstormEntryModal({
                         value={confirmPassword}
                         onChange={(e) => { setConfirmPassword(e.target.value); setFieldError(null); onClearError(); }}
                         placeholder="Confirm password"
-                        className="h-14 mt-4 rounded-xl border-white/10 bg-black/40 px-4 text-white placeholder:text-stone-600 focus:border-amber-500/50 transition-all"
+                        className="h-11 mt-3 rounded-xl border-white/10 bg-black/40 px-4 text-sm text-white placeholder:text-stone-600 focus:border-amber-500/50 transition-all"
                       />
                     </motion.div>
                   )}
@@ -525,7 +525,7 @@ export function BrainstormEntryModal({
               <Button
                 onClick={() => void handleSubmit()}
                 disabled={isSubmitting}
-                className="mt-6 h-14 w-full rounded-xl bg-amber-500 text-stone-950 font-bold text-lg transition-all hover:bg-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
+                className="mt-4 h-11 w-full rounded-xl bg-amber-500 text-stone-950 font-bold text-base transition-all hover:bg-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
               >
                 {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
                 {authMode === 'sign_up' ? 'Create Account' : 'Sign In'}
@@ -547,16 +547,16 @@ export function BrainstormEntryModal({
                     void handleGoogleSignIn()
                   }}
                   disabled={isSubmitting}
-                  className="group relative flex h-full min-h-[160px] w-full flex-col justify-between rounded-[2rem] p-6 text-left transition-all hover:bg-white/[0.02]"
+                  className="group relative flex h-full w-full flex-col items-center justify-center gap-4 rounded-[2rem] p-6 text-center transition-all hover:bg-white/[0.02]"
                 >
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-orange-500/10 text-orange-400">
-                    {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : <GoogleGlyph className="h-6 w-6" />}
+                  <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-400">
+                    {isSubmitting ? <Loader2 className="h-7 w-7 animate-spin" /> : <GoogleGlyph className="h-7 w-7" />}
                   </div>
-                  <div className="mt-4">
-                    <h3 className="mb-1 text-lg font-bold text-white">Google Login</h3>
+                  <div>
+                    <h3 className="mb-1 text-xl font-bold text-white">Google Login</h3>
                     <p className="text-sm leading-relaxed text-stone-500">Continue with Google</p>
                   </div>
-                  <ArrowRight className="absolute right-6 top-1/2 -translate-y-1/2 h-6 w-6 text-orange-400 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />
+                  <ArrowRight className="absolute right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-orange-400 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />
                 </button>
               </MagicCard>
 
@@ -574,16 +574,16 @@ export function BrainstormEntryModal({
                     onContinueAsGuest()
                   }}
                   disabled={isSubmitting}
-                  className="group relative flex h-full min-h-[160px] w-full flex-col justify-between rounded-[2rem] p-6 text-left transition-all hover:bg-white/[0.02]"
+                  className="group relative flex h-full w-full flex-col items-center justify-center gap-4 rounded-[2rem] p-6 text-center transition-all hover:bg-white/[0.02]"
                 >
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400">
-                    <UserRound className="h-6 w-6" />
+                  <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-400">
+                    <UserRound className="h-7 w-7" />
                   </div>
-                  <div className="mt-4">
-                    <h3 className="mb-1 text-lg font-bold text-white">Ephemeral Mode</h3>
+                  <div>
+                    <h3 className="mb-1 text-xl font-bold text-white">Ephemeral Mode</h3>
                     <p className="text-sm leading-relaxed text-stone-500">Continue as guest</p>
                   </div>
-                  <ArrowRight className="absolute right-6 top-1/2 -translate-y-1/2 h-6 w-6 text-rose-400 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />
+                  <ArrowRight className="absolute right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-rose-400 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />
                 </button>
               </MagicCard>
             </div>
