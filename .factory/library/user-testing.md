@@ -4,8 +4,9 @@
 
 ### Primary browser surface
 - Use `cmux-browser` first for browser-based validation, per user instruction.
-- If `cmux-browser` fails or is unavailable, fall back to `agent-browser`.
-- If both browser skills fail, do not block the mission on the remaining UI validation work; document the limitation and continue.
+- If `cmux-browser` fails, is unavailable, or is too limited for popup/network inspection, fall back to `chrome-devtools`.
+- If `chrome-devtools` also fails or is unavailable, fall back to `agent-browser`.
+- If all three browser paths fail, do not block the mission on the remaining UI validation work; document the limitation and continue.
 
 ### Local app setup
 - Backend: `127.0.0.1:8000`

@@ -55,12 +55,13 @@ This mission’s brainstorm auth/persistence/share features should usually use t
 
 ### 5. Manually verify the user flows
 1. Use `cmux-browser` first for browser validation.
-2. If `cmux-browser` fails, use `agent-browser`.
-3. If both fail, document the limitation explicitly in the handoff.
-4. For every fulfilled user-visible flow, add an `interactiveChecks` entry that states:
+2. If `cmux-browser` fails, is unavailable, or cannot credibly verify popup/network-heavy behavior, use `chrome-devtools`.
+3. If `chrome-devtools` is not enough, use `agent-browser`.
+4. If all three fail, document the limitation explicitly in the handoff.
+5. For every fulfilled user-visible flow, add an `interactiveChecks` entry that states:
    - what you did
    - what you observed
-   - whether you used `cmux-browser`, `agent-browser`, or had to skip UI validation
+   - whether you used `cmux-browser`, `chrome-devtools`, `agent-browser`, or had to skip UI validation
 
 ### 6. Run validators before finishing
 Run these after implementation, fixing failures before handoff:
