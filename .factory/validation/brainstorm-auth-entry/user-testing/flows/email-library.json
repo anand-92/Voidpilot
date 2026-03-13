@@ -1,0 +1,218 @@
+{
+  "groupId": "email-library",
+  "testedAt": "2026-03-13T05:35:20Z",
+  "isolation": {
+    "missionDir": "/Users/dks0662779/.factory/missions/60d2a0eb-c16d-4666-86da-4130eca06c85",
+    "frontendUrl": "http://127.0.0.1:5173",
+    "backendUrl": "http://127.0.0.1:8000",
+    "browserContext": "brainstorm-auth-entry-email-library",
+    "browserSurface": "chrome-devtools only",
+    "testAccountEmail": "voidpilot+authentry-email-library-20260313T0535@example.com",
+    "testAccountCreated": false
+  },
+  "toolsUsed": [
+    "chrome-devtools",
+    "curl"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-003",
+      "title": "Email/password sign-up validates input and lands in the signed-in library",
+      "status": "blocked",
+      "reasoning": "I could not start the required chrome-devtools session in the assigned isolated context because the shared chrome-devtools profile was already locked by another running browser instance. That prevented opening the brainstorm route, creating the required unique Firebase account, exercising invalid and successful sign-up states, or capturing UI evidence.",
+      "steps": [
+        {
+          "action": "Open chrome-devtools at http://127.0.0.1:5173/#/brainstorm in isolated context brainstorm-auth-entry-email-library",
+          "expected": "The brainstorm entry modal loads so the email sign-up form can be tested",
+          "observed": "chrome-devtools failed before any page opened because /Users/dks0662779/.cache/chrome-devtools-mcp/chrome-profile was already in use"
+        },
+        {
+          "action": "Retry the same chrome-devtools open after a 15 second wait",
+          "expected": "The shared browser becomes available without disrupting other workers",
+          "observed": "The same profile-lock error was returned again"
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "brainstorm-auth-entry/email-library/chrome-devtools-unavailable.txt"
+        ],
+        "screenshots": [],
+        "consoleFindings": "blocked: no browser page or console session was available",
+        "requestResponseObservations": [
+          "curl -I http://127.0.0.1:5173 -> HTTP/1.1 200 OK",
+          "curl http://127.0.0.1:8000/health -> {\"status\":\"ok\"}",
+          "curl -i http://127.0.0.1:8000/api/v1/hello -> HTTP/1.1 200 OK",
+          "No in-browser auth request could be observed because no page session could be created"
+        ]
+      },
+      "issues": "Blocked by a shared chrome-devtools profile collision before any browser interaction"
+    },
+    {
+      "id": "VAL-AUTH-004",
+      "title": "Email/password sign-in handles errors and lands in the signed-in library",
+      "status": "blocked",
+      "reasoning": "The same chrome-devtools startup failure prevented reaching the sign-in form, testing a recoverable wrong-password state, or confirming that a successful sign-in returns to the brainstorm library-first modal state.",
+      "steps": [
+        {
+          "action": "Start a chrome-devtools page for the brainstorm route",
+          "expected": "A browser tab opens so the sign-in flow can be exercised",
+          "observed": "chrome-devtools returned the same shared profile-lock error before navigation could begin"
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "brainstorm-auth-entry/email-library/chrome-devtools-unavailable.txt"
+        ],
+        "screenshots": [],
+        "consoleFindings": "blocked: no browser page or console session was available",
+        "requestResponseObservations": [
+          "curl -I http://127.0.0.1:5173 -> HTTP/1.1 200 OK",
+          "curl http://127.0.0.1:8000/health -> {\"status\":\"ok\"}",
+          "curl -i http://127.0.0.1:8000/api/v1/hello -> HTTP/1.1 200 OK",
+          "No in-browser sign-in request could be observed because no page session could be created"
+        ]
+      },
+      "issues": "Blocked by a shared chrome-devtools profile collision before any browser interaction"
+    },
+    {
+      "id": "VAL-AUTH-007",
+      "title": "Returning signed-in users re-enter through the brainstorm library only",
+      "status": "blocked",
+      "reasoning": "This assertion needs a working browser session, persisted auth state, a revisit or reload of /#/brainstorm, and video/screenshot evidence showing the library-first modal state without auth-form or workspace flash. Because chrome-devtools could not open any page, none of that validation was possible.",
+      "steps": [
+        {
+          "action": "Create a browser context for a returning signed-in user check",
+          "expected": "Auth state can be restored and the brainstorm route can be revisited",
+          "observed": "No chrome-devtools page could be created because the shared profile was locked"
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "brainstorm-auth-entry/email-library/chrome-devtools-unavailable.txt"
+        ],
+        "screenshots": [],
+        "video": null,
+        "consoleFindings": "blocked: no browser page or console session was available",
+        "requestResponseObservations": [
+          "curl -I http://127.0.0.1:5173 -> HTTP/1.1 200 OK",
+          "curl http://127.0.0.1:8000/health -> {\"status\":\"ok\"}",
+          "curl -i http://127.0.0.1:8000/api/v1/hello -> HTTP/1.1 200 OK",
+          "No auth-restore or library-load browser requests could be observed because no page session could be created"
+        ]
+      },
+      "issues": "Blocked by a shared chrome-devtools profile collision before any browser interaction"
+    },
+    {
+      "id": "VAL-SESSION-001",
+      "title": "Signed-in users can create a new persisted session from the library",
+      "status": "blocked",
+      "reasoning": "I could not reach the signed-in brainstorm library UI or start a new session because chrome-devtools never opened a browser page.",
+      "steps": [
+        {
+          "action": "Open the brainstorm route and reach the signed-in library state",
+          "expected": "The library becomes available so a clean persisted session can be created",
+          "observed": "Browser startup failed with the shared chrome-devtools profile-lock error"
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "brainstorm-auth-entry/email-library/chrome-devtools-unavailable.txt"
+        ],
+        "screenshots": [],
+        "consoleFindings": "blocked: no browser page or console session was available",
+        "requestResponseObservations": [
+          "curl -I http://127.0.0.1:5173 -> HTTP/1.1 200 OK",
+          "curl http://127.0.0.1:8000/health -> {\"status\":\"ok\"}",
+          "curl -i http://127.0.0.1:8000/api/v1/hello -> HTTP/1.1 200 OK",
+          "No browser session-creation request could be observed because no page session could be created"
+        ]
+      },
+      "issues": "Blocked by a shared chrome-devtools profile collision before any browser interaction"
+    },
+    {
+      "id": "VAL-SESSION-006",
+      "title": "Library delete removes only the selected session and prevents reopen",
+      "status": "blocked",
+      "reasoning": "This assertion requires creating multiple saved sessions, deleting one, and confirming the others remain and the deleted one cannot reopen. None of those browser steps could be exercised because chrome-devtools could not create a page.",
+      "steps": [
+        {
+          "action": "Launch a browser page and navigate into the signed-in brainstorm library",
+          "expected": "Multiple owned sessions can be created and one can be deleted for verification",
+          "observed": "Browser startup failed with the shared chrome-devtools profile-lock error before any UI setup"
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "brainstorm-auth-entry/email-library/chrome-devtools-unavailable.txt"
+        ],
+        "screenshots": [],
+        "consoleFindings": "blocked: no browser page or console session was available",
+        "requestResponseObservations": [
+          "curl -I http://127.0.0.1:5173 -> HTTP/1.1 200 OK",
+          "curl http://127.0.0.1:8000/health -> {\"status\":\"ok\"}",
+          "curl -i http://127.0.0.1:8000/api/v1/hello -> HTTP/1.1 200 OK",
+          "No browser delete or reopen requests could be observed because no page session could be created"
+        ]
+      },
+      "issues": "Blocked by a shared chrome-devtools profile collision before any browser interaction"
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "Auth success always returns the user to a library-first brainstorm flow",
+      "status": "blocked",
+      "reasoning": "This cross-flow assertion requires observing the browser transition after successful sign-up or sign-in and confirming there is no direct workspace drop. With chrome-devtools unable to open any page, I could not test or record any auth-success transition.",
+      "steps": [
+        {
+          "action": "Start chrome-devtools validation for brainstorm auth success transitions",
+          "expected": "Post-auth routing and modal-state transitions can be observed and captured",
+          "observed": "chrome-devtools failed immediately with the shared profile-lock error"
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "brainstorm-auth-entry/email-library/chrome-devtools-unavailable.txt"
+        ],
+        "screenshots": [],
+        "video": null,
+        "consoleFindings": "blocked: no browser page or console session was available",
+        "requestResponseObservations": [
+          "curl -I http://127.0.0.1:5173 -> HTTP/1.1 200 OK",
+          "curl http://127.0.0.1:8000/health -> {\"status\":\"ok\"}",
+          "curl -i http://127.0.0.1:8000/api/v1/hello -> HTTP/1.1 200 OK",
+          "No browser auth-success routing requests could be observed because no page session could be created"
+        ]
+      },
+      "issues": "Blocked by a shared chrome-devtools profile collision before any browser interaction"
+    }
+  ],
+  "frictions": [
+    {
+      "description": "chrome-devtools could not start because /Users/dks0662779/.cache/chrome-devtools-mcp/chrome-profile was already locked by another running browser instance",
+      "resolved": false,
+      "resolution": "Retried browser startup after a 15 second wait and used curl to confirm the app itself was reachable. I did not kill or restart shared browser processes because mission guidance only allows non-disruptive fixes.",
+      "affectedAssertions": [
+        "VAL-AUTH-003",
+        "VAL-AUTH-004",
+        "VAL-AUTH-007",
+        "VAL-SESSION-001",
+        "VAL-SESSION-006",
+        "VAL-CROSS-002"
+      ]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Required browser surface unavailable: chrome-devtools could not open any page because the shared browser profile was already in use",
+      "affectedAssertions": [
+        "VAL-AUTH-003",
+        "VAL-AUTH-004",
+        "VAL-AUTH-007",
+        "VAL-SESSION-001",
+        "VAL-SESSION-006",
+        "VAL-CROSS-002"
+      ],
+      "quickFixAttempted": "Retried chrome-devtools startup twice, including after a 15 second wait, and confirmed frontend/backend reachability with curl. No disruptive browser reset was attempted."
+    }
+  ],
+  "summary": "Attempted to validate 6 browser assertions, but all 6 were blocked because chrome-devtools could not start a page in the required isolated context due to a shared profile lock. The local frontend and backend were reachable via curl, but no browser UI, console, screenshots, or in-browser network evidence could be collected."
+}

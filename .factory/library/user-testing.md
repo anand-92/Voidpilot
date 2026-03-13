@@ -36,12 +36,12 @@
 ## Validation Concurrency
 
 ### Browser-based validation
-- Max concurrent validators: `2`
+- Max concurrent validators: `1`
 - Rationale:
   - local dry run confirmed frontend/backend boot and brainstorm route rendering work
   - browser/GPU cost is the limiting factor on this machine, not backend CPU
-  - brainstorm UI already carries non-trivial browser/WebGL overhead
-  - keeping concurrency at `2` leaves safe headroom for local dev servers and validator work
+  - the `chrome-devtools` validator in this environment uses a shared browser profile that hard-fails when multiple validator sessions try to attach concurrently
+  - running a single browser validator at a time avoids profile-lock flake and is the only credible setup for this mission's required browser tool
 
 ### Terminal/API validation
 - Max concurrent validators: `5`
@@ -51,5 +51,24 @@
 
 ## Known Limitations
 
-- There is currently no Firebase implementation in the base repo; mission features must establish that before browser auth/share flows can be validated.
 - Browser validation for public share pages must confirm no live brainstorm websocket/audio session is started from the public route.
+- Google OAuth popup cannot be completed in chrome-devtools automation — the button works, opens the real Google accounts popup, and cancellation is handled gracefully, but full completion requires real Google credentials and interactive popup navigation.
+- The chrome-devtools MCP can become disconnected for subagents if a prior session left a browser profile lock. When this happens, API-based validation (Firebase REST API + curl) and code review can serve as a fallback for auth and session CRUD assertions.
+
+## Validated API Endpoints
+
+- `GET /api/v1/live/brainstorm/sessions` — lists sessions for authenticated user (requires Firebase bearer token)
+- `POST /api/v1/live/brainstorm/sessions` — creates a new persisted session (returns 201)
+- `GET /api/v1/live/brainstorm/sessions/{id}` — reopens a session (returns session data or 404 if deleted)
+- `DELETE /api/v1/live/brainstorm/sessions/{id}` — deletes a session (returns 204)
+- All endpoints return 401 for missing/invalid auth tokens with code `brainstorm_auth_missing` or `brainstorm_auth_invalid`
+
+## Flow Validator Guidance: browser
+
+- Use `chrome-devtools` only for this mission's browser validation.
+- Keep validators inside their assigned browser isolation context; do not reuse auth state, local storage, or cookies across assertion groups unless the prompt explicitly requires a returning-user check.
+- For signed-in email/password flows, create a unique Firebase account per validator run using a plus-addressed or timestamped email so parallel validators do not collide on auth or library data.
+- Treat the brainstorm library as user-owned state. A validator may create and delete only the sessions it created within its own signed-in account.
+- Guest-flow validators must stay signed out for their entire run and must not create or rely on persisted library state.
+- If Google popup auth cannot be credibly completed in `chrome-devtools`, capture the exact limitation and mark only the affected Google assertion as blocked rather than guessing.
+- Capture evidence for route gating by checking that no brainstorm websocket/session requests start before an entry choice is made.

@@ -1,0 +1,200 @@
+{
+  "groupId": "guest-routing",
+  "testedAt": "2026-03-13T05:33:26.075458+00:00",
+  "isolation": {
+    "browserContext": "brainstorm-auth-entry-guest-routing",
+    "authState": "signed_out",
+    "frontendUrl": "http://127.0.0.1:5173",
+    "backendUrl": "http://127.0.0.1:8000",
+    "routesTested": [
+      "/",
+      "/#/brainstorm"
+    ],
+    "surface": "chrome-devtools only"
+  },
+  "toolsUsed": [
+    "chrome-devtools",
+    "python3"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-001",
+      "title": "Brainstorm route is gated by the entry modal",
+      "status": "pass",
+      "reasoning": "A fresh signed-out direct visit to /#/brainstorm rendered the brainstorm entry modal before the workspace became usable. The underlying workspace subtree carried inert/aria-hidden state, and no brainstorm websocket or session request started before any entry choice.",
+      "steps": [
+        {
+          "action": "Open http://127.0.0.1:5173/#/brainstorm in a fresh signed-out page inside the assigned isolated browser context.",
+          "expected": "The brainstorm entry modal appears before the workspace can be used.",
+          "observed": "The page loaded a modal dialog titled \u201cEnter brainstorm mode\u201d with sign-up, sign-in, Google, and guest options."
+        },
+        {
+          "action": "Inspect the background workspace while the modal is open.",
+          "expected": "Workspace controls exist but remain unusable until an entry path is chosen.",
+          "observed": "The background subtree had inert + aria-hidden applied and contained blocked controls including Artifact, Image, Video, and Connect."
+        },
+        {
+          "action": "Check pre-entry console/network state.",
+          "expected": "Route load succeeds without starting a brainstorm session automatically.",
+          "observed": "The route rendered successfully and the instrumented pre-entry log only showed the Vite HMR websocket; there were no /api/v1/live/brainstorm or session-start entries and no console errors."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-auth-entry/guest-routing/VAL-AUTH-001-entry-modal-first-load.png"
+        ],
+        "snapshots": [
+          "brainstorm-auth-entry/guest-routing/brainstorm-entry-modal-direct-route-snapshot.txt"
+        ],
+        "consoleErrors": "none",
+        "network": "Direct route load succeeded. Instrumented pre-entry log on the direct route contained only ws://127.0.0.1:5173/?token=\u2026 (Vite HMR) and no brainstorm websocket/session requests before user choice."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-002",
+      "title": "The modal presents all required entry paths and cannot be casually bypassed",
+      "status": "pass",
+      "reasoning": "The signed-out brainstorm modal exposed all four required entry paths and visibly/semantically blocked the workspace behind it. Background controls were present inside an inert subtree, and instrumentation showed no brainstorm websocket or session traffic before a user choice.",
+      "steps": [
+        {
+          "action": "Review the brainstorm entry modal contents on the signed-out brainstorm route.",
+          "expected": "The modal shows email/password sign up, email/password sign in, Google sign-in, and continue-as-guest choices.",
+          "observed": "Visible controls included Sign up, Sign in, Continue with Google, and Continue as guest, alongside guest ephemerality messaging."
+        },
+        {
+          "action": "Verify the workspace is blocked behind the modal.",
+          "expected": "Background brainstorm controls remain inert until the user completes an entry path.",
+          "observed": "The workspace behind the modal was blurred and marked pointer-events-none/select-none; DOM inspection showed an inert subtree containing blocked buttons such as Artifact, Image, Video, and Connect."
+        },
+        {
+          "action": "Inspect pre-entry network activity.",
+          "expected": "No brainstorm websocket/session work starts before an explicit choice.",
+          "observed": "The direct-route instrumentation returned an empty brainstorm-related entry list before any click; only the Vite HMR websocket was present."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-auth-entry/guest-routing/VAL-AUTH-002-all-entry-choices-and-blocked-background.png"
+        ],
+        "snapshots": [
+          "brainstorm-auth-entry/guest-routing/brainstorm-entry-modal-direct-route-snapshot.txt"
+        ],
+        "consoleErrors": "none",
+        "network": "No brainstorm websocket/session entries were captured before entry. Sample blocked background controls from the inert subtree: Artifact, Image, Video, Connect."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-006",
+      "title": "Guest entry is explicit and clearly ephemeral",
+      "status": "pass",
+      "reasoning": "Before entry, the modal explicitly warned that guest sessions disappear after refresh/close. Choosing Continue as guest opened the workspace directly, and the resulting UI did not expose library or signed-in auth controls.",
+      "steps": [
+        {
+          "action": "Read the guest entry copy on the brainstorm entry modal.",
+          "expected": "The UI clearly states that guest access is ephemeral.",
+          "observed": "The modal stated: \u201cGuest sessions stay fully ephemeral. Refresh the page, close the tab, or come back later and they are gone.\u201d"
+        },
+        {
+          "action": "Click Continue as guest.",
+          "expected": "The app should enter the brainstorm workspace directly.",
+          "observed": "The modal closed and the brainstorm workspace appeared with an empty canvas, conversation panel, and a Connect button."
+        },
+        {
+          "action": "Inspect visible controls in the guest workspace.",
+          "expected": "Signed-in library/auth controls should not be present.",
+          "observed": "Visible buttons were Artifact, Image, Video, and Connect; there was no library text and no Sign in/Sign up controls on the workspace surface."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-auth-entry/guest-routing/VAL-AUTH-001-entry-modal-first-load.png",
+          "brainstorm-auth-entry/guest-routing/VAL-AUTH-006-guest-workspace-state.png"
+        ],
+        "snapshots": [
+          "brainstorm-auth-entry/guest-routing/guest-workspace-snapshot.txt"
+        ],
+        "consoleErrors": "none",
+        "network": "No auth/library requests or brainstorm websocket auto-start were observed merely by entering guest mode; the workspace waited for the user to press Connect."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-008",
+      "title": "Brainstorm auth gating stays scoped to brainstorm",
+      "status": "pass",
+      "reasoning": "The landing page loaded normally with no brainstorm gate. Opening the walkthrough from landing launched the walkthrough modal directly and connected its websocket, while brainstorm navigation still produced the brainstorm entry gate.",
+      "steps": [
+        {
+          "action": "Open the landing page at /.",
+          "expected": "The landing experience is available without the brainstorm entry modal.",
+          "observed": "The landing page rendered its normal hero/cards layout with Talk to Voidpilot and Brainstorm Mode cards; no brainstorm gate appeared."
+        },
+        {
+          "action": "Open the landing-page walkthrough modal.",
+          "expected": "The walkthrough opens directly and continues to use its own live connection, not the brainstorm gate.",
+          "observed": "After applying a fake-media microphone stream per mission guidance, clicking Talk to Voidpilot opened the walkthrough modal, showed a Live badge, logged \u201cConnected to walkthrough agent\u201d, and constructed ws://127.0.0.1:5173/api/v1/live/walkthrough."
+        },
+        {
+          "action": "Navigate to brainstorm from the same signed-out landing surface.",
+          "expected": "Only brainstorm should be gated by the brainstorm entry modal.",
+          "observed": "Clicking Brainstorm Mode routed to /#/brainstorm and showed the brainstorm entry modal."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-auth-entry/guest-routing/VAL-AUTH-008-landing-route-unaffected.png",
+          "brainstorm-auth-entry/guest-routing/VAL-AUTH-008-walkthrough-modal-opens-without-brainstorm-gate.png",
+          "brainstorm-auth-entry/guest-routing/VAL-AUTH-008-brainstorm-route-gated.png"
+        ],
+        "snapshots": [
+          "brainstorm-auth-entry/guest-routing/landing-initial-snapshot.txt",
+          "brainstorm-auth-entry/guest-routing/brainstorm-entry-modal-from-landing-snapshot.txt"
+        ],
+        "consoleErrors": "none (landing/walkthrough also showed non-failing warnings: THREE.THREE.Clock deprecated and ScriptProcessorNode deprecated)",
+        "network": "Walkthrough flow constructed ws://127.0.0.1:5173/api/v1/live/walkthrough and logged a successful walkthrough connection. Brainstorm entry gating remained confined to /#/brainstorm."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-001",
+      "title": "Landing-page navigation and direct routing reach the correct brainstorm entry state",
+      "status": "pass",
+      "reasoning": "In signed-out state, both entry paths led to the same brainstorm entry experience: the landing card routed to /#/brainstorm and showed the entry modal, and a fresh direct /#/brainstorm load showed the same modal.",
+      "steps": [
+        {
+          "action": "From the landing page, click the Brainstorm Mode card.",
+          "expected": "Signed-out users should land in the brainstorm entry flow.",
+          "observed": "The URL changed to /#/brainstorm and the brainstorm entry modal opened immediately."
+        },
+        {
+          "action": "Open a fresh signed-out direct /#/brainstorm page.",
+          "expected": "Signed-out users should see the same brainstorm entry flow via direct routing.",
+          "observed": "A new page in the same isolated signed-out context loaded the same \u201cEnter brainstorm mode\u201d modal."
+        },
+        {
+          "action": "Check for console breakage across both brainstorm entry loads.",
+          "expected": "No console errors should accompany the routing behavior.",
+          "observed": "No console errors were recorded on the brainstorm entry pages."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-auth-entry/guest-routing/VAL-CROSS-001-landing-navigation-to-brainstorm-entry-modal.png",
+          "brainstorm-auth-entry/guest-routing/VAL-CROSS-001-direct-route-entry-modal.png"
+        ],
+        "snapshots": [
+          "brainstorm-auth-entry/guest-routing/brainstorm-entry-modal-from-landing-snapshot.txt",
+          "brainstorm-auth-entry/guest-routing/brainstorm-entry-modal-direct-route-snapshot.txt"
+        ],
+        "consoleErrors": "none",
+        "network": "Both navigation paths rendered the signed-out brainstorm entry modal successfully; direct-route instrumentation again showed no brainstorm websocket/session start before choice."
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 guest-routing assertions in a signed-out chrome-devtools context. All 5 passed: brainstorm was gated on both landing and direct routing, guest entry was explicitly ephemeral, and the landing/walkthrough surfaces remained unaffected except for their own expected walkthrough websocket."
+}

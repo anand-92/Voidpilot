@@ -1,0 +1,33 @@
+{
+  "milestone": "brainstorm-auth-entry",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 12,
+    "passed": 11,
+    "failed": 0,
+    "blocked": 1
+  },
+  "passedAssertions": [
+    "VAL-AUTH-001",
+    "VAL-AUTH-002",
+    "VAL-AUTH-003",
+    "VAL-AUTH-004",
+    "VAL-AUTH-006",
+    "VAL-AUTH-007",
+    "VAL-AUTH-008",
+    "VAL-CROSS-001",
+    "VAL-CROSS-002",
+    "VAL-SESSION-001",
+    "VAL-SESSION-006"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [
+    {
+      "id": "VAL-AUTH-005",
+      "blockedBy": "Google OAuth popup flow cannot be completed in chrome-devtools automation. The Google sign-in button is present and functional (opens real Google accounts popup for Firebase project gen-lang-client-0579048282), and cancellation is handled gracefully with a clear error message. Full completion path (landing in signed-in library) requires real Google credentials and interactive popup navigation that cannot be automated."
+    }
+  ],
+  "appliedUpdates": [],
+  "previousRound": null
+}

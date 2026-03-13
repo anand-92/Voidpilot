@@ -1,0 +1,132 @@
+{
+  "flowGroupId": "entry-modal-flows",
+  "milestone": "brainstorm-auth-entry",
+  "testedAt": "2026-03-13T00:00:00Z",
+  "isolation": {
+    "appUrl": "http://127.0.0.1:5173",
+    "backendUrl": "http://127.0.0.1:8000",
+    "brainstormRoute": "http://127.0.0.1:5173/#/brainstorm",
+    "landingRoute": "http://127.0.0.1:5173/#/"
+  },
+  "toolsUsed": ["chrome-devtools"],
+  "assertions": {
+    "VAL-AUTH-001": {
+      "status": "pass",
+      "reason": "Visiting /#/brainstorm via direct URL navigation shows the brainstorm entry modal (dialog with aria-modal=true, title 'Enter brainstorm mode') before the workspace becomes usable. The modal is displayed consistently on fresh navigation and page reload. The user must make an explicit entry choice (sign up, sign in, Google, or guest) before the workspace unlocks. Confirmed on both direct URL load and after sign-out from a previously signed-in state.",
+      "steps": [
+        { "action": "Navigate to http://127.0.0.1:5173/#/brainstorm", "expected": "Entry modal displayed", "observed": "Entry modal with title 'Enter brainstorm mode' displayed as modal dialog" },
+        { "action": "Reload page via direct URL navigation", "expected": "Entry modal still displayed", "observed": "Entry modal displayed consistently on re-navigation" }
+      ],
+      "evidence": [
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-001-entry-modal-first-load.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-001-entry-modal-fullpage.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-001-signed-in-library-state.png"
+      ],
+      "consoleErrors": "none",
+      "network": "Route load succeeds (200), no brainstorm websocket connections before entry choice"
+    },
+    "VAL-AUTH-002": {
+      "status": "pass",
+      "reason": "The entry modal clearly exposes all four required entry paths: (1) Email/password sign up — 'Sign up' button + 'Create your brainstorm account' button with display name, email, password, confirm password fields, (2) Email/password sign in — 'Sign in' button, (3) Google sign-in — 'Continue with Google' button, (4) Continue as guest — 'Continue as guest' button with ephemeral messaging. The modal uses aria-modal=true and is positioned as a fixed full-viewport overlay at z-index 60, blocking all background controls. No brainstorm websocket connections were established before an entry choice was made — only Vite dev server module loads and a library sessions fetch were observed.",
+      "steps": [
+        { "action": "Inspect entry modal content", "expected": "All four entry paths visible", "observed": "Sign up, Sign in, Continue with Google, Continue as guest buttons all present" },
+        { "action": "Check modal blocking behavior", "expected": "Background controls inert", "observed": "Dialog has aria-modal=true, fixed inset-0 z-[60] positioning blocks background" },
+        { "action": "Check for premature websocket connections", "expected": "No brainstorm websocket before entry choice", "observed": "Zero WebSocket connections in performance entries, only module loads and library API fetch" }
+      ],
+      "evidence": [
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-002-all-entry-choices.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-002-background-blocked.png"
+      ],
+      "consoleErrors": "none",
+      "network": "No brainstorm websocket or session start before entry choice. Only /api/v1/live/brainstorm/sessions (library fetch) observed."
+    },
+    "VAL-AUTH-005": {
+      "status": "blocked",
+      "reason": "Google sign-in button is present and functional — clicking it opens a real Google accounts popup (accounts.google.com OAuth flow for Firebase project gen-lang-client-0579048282). However, completing the Google OAuth popup flow is not possible in chrome-devtools automation because it requires real Google account credentials and interactive popup navigation. The cancellation/failure path was confirmed: closing the Google popup without completing sign-in shows a clear error message 'Google sign-in was cancelled before it finished.' and the modal remains fully usable with all buttons re-enabled. The successful completion path (signed-in library return) cannot be verified without real Google credentials.",
+      "steps": [
+        { "action": "Click 'Continue with Google' button", "expected": "Google sign-in popup opens", "observed": "Google accounts.google.com popup opened in new page" },
+        { "action": "Close Google popup (simulate cancellation)", "expected": "Modal shows error and remains usable", "observed": "Error message 'Google sign-in was cancelled before it finished.' displayed, all buttons re-enabled" },
+        { "action": "Complete Google sign-in", "expected": "Return to signed-in library", "observed": "BLOCKED — cannot complete real Google OAuth in chrome-devtools automation" }
+      ],
+      "evidence": [
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-005-google-button-present.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-005-google-popup-opened.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-005-google-signin-popup.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-005-google-cancel-error.png"
+      ],
+      "consoleErrors": "2x Cross-Origin-Opener-Policy warnings related to Google popup (expected browser security behavior)",
+      "network": "Google OAuth popup opened successfully, cancelled flow handled gracefully",
+      "issues": "Cannot complete the full Google OAuth popup flow in chrome-devtools automation. The Google sign-in button works correctly, the popup opens, and cancellation is handled with a clear error message. Full completion verification requires real Google credentials and interactive popup navigation."
+    },
+    "VAL-AUTH-006": {
+      "status": "pass",
+      "reason": "The modal clearly communicates guest session ephemerality before entry with two explicit messages: (1) under 'Guest access' heading — 'Open the workspace instantly, but nothing survives a refresh or close.' and (2) under 'CONTINUE AS GUEST' section — 'Guest sessions stay fully ephemeral. Refresh the page, close the tab, or come back later and they are gone.' Clicking 'Continue as guest' immediately opens the brainstorm workspace. The guest workspace does not expose any signed-in library controls — no session library, no sign-out button, no saved sessions indicators. The workspace shows standard brainstorm controls: Connect, message input, artifact/image/video buttons.",
+      "steps": [
+        { "action": "Check guest ephemerality messaging in modal", "expected": "Clear ephemeral warning before entry", "observed": "Two explicit messages about ephemeral nature visible: 'nothing survives a refresh or close' and 'they are gone'" },
+        { "action": "Click 'Continue as guest'", "expected": "Direct entry to workspace without library controls", "observed": "Workspace opened with brainstorm controls (Connect, message input, artifact buttons) — no library or signed-in controls visible" }
+      ],
+      "evidence": [
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-006-guest-ephemerality-messaging.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-006-guest-workspace-state.png"
+      ],
+      "consoleErrors": "2x COOP warnings from prior Google sign-in attempt (not guest-flow related)",
+      "network": "No library or session persistence requests during guest flow"
+    },
+    "VAL-AUTH-008": {
+      "status": "pass",
+      "reason": "The brainstorm auth gating is correctly scoped to the brainstorm route only. (1) Landing page (/#/) loads directly with full content and no entry modal or auth gate. (2) The walkthrough modal ('Talk to Voidpilot') opens from the landing page without any brainstorm gate — shows 'Connecting...' and a close button immediately. (3) Brainstorm route (/#/brainstorm) still shows the entry modal after visiting the landing page and walkthrough. No cross-contamination of auth gating between routes.",
+      "steps": [
+        { "action": "Navigate to landing page /#/", "expected": "Landing page loads without auth gate", "observed": "Landing page loaded with full content, no modal or auth gate" },
+        { "action": "Open walkthrough modal from landing page", "expected": "Walkthrough opens without brainstorm gate", "observed": "Walkthrough modal opened with 'Connecting...' state, no brainstorm entry gate" },
+        { "action": "Navigate to brainstorm route /#/brainstorm", "expected": "Entry modal is shown", "observed": "Entry modal displayed as expected with all entry choices" }
+      ],
+      "evidence": [
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-008-landing-route-unaffected.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-008-walkthrough-opens-no-brainstorm-gate.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-008-brainstorm-route-still-gated.png"
+      ],
+      "consoleErrors": "none on landing page; none on brainstorm route",
+      "network": "Landing page and walkthrough load without brainstorm auth checks. Walkthrough websocket connection attempted independently."
+    },
+    "VAL-CROSS-001": {
+      "status": "pass",
+      "reason": "Both navigation paths consistently reach the correct brainstorm entry experience. (1) Landing page navigation: clicking 'Brainstorm Mode' button on the landing page navigates to /#/brainstorm and shows the entry modal for a signed-out user. (2) Direct URL: navigating directly to http://127.0.0.1:5173/#/brainstorm shows the same entry modal. (3) Signed-in state was also observed earlier when a user was already authenticated — the modal showed the signed-in library state ('Welcome back, Droid QA') instead of the entry form. The routing correctly differentiates between signed-out (entry modal) and signed-in (library state).",
+      "steps": [
+        { "action": "Navigate to landing page", "expected": "Landing page loads", "observed": "Landing page with 'Brainstorm Mode' button displayed" },
+        { "action": "Click 'Brainstorm Mode' button", "expected": "Route to /#/brainstorm with entry modal", "observed": "Navigated to /#/brainstorm, entry modal displayed with all entry choices" },
+        { "action": "Navigate directly to /#/brainstorm via URL", "expected": "Entry modal for signed-out user", "observed": "Entry modal displayed consistently" },
+        { "action": "Observe signed-in state (from initial page load with existing auth)", "expected": "Signed-in library state", "observed": "Modal showed 'Welcome back, Droid QA' with signed-in library controls and 0 saved sessions" }
+      ],
+      "evidence": [
+        "brainstorm-auth-entry/entry-modal-flows/VAL-CROSS-001-landing-page.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-CROSS-001-landing-to-brainstorm-flow.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-CROSS-001-direct-route-flow.png",
+        "brainstorm-auth-entry/entry-modal-flows/VAL-AUTH-001-signed-in-library-state.png"
+      ],
+      "consoleErrors": "none",
+      "network": "Route transitions succeed cleanly, no unexpected errors"
+    }
+  },
+  "frictions": [
+    {
+      "description": "Initial page load showed a signed-in library state (user 'Droid QA' with email droid.brainstorm.error.1773376630@example.com) from a previous test session. Had to sign out first to test the entry modal for unsigned users.",
+      "resolved": true,
+      "resolution": "Clicked 'Sign out' button in the signed-in library modal to clear auth state, then retested.",
+      "affectedAssertions": ["VAL-AUTH-001"]
+    },
+    {
+      "description": "After triggering Google sign-in and closing the popup, the COOP (Cross-Origin-Opener-Policy) warnings appeared in console. These are expected browser security behavior for cross-origin popup flows, not application bugs.",
+      "resolved": true,
+      "resolution": "Documented as expected browser behavior, not a functional issue.",
+      "affectedAssertions": ["VAL-AUTH-005", "VAL-AUTH-006"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Google OAuth popup flow cannot be completed in chrome-devtools automation — requires real Google credentials and interactive popup navigation that chrome-devtools cannot automate.",
+      "affectedAssertions": ["VAL-AUTH-005"],
+      "quickFixAttempted": "Verified the button opens the correct Google OAuth popup and that cancellation is handled gracefully with a clear error message. Full completion path remains untested."
+    }
+  ],
+  "summary": "Tested 6 assertions: 5 passed (VAL-AUTH-001, VAL-AUTH-002, VAL-AUTH-006, VAL-AUTH-008, VAL-CROSS-001), 1 blocked (VAL-AUTH-005: Google sign-in popup cannot be completed in chrome-devtools, though button presence, popup opening, and cancellation handling were all verified successfully)."
+}
