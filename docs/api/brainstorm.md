@@ -4,6 +4,42 @@
 
 The Brainstorm Mode endpoint (`/api/v1/live/brainstorm`) provides a creative workspace for generating multimedia content. It's designed as a thinking partner that helps develop and refine ideas using various tools.
 
+## REST Endpoints (Persistence & Library)
+
+The brainstorm feature includes a set of REST endpoints for managing persistent sessions, powered by Firebase.
+
+### 1. Session Management
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/live/brainstorm/sessions` | `GET` | Required | List current user's persistent brainstorm sessions |
+| `/api/v1/live/brainstorm/sessions` | `POST` | Required | Create a new persistent brainstorm session |
+| `/api/v1/live/brainstorm/sessions/{id}` | `GET` | Required | Retrieve a specific persistent session with its full transcript and artifact list |
+| `/api/v1/live/brainstorm/sessions/{id}` | `DELETE` | Required | Delete a brainstorm session and its associated artifacts from Firestore and Cloud Storage |
+| `/api/v1/live/brainstorm/sessions/{id}/title` | `PATCH` | Required | Update a session's title (manually or AI-generated) |
+
+### 2. Turn & Artifact Persistence
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/live/brainstorm/sessions/{id}/turns` | `PUT` | Required | Save the full conversation transcript (turns) for a session |
+| `/api/v1/live/brainstorm/sessions/{id}/artifacts` | `PUT` | Required | Save an artifact's metadata and content to Cloud Storage and Firestore |
+| `/api/v1/live/brainstorm/sessions/{id}/artifacts/{artifact_id}/download` | `GET` | Required | Download a specific artifact with correct filename quoting (RFC 5987) |
+
+### 3. Public Sharing
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/live/brainstorm/sessions/{id}/share` | `POST` | Required | Generate a public share token for a session |
+| `/api/v1/live/brainstorm/share/{token}` | `GET` | Optional | Retrieve a shared session's read-only transcript and artifact list |
+| `/api/v1/live/brainstorm/share/{token}/artifacts/{artifact_id}/download` | `GET` | Optional | Download an artifact from a public share link |
+
+### 4. Anonymous Access
+
+The brainstorm mode supports **Guest Mode** for unauthenticated users. Sessions in Guest Mode are ephemeral and do not use the REST persistence endpoints.
+
+---
+
 ## WebSocket Path
 
 ```
@@ -12,11 +48,11 @@ WS /api/v1/live/brainstorm
 
 ## Model Configuration
 
-- **Model**: `gemini-2.5-flash-native-audio-preview-12-2025`
+- **Model**: `gemini-2.5-flash-native-audio-preview-12-2025` (Live Session)
 - **Input Sample Rate**: 16000 Hz (microphone input)
 - **Output Sample Rate**: 24000 Hz (audio playback)
 - **Max Retries**: 3
-- **Default Flash Model**: `gemini-2.0-flash-exp`
+- **Default Flash Worker Model**: `gemini-3.1-flash-lite-preview`
 
 ## System Prompt
 
@@ -297,13 +333,13 @@ Delegates analysis, research synthesis, or structured data extraction tasks to a
 
 ## Flash Model Options
 
-The following Flash text models can be selected:
+The following Flash text models can be selected for workers:
 
 | Model Key | Description |
 |-----------|-------------|
-| `gemini-2.0-flash-exp` | Default experimental Flash model |
-| `gemini-2.0-flash-8b` | Flash 8B model |
-| `gemini-1.5-flash-8b` | Legacy Flash 8B model |
+| `gemini-3.1-flash-lite` | Gemini 3.1 Flash Lite Preview |
+| `gemini-3-flash` | Gemini 3 Flash Latest |
+| `gemini-3.1-pro` | Gemini 3.1 Pro Preview |
 
 ## Connection Handling
 

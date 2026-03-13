@@ -51,6 +51,31 @@ Sends a text message through the WebSocket. Messages are added to local state wi
 | `selectedFlashModel` | `BrainstormFlashModel` | Currently selected Flash model |
 | `selectedTools` | `BrainstormToolId[]` | Currently enabled tools |
 
+## Persistence & Sharing Support
+
+The hook now supports Firebase-powered persistence and public sharing:
+
+### Session Persistence
+- **Turn Saving**: Calls `PUT /api/v1/live/brainstorm/sessions/{id}/turns` after each turn
+- **Artifact Persistence**: Calls `PUT /api/v1/live/brainstorm/sessions/{id}/artifacts` when artifacts arrive
+- **Library Loading**: Fetches session state from `GET /api/v1/live/brainstorm/sessions/{id}`
+
+### Public Sharing
+- **Share Link Generation**: Calls `POST /api/v1/live/brainstorm/sessions/{id}/share`
+- **Share Link Management**: Tracks sharing status in local state
+
+### State Management Updates
+| Variable | Type | Description |
+|----------|------|-------------|
+| `selectedArtifactLoadState` | `'idle' \| 'loading' \| 'success' \| 'error'` | Track preview loading for large artifacts |
+| `currentSessionId` | `string \| null` | Currently active brainstorm session ID |
+| `isSharing` | `boolean` | Whether sharing is active for the current session |
+| `shareToken` | `string \| null` | Public share token for the current session |
+
+### New Functions
+- `downloadArtifact(artifactId: string)`: Download a specific artifact via backend endpoint (supports filename quoting)
+- `downloadAllArtifacts()`: Zip and download all artifacts for the current session
+
 ## Configuration Options
 
 ### Flash Model Options

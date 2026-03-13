@@ -21,6 +21,17 @@ def __init__(self, api_key: str, text_model_key: str | None = None) -> None
 | `api_key` | `str` | Google API key for authentication |
 | `text_model_key` | `str \| None` | Optional key to select text model (default: "gemini-3.1-flash-lite") |
 
+## Persistence Integration
+
+FlashWorker results can be stored persistently when a `sessionId` is provided during the generation process (handled by the brainstorm endpoint):
+
+- **Markdown**: Saved as a `.md` file in Cloud Storage; metadata (title, turns) updated in Firestore.
+- **Images**: Saved as a `.png` file in Cloud Storage; metadata (prompt, label) stored in Firestore.
+- **Videos**: Saved as a `.mp4` file in Cloud Storage; metadata (prompt, label) stored in Firestore.
+- **Titles**: AI-generated titles are saved to the session's Firestore document.
+
+---
+
 ## Key Methods
 
 ### `generate_markdown`
@@ -104,14 +115,13 @@ Generates a video using Veo 3.1.
 | `gemini-3.1-flash-lite` | Gemini 3.1 Flash Lite | `gemini-3.1-flash-lite-preview` | Yes |
 | `gemini-3-flash` | Gemini 3 Flash | `gemini-flash-latest` | Yes |
 | `gemini-3.1-pro` | Gemini 3.1 Pro | `gemini-3.1-pro-preview` | Yes |
-
 ### Image Model
 
 - **Model**: `gemini-3.1-flash-image-preview`
 
 ### Video Model
 
-- **Model**: `veo-3.1-generate-preview`
+- **Model**: `veo-3.1-fast-generate-preview`
 - **Aspect Ratio**: 16:9
 - **Duration**: 4 seconds
 

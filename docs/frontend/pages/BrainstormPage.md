@@ -65,6 +65,17 @@ Automatically detects mobile devices using:
   - `generate_brainstorm_image` - Generate images via Veo
   - `delegate_to_flash` - Delegate to Flash model
 
+### 6. Session Persistence & Library
+- **Library View**: Browse previously saved brainstorm sessions (signed-in users only)
+- **Persistent Session Loading**: Restore transcript and artifact list from Firestore/Cloud Storage
+- **Automatic Turn Saving**: Conversations are saved after each interaction
+- **Sharing UI**: Generate and manage public read-only share links for sessions
+
+### 7. Guest vs. Signed-in Mode
+- **Guest Mode**: Ephemeral sessions for unauthenticated users
+- **Signed-in Mode**: Persistent sessions with full library and sharing support
+- **Onboarding Flow**: Encourages signing in for persistent storage and sharing
+
 ## State Management
 
 ### Local State
@@ -72,6 +83,8 @@ Automatically detects mobile devices using:
 const [inputText, setInputText] = useState('')           // User input
 const [selectedArtifact, setSelectedArtifact] = useState<string | null>(null)  // Selected artifact ID
 const [isMobileLayout, setIsMobileLayout] = useState(false)  // Layout mode
+const [sessionTitle, setSessionTitle] = useState('New Brainstorm') // Session title
+const [isLibraryOpen, setIsLibraryOpen] = useState(false) // Library view toggle
 const messagesEndRef = useRef<HTMLDivElement>(null)      // Auto-scroll ref
 ```
 

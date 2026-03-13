@@ -33,8 +33,9 @@ The component maintains internal state for:
 
 - **Gemini Agent**: Yellow-colored "Voice" agent that becomes active when `isConnected` is true
 - **Flash Agent**: Blue-colored "Worker" agent that becomes active when `isGenerating` is true
+- **Idle Wandering**: When agents are not actively "working", they wander to random target tiles within the office environment every 3-8 seconds
 - **Dialogue System**: Agents display different dialogue based on active/idle state with randomized timing
-- **Movement**: Agents walk to their seats when active, then switch to "working" animation
+- **Movement**: Agents walk to their target positions when active/wandering, then switch to the appropriate animation state (working/idle)
 
 ## Animation Definitions
 

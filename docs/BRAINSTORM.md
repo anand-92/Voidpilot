@@ -18,7 +18,38 @@ The primary artifact is always a **markdown file** — a living brainstorm docum
 
 ---
 
-## Two-Model Architecture: Live + Flash Lite Workers
+## Persistent Sessions & Firebase
+
+Brainstorm Mode supports persistent sessions for signed-in users, powered by Firebase (Auth, Firestore, and Cloud Storage).
+
+### Session Types
+
+| Mode | Authentication | Persistence |
+|---|---|---|
+| **Guest Mode** | Anonymous | Ephemeral — sessions are lost on refresh/disconnect |
+| **Signed-in Mode** | Firebase Auth (Email/Google) | Persistent — sessions saved to Firestore and Cloud Storage |
+
+### Persistence Features
+
+1. **Session Library**: Signed-in users can view, reopen, and delete their previous brainstorm sessions from a personal library.
+2. **Turn Persistence**: The conversation transcript (turns) is automatically saved to Firestore after each turn.
+3. **Artifact Persistence**: Generated artifacts (markdown, images, videos) are stored in Google Cloud Storage with metadata in Firestore.
+4. **AI-Generated Titles**: Voidpilot automatically generates a descriptive title for each session based on the first few turns of conversation.
+
+---
+
+## Public Sharing
+
+Users can share their brainstorm sessions via read-only public links.
+
+- **Share Links**: Generates a unique, non-guessable share token.
+- **Read-Only Access**: Anyone with the link can view the full transcript and preview/download all artifacts.
+- **Security**: Public payloads are sanitized to remove sensitive owner information (UID, email).
+- **Control**: Owners can revoke sharing at any time by deleting the share token.
+
+---
+
+## Two-Model Architecture: Live + Flash Workers
 
 The key architectural insight: **Gemini Live should never block on artifact work.** The Live model's job is to stay fully engaged with the user in real-time voice conversation. All heavy lifting (writing markdown, generating images, structuring data) is delegated to **Gemini 3.1 Flash Lite** (`gemini-3.1-flash-lite-preview`) workers that run in the background.
 
@@ -96,7 +127,7 @@ Brainstorm Mode works in **both** deployment targets with platform-appropriate a
 | **Artifact storage** | Held in-memory on the backend, served to a virtual workspace UI |
 | **File access** | Virtual workspace panel shows all artifacts; download individually or as .zip |
 | **Image generation** | Served as base64 or temporary URLs in the workspace |
-| **Session persistence** | Artifacts live for the session duration; user must download to keep them |
+| **Session persistence** | Signed-in users' artifacts are stored in Cloud Storage; Guest artifacts are ephemeral |
 
 ---
 
@@ -123,7 +154,7 @@ Brainstorm Mode runs on the same Gemini Live API WebSocket session the app alrea
 | **Barge-in / interruption** | User can redirect the brainstorm at any time ("wait, go back to that first idea") |
 | **Affective dialog** | Voidpilot adapts tone — encouraging when unsure, challenging when confident |
 | **Context window compression** | Already configured (trigger at 25.6k, slide to 12.8k) — enables long brainstorm sessions |
-| **Session resumption** | Must be added to brainstorm endpoint's `LiveConnectConfig` — not yet configured in the codebase. Needed to bridge WebSocket reconnections during long brainstorm sessions. |
+| **Session resumption** | Configured in `LiveConnectConfig` — bridges WebSocket reconnections and restores previous session state. |
 | **NON_BLOCKING function calling** | Artifact tools run asynchronously — Live model never pauses the conversation |
 
 **System prompt for Brainstorm Mode:**
