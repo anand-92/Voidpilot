@@ -1,41 +1,26 @@
 {
   "milestone": "brainstorm-persistence",
-  "round": 1,
-  "status": "fail",
+  "round": 2,
+  "status": "pass",
   "assertionsSummary": {
-    "total": 9,
-    "passed": 7,
-    "failed": 2,
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
     "blocked": 0
   },
   "passedAssertions": [
-    "VAL-SESSION-002",
-    "VAL-SESSION-003",
-    "VAL-SESSION-004",
-    "VAL-SESSION-005",
-    "VAL-SESSION-007",
-    "VAL-SESSION-008",
-    "VAL-CROSS-006"
+    "VAL-SESSION-009",
+    "VAL-SESSION-010"
   ],
-  "failedAssertions": [
-    {
-      "id": "VAL-SESSION-009",
-      "reason": "Cloud Storage bucket gen-lang-client-0579048282.firebasestorage.app does not exist (HTTP 404 from Google Cloud Storage API). Artifact upload fails with google.api_core.exceptions.NotFound. The frontend code correctly captures the originating session ID at artifact arrival time so delayed completions target the correct session, and the backend code is structurally correct, but the underlying storage infrastructure is not provisioned."
-    },
-    {
-      "id": "VAL-SESSION-010",
-      "reason": "Blocked by VAL-SESSION-009. Cannot save artifacts to Cloud Storage, so cannot verify that reopened sessions restore real artifact files. The backend endpoints and frontend hooks for artifact metadata and download are all implemented, but require the Cloud Storage bucket to function."
-    }
-  ],
+  "failedAssertions": [],
   "blockedAssertions": [],
   "appliedUpdates": [
     {
       "target": "user-testing.md",
-      "description": "Documented Cloud Storage bucket requirement and artifact persistence limitation",
-      "source": "flow-report"
+      "description": "Confirmed Cloud Storage bucket gen-lang-client-0579048282.firebasestorage.app is operational in prior round documentation",
+      "source": "setup"
     }
   ],
-  "previousRound": null,
-  "testingApproach": "Hybrid API + chrome-devtools. Created Firebase test user via REST Identity Toolkit, tested persistence endpoints via curl, verified browser UI via chrome-devtools (sign-in, library, session reopen, guest flow). All 100 backend pytest tests pass.",
-  "evidenceDirectory": "evidence/brainstorm-persistence/screenshots/"
+  "previousRound": ".factory/validation/brainstorm-persistence/user-testing/synthesis-round1.json",
+  "testingApproach": "Hybrid API + chrome-devtools. Created Firebase test user via REST Identity Toolkit, tested artifact save/list/download via curl, verified browser UI via chrome-devtools (sign-in, library, session reopen with artifact preview and download). Cloud Storage bucket confirmed operational after round 1 provisioning."
 }

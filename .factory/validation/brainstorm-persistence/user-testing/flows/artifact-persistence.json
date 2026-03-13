@@ -1,0 +1,125 @@
+{
+  "groupId": "artifact-persistence",
+  "testedAt": "2026-03-13T07:15:30.000Z",
+  "isolation": {
+    "backendUrl": "http://127.0.0.1:8000",
+    "frontendUrl": "http://127.0.0.1:5173",
+    "firebaseApiKey": "AIzaSyCaABJo7K0HSEKBDPvzurYPUAYNOYfMhdA",
+    "firebaseProjectId": "gen-lang-client-0579048282",
+    "storageBucket": "gen-lang-client-0579048282.firebasestorage.app",
+    "testEmail": "val-artifact-r2-1773386066@test.local",
+    "testUserId": "KuFO6XV8rrRclK6JMBLXrpXV1Hl1",
+    "sessionId": "6715293ed1714014b354736c75c77203",
+    "artifactId": "d09d2f05b00845b3931a029be8b1c668"
+  },
+  "toolsUsed": ["curl", "chrome-devtools"],
+  "assertions": [
+    {
+      "id": "VAL-SESSION-009",
+      "title": "Artifact completions that arrive after a turn still persist to the same signed-in session",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create Firebase test user via REST Identity Toolkit",
+          "expected": "User created with idToken returned",
+          "observed": "User val-artifact-r2-1773386066@test.local created, idToken received (1001 chars)"
+        },
+        {
+          "action": "Create brainstorm session via POST /api/v1/live/brainstorm/sessions",
+          "expected": "Session created with 201 status",
+          "observed": "201 Created, session id=6715293ed1714014b354736c75c77203, mode=persisted"
+        },
+        {
+          "action": "Save turns via PUT /api/v1/live/brainstorm/sessions/{id}/turns (simulating conversational turn completion)",
+          "expected": "Turns saved with 200 status",
+          "observed": "200 OK, turnCount=2 (user + model turns saved)"
+        },
+        {
+          "action": "Save artifact via PUT /api/v1/live/brainstorm/sessions/{id}/artifacts AFTER turn save (simulating delayed artifact completion)",
+          "expected": "Artifact persisted to same session with 200 status and valid artifactId",
+          "observed": "200 OK, artifact id=d09d2f05b00845b3931a029be8b1c668, filename=brainstorm-ideas.md, mimeType=text/markdown, label='Project Brainstorm Ideas'"
+        },
+        {
+          "action": "List artifacts via GET /api/v1/live/brainstorm/sessions/{id}/artifacts to confirm artifact is attached to session",
+          "expected": "Artifact appears in session's artifact list with correct metadata",
+          "observed": "200 OK, 1 artifact returned with correct artifactId, filename, mimeType, blobPath, and label"
+        },
+        {
+          "action": "Reopen session via GET /api/v1/live/brainstorm/sessions/{id} to verify artifact persists after reopen",
+          "expected": "Session data returned with updatedAt reflecting artifact save time",
+          "observed": "200 OK, session returned with updatedAt=2026-03-13T07:14:56.913753Z (matches artifact creation time)"
+        },
+        {
+          "action": "UI verification: Sign in with test user in chrome-devtools, open session from library",
+          "expected": "Session library shows the session, opening it shows artifact card with content",
+          "observed": "Session library displayed with 'Untitled session' entry. Opening session showed artifact card with 'Project Ideas' content, preview panel with rendered markdown, 2 conversation messages, and Download button"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-009-initial-page-state.png",
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-009-entry-modal.png",
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-009-session-library.png"
+        ],
+        "consoleErrors": "none",
+        "network": "PUT /api/v1/live/brainstorm/sessions/{id}/turns -> 200 (turnCount:2), PUT /api/v1/live/brainstorm/sessions/{id}/artifacts -> 200 (artifactId:d09d2f05b00845b3931a029be8b1c668)",
+        "apiResponses": [
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-009-turn-save-response.json",
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-009-artifact-save-response.json",
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-009-session-reopen-response.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SESSION-010",
+      "title": "Reopened persisted sessions restore real artifact files, not just metadata",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "List artifacts for reopened session via GET /api/v1/live/brainstorm/sessions/{id}/artifacts",
+          "expected": "Artifact metadata returned with blobPath pointing to real Cloud Storage object",
+          "observed": "200 OK, artifact returned with blobPath=brainstorm/sessions/.../artifacts/.../brainstorm-ideas.md, filename, mimeType, label all correct"
+        },
+        {
+          "action": "Download artifact via GET /api/v1/live/brainstorm/sessions/{id}/artifacts/{aid}/download",
+          "expected": "Real file content returned matching original upload, not placeholder or empty",
+          "observed": "200 OK, downloaded 70 bytes of markdown content: '# Project Ideas\\n\\n1. AI assistant\\n2. Smart dashboard\\n3. Voice interface' — exact match with original"
+        },
+        {
+          "action": "Download artifact AGAIN after session reopen (second download to confirm persistence)",
+          "expected": "Same real content returned on subsequent download",
+          "observed": "200 OK, content identical to first download — confirms Cloud Storage blob is real and persistent"
+        },
+        {
+          "action": "UI verification: Open session in chrome-devtools and verify artifact preview",
+          "expected": "Artifact card shows content preview, file name, size, and rendered markdown preview",
+          "observed": "Artifact card displayed with 'Project Ideas' text content, filename 'brainstorm-ideas.md', size '70 B', Download button. PREVIEW panel showed rendered markdown with h1 'Project Ideas' and list items: 'AI assistant', 'Smart dashboard', 'Voice interface'"
+        },
+        {
+          "action": "Verify conversation turns also restored alongside artifacts",
+          "expected": "Turns visible in UI after reopen",
+          "observed": "Conversation panel showed '2 MESSAGES' with 'YOU' and 'GEMINI' labels visible"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-010-reopened-artifact-preview.png",
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-010-reopened-artifact-card.png"
+        ],
+        "consoleErrors": "none",
+        "network": "GET /api/v1/live/brainstorm/sessions/{id}/artifacts -> 200 (1 artifact with blobPath), GET /api/v1/live/brainstorm/sessions/{id}/artifacts/{aid}/download -> 200 (70 bytes, content match)",
+        "apiResponses": [
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-010-artifact-list-response.json",
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-010-reopen-artifact-list-response.json",
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-010-downloaded-artifact.md",
+          "brainstorm-persistence/artifact-persistence/VAL-SESSION-010-download-after-reopen.md"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 2 assertions: 2 passed. VAL-SESSION-009 confirmed that artifacts saved after a turn boundary persist to the same session and are visible after reopen (verified via API and UI). VAL-SESSION-010 confirmed that reopened sessions restore real artifact files from Cloud Storage with correct content — not just metadata. The Cloud Storage bucket gen-lang-client-0579048282.firebasestorage.app is now fully functional, resolving the round 1 blocker."
+}
