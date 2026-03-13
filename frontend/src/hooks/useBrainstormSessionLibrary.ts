@@ -223,7 +223,7 @@ export function useBrainstormSessionLibrary({
       setErrorMessage(
         getErrorMessage(error, 'We could not create a new brainstorm session.'),
       )
-      throw error
+      return null
     } finally {
       setActiveAction(null)
     }
@@ -254,7 +254,7 @@ export function useBrainstormSessionLibrary({
       setErrorMessage(
         getErrorMessage(error, 'We could not reopen that brainstorm session.'),
       )
-      throw error
+      return null
     } finally {
       setActiveAction(null)
       setActiveSessionId(null)
@@ -283,7 +283,6 @@ export function useBrainstormSessionLibrary({
       setErrorMessage(
         getErrorMessage(error, 'We could not delete that brainstorm session.'),
       )
-      throw error
     } finally {
       setActiveAction(null)
       setActiveSessionId(null)

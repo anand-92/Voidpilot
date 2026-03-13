@@ -117,6 +117,9 @@ export default function BrainstormPage() {
   const handleCreateSession = useCallback(async () => {
     clearEntryError()
     const session = await createSession()
+    if (!session) {
+      return
+    }
     preparePersistedWorkspace(session.id)
     setInputText('')
     setSelectedArtifact(null)
@@ -127,6 +130,9 @@ export default function BrainstormPage() {
   const handleReopenSession = useCallback(async (sessionId: string) => {
     clearEntryError()
     const session = await reopenSession(sessionId)
+    if (!session) {
+      return
+    }
     preparePersistedWorkspace(session.id)
     setInputText('')
     setSelectedArtifact(null)
