@@ -1,0 +1,39 @@
+{
+  "featureId": "brainstorm-public-share-pages",
+  "reviewedAt": "2026-03-13T08:15:00.000Z",
+  "commitId": "d795bea",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of public sharing across 11 files (1847 lines added). Backend service is well-structured with clear separation of concerns: idempotent share creation, public resolution with orphan cleanup, public artifact download, and cascade delete. 22 tests cover the full lifecycle including share creation, public resolution, artifact download, delete invalidation, owner-only privacy enforcement (9 parametrized private endpoint checks), and latest-state reflection. Frontend SharePage is polished and read-only — no live controls, no websocket initialization. The share button in ConversationPanel correctly gates on persisted sessions only. Two non-blocking issues found.",
+    "issues": [
+      {
+        "file": "src/app/api/v1/endpoints/brainstorm.py",
+        "line": 572,
+        "severity": "non_blocking",
+        "description": "Public share endpoints (get_public_share, download_public_artifact_endpoint) have no auth dependency at all. The feature description explicitly requires distinguishing missing auth (allowed for public reads) from malformed/invalid auth (rejected). The codebase already provides get_optional_brainstorm_user which does exactly this — returns None for missing auth, raises 401 for bad tokens. Without it, a request with 'Authorization: Bearer garbage' to the public share endpoint succeeds silently instead of being rejected. The dependency should be added as an unused parameter: `user: Annotated[BrainstormFirebaseUser | None, Depends(get_optional_brainstorm_user)] = None`."
+      },
+      {
+        "file": "src/app/services/brainstorm_share.py",
+        "line": 234,
+        "severity": "non_blocking",
+        "description": "The public share response via resolve_public_share returns session_record.to_response_dict() which includes ownerUid and ownerEmail. These are exposed to unauthenticated users via the public share API. ownerName for attribution is fine, but leaking the internal Firebase UID and the owner's email address to anyone with the share link is a privacy concern. Consider filtering the session dict in the public response to omit ownerUid and ownerEmail."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The feature description and expectedBehavior explicitly state 'optional-auth/public share helpers distinguish truly missing auth from malformed or invalid auth so bad auth is not silently treated as anonymous'. The codebase has get_optional_brainstorm_user in brainstorm_auth.py that implements this exact pattern. However, the public share endpoints omit auth entirely rather than using optional auth. AGENTS.md and the mission AGENTS.md don't document a convention for when to use optional vs no auth on public endpoints. Adding guidance like 'Public endpoints that accept unauthenticated traffic must still use get_optional_brainstorm_user to reject malformed tokens' would prevent this in future features.",
+      "evidence": "src/app/api/v1/endpoints/brainstorm.py lines 572-600 — public endpoints have no Depends(get_optional_brainstorm_user). Compare to src/app/services/brainstorm_auth.py:157 which provides the helper."
+    },
+    {
+      "area": "conventions",
+      "observation": "Inconsistent filename sanitization in Content-Disposition headers across endpoints. The new public download endpoint (line 616) sanitizes double-quotes from filenames, but the pre-existing private download endpoint (line 537) does not. This isn't introduced by this feature (the pre-existing code was already unsanitized), but the inconsistency was revealed by the new code.",
+      "evidence": "src/app/api/v1/endpoints/brainstorm.py line 537 (pre-existing, no sanitization) vs line 616 (new, sanitizes quotes). A convention for filename sanitization should be documented."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature passes review. The implementation is thorough: backend share service is well-designed with idempotent creation, orphan cleanup, cascade deletes, and comprehensive test coverage (22 tests, 670 lines). Frontend SharePage is polished, read-only, and follows the brainstorm design language. Two non-blocking issues: (1) public endpoints skip auth entirely instead of using the existing get_optional_brainstorm_user helper to reject malformed tokens as specified in the feature requirements, and (2) public share API leaks ownerUid and ownerEmail to unauthenticated viewers. Neither blocks shipping but both should be addressed."
+}

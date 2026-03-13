@@ -373,7 +373,9 @@ export function BrainstormEntryModal({
       } else {
         await onSignInWithPassword(email.trim(), password)
       }
-    } catch {}
+    } catch {
+      // Auth errors are surfaced via onSignUpWithPassword / onSignInWithPassword callbacks
+    }
   }
 
   const handleGoogleSignIn = async () => {
@@ -381,7 +383,9 @@ export function BrainstormEntryModal({
     haptic.trigger('selection')
     try {
       await onSignInWithGoogle()
-    } catch {}
+    } catch {
+      // Auth errors are surfaced via onSignInWithGoogle callback
+    }
   }
 
   if (status === 'loading') return <LoadingState />
