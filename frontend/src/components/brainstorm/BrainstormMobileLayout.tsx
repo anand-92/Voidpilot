@@ -27,6 +27,7 @@ export function BrainstormMobileLayout({
   inputText,
   selectedArtifact,
   currentArtifact,
+  sessionTitle,
   selectedFlashModel,
   setSelectedFlashModel,
   selectedTools,
@@ -140,7 +141,7 @@ export function BrainstormMobileLayout({
             </section>
 
             <section className="mt-4 flex min-h-0 flex-1 flex-col rounded-3xl border border-white/[0.05] bg-stone-950/60 shadow-[0_20px_60px_rgba(12,10,9,0.4)]">
-              <ConversationPanel messages={messages} messagesEndRef={messagesEndRef} mobile />
+              <ConversationPanel messages={messages} messagesEndRef={messagesEndRef} mobile sessionTitle={sessionTitle} />
             </section>
           </>
         ) : (

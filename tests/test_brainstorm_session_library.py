@@ -26,18 +26,36 @@ class FakeDocumentSnapshot:
 
 
 class FakeDocumentReference:
-    def __init__(self, store: dict[str, dict], document_id: str):
+    def __init__(
+        self,
+        store: dict[str, dict],
+        document_id: str,
+        *,
+        global_stores: dict | None = None,
+    ):
         self._store = store
         self.id = document_id
+        # global_stores tracks all subcollection data keyed by path-like keys
+        self._global_stores = global_stores if global_stores is not None else {}
 
     def get(self) -> FakeDocumentSnapshot:
         return FakeDocumentSnapshot(self.id, self._store.get(self.id))
 
-    def set(self, value: dict) -> None:
-        self._store[self.id] = dict(value)
+    def set(self, value: dict, merge: bool = False) -> None:
+        if merge and self.id in self._store:
+            merged = dict(self._store[self.id])
+            merged.update(value)
+            self._store[self.id] = merged
+        else:
+            self._store[self.id] = dict(value)
 
     def delete(self) -> None:
         self._store.pop(self.id, None)
+
+    def collection(self, subcollection_name: str) -> "FakeCollectionReference":
+        sub_key = f"{self.id}/{subcollection_name}"
+        sub_store: dict[str, dict] = self._global_stores.setdefault(sub_key, {})
+        return FakeCollectionReference(sub_store, global_stores=self._global_stores)
 
 
 class FakeQuery:
@@ -55,11 +73,21 @@ class FakeQuery:
 
 
 class FakeCollectionReference:
-    def __init__(self, store: dict[str, dict]):
+    def __init__(
+        self,
+        store: dict[str, dict],
+        *,
+        global_stores: dict | None = None,
+    ):
         self._store = store
+        self._global_stores = global_stores if global_stores is not None else {}
 
     def document(self, document_id: str) -> FakeDocumentReference:
-        return FakeDocumentReference(self._store, document_id)
+        return FakeDocumentReference(
+            self._store,
+            document_id,
+            global_stores=self._global_stores,
+        )
 
     def where(self, field_name: str, operator: str, value: str) -> FakeQuery:
         assert operator == '=='
@@ -69,10 +97,14 @@ class FakeCollectionReference:
 class FakeFirestoreClient:
     def __init__(self):
         self._collections: dict[str, dict[str, dict]] = {}
+        self._global_stores: dict = {}
 
     def collection(self, collection_name: str) -> FakeCollectionReference:
         collection_store = self._collections.setdefault(collection_name, {})
-        return FakeCollectionReference(collection_store)
+        return FakeCollectionReference(
+            collection_store,
+            global_stores=self._global_stores,
+        )
 
 
 class UnavailableDocumentReference:

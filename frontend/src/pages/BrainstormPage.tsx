@@ -25,6 +25,7 @@ export default function BrainstormPage() {
     messages,
     artifacts,
     isGenerating,
+    sessionTitle,
     prepareGuestWorkspace,
     preparePersistedWorkspace,
     intensityRef,
@@ -120,7 +121,10 @@ export default function BrainstormPage() {
     if (!session) {
       return
     }
-    preparePersistedWorkspace(session.id)
+    await preparePersistedWorkspace(session.id, {
+      title: session.title,
+      restoreTurns: false,
+    })
     setInputText('')
     setSelectedArtifact(null)
     setHasGuestAccess(false)
@@ -133,7 +137,10 @@ export default function BrainstormPage() {
     if (!session) {
       return
     }
-    preparePersistedWorkspace(session.id)
+    await preparePersistedWorkspace(session.id, {
+      title: session.title,
+      restoreTurns: true,
+    })
     setInputText('')
     setSelectedArtifact(null)
     setHasGuestAccess(false)
@@ -166,6 +173,7 @@ export default function BrainstormPage() {
     inputText,
     selectedArtifact,
     currentArtifact,
+    sessionTitle,
     selectedFlashModel,
     setSelectedFlashModel,
     selectedTools,

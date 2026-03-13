@@ -13,9 +13,10 @@ type ConversationPanelProps = {
   messages: Message[]
   messagesEndRef: RefObject<HTMLDivElement | null>
   mobile: boolean
+  sessionTitle?: string | null
 }
 
-export function ConversationPanel({ messages, messagesEndRef, mobile }: ConversationPanelProps) {
+export function ConversationPanel({ messages, messagesEndRef, mobile, sessionTitle }: ConversationPanelProps) {
   return (
     <>
       <div
@@ -25,10 +26,12 @@ export function ConversationPanel({ messages, messagesEndRef, mobile }: Conversa
         )}
       >
         <GeminiChat className="size-4 text-amber-400" />
-        <span className="text-sm font-semibold text-white">Conversation</span>
+        <span className="min-w-0 truncate text-sm font-semibold text-white">
+          {sessionTitle ?? 'Conversation'}
+        </span>
         <Badge
           variant="outline"
-          className="ml-auto border-transparent bg-transparent px-0 text-[10px] font-medium uppercase tracking-widest text-stone-600"
+          className="ml-auto shrink-0 border-transparent bg-transparent px-0 text-[10px] font-medium uppercase tracking-widest text-stone-600"
         >
           {messages.length} messages
         </Badge>

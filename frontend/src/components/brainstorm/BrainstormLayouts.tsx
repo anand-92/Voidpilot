@@ -14,6 +14,7 @@ export type BrainstormLayoutProps = {
   inputText: string
   selectedArtifact: string | null
   currentArtifact: BrainstormArtifact | null
+  sessionTitle: string | null
   selectedFlashModel: BrainstormFlashModel
   setSelectedFlashModel: Dispatch<SetStateAction<BrainstormFlashModel>>
   selectedTools: BrainstormToolId[]

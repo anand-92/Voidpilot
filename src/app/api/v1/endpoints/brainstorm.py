@@ -23,6 +23,11 @@ from src.app.services.brainstorm_session_library import (
     get_brainstorm_session_for_user,
     list_brainstorm_sessions_for_user,
 )
+from src.app.services.brainstorm_turn_persistence import (
+    load_brainstorm_turns,
+    save_brainstorm_turns,
+    update_brainstorm_session_title,
+)
 from src.app.services.flash_worker import (
     DEFAULT_FLASH_TEXT_MODEL_KEY,
     FLASH_TEXT_MODEL_OPTIONS,
@@ -353,6 +358,78 @@ async def delete_brainstorm_session_record(
         raise exc.to_http_exception() from exc
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Turn persistence endpoints ───────────────────────────────────
+
+
+@router.put("/brainstorm/sessions/{session_id}/turns")
+async def save_brainstorm_session_turns(
+    session_id: str,
+    body: dict,
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict:
+    turns = body.get("turns", [])
+    try:
+        turn_count = save_brainstorm_turns(
+            services,
+            session_id=session_id,
+            owner_uid=user.uid,
+            turns=turns,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return {"sessionId": session_id, "turnCount": turn_count}
+
+
+@router.get("/brainstorm/sessions/{session_id}/turns")
+async def get_brainstorm_session_turns(
+    session_id: str,
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict:
+    try:
+        turns = load_brainstorm_turns(
+            services,
+            session_id=session_id,
+            owner_uid=user.uid,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return {"sessionId": session_id, "turns": turns}
+
+
+@router.patch("/brainstorm/sessions/{session_id}/title")
+async def update_brainstorm_session_title_endpoint(
+    session_id: str,
+    body: dict,
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict:
+    title = body.get("title", "")
+    try:
+        session_data = update_brainstorm_session_title(
+            services,
+            session_id=session_id,
+            owner_uid=user.uid,
+            title=title,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return {"session": session_data}
 
 
 # ── WebSocket endpoint ───────────────────────────────────────────  # noqa: E501

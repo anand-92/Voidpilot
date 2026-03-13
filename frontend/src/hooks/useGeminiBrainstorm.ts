@@ -13,6 +13,12 @@ import {
   scheduleAudioPlayback,
 } from '../utils/audio.ts'
 import type { Message, MessageRole } from './useGeminiLive.ts'
+import {
+  loadBrainstormTurns,
+  saveBrainstormTurns,
+  updateBrainstormSessionTitle,
+  type PersistedTurn,
+} from '@/lib/brainstormPersistenceApi'
 
 export const BRAINSTORM_FLASH_MODEL_OPTIONS = [
   { value: 'gemini-3.1-flash-lite', label: 'LITE' },
@@ -58,6 +64,39 @@ const ARTIFACT_MIME_TYPES: Record<string, string> = {
   brainstorm_video: 'video/mp4',
 }
 
+/**
+ * Generate a short session title from the first substantive user messages.
+ * Returns null if there's not enough content to generate a meaningful title.
+ */
+function generateSessionTitle(messages: Message[]): string | null {
+  const userMessages = messages.filter(
+    (m) => m.role === 'user' && m.content.trim().length > 3,
+  )
+  if (userMessages.length === 0) return null
+
+  // Use the first user message content, truncated
+  const firstContent = userMessages[0].content.trim()
+  const maxLength = 60
+  if (firstContent.length <= maxLength) return firstContent
+  return firstContent.slice(0, maxLength).replace(/\s+\S*$/, '') + '…'
+}
+
+/**
+ * Convert current messages to the persisted turn format.
+ * Filters out system messages since they are transient.
+ */
+function messagesToPersistedTurns(messages: Message[]): PersistedTurn[] {
+  return messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => {
+      const turn: PersistedTurn = { role: m.role, content: m.content }
+      if (m.isToolResponse) {
+        turn.isToolResponse = true
+      }
+      return turn
+    })
+}
+
 function createArtifact(filename: string, data: string, type: string, label?: string, text?: string): BrainstormArtifact {
   return {
     filename,
@@ -77,6 +116,7 @@ export function useGeminiBrainstorm() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [sessionMode, setSessionMode] = useState<BrainstormSessionMode>('guest')
+  const [sessionTitle, setSessionTitle] = useState<string | null>(null)
   const [selectedFlashModel, setSelectedFlashModel] = useState<BrainstormFlashModel>(
     DEFAULT_BRAINSTORM_FLASH_MODEL,
   )
@@ -96,6 +136,9 @@ export function useGeminiBrainstorm() {
   const turnBoundaryRef = useRef(false)
   const toolCallPendingRef = useRef(false)
   const toolResponseTurnRef = useRef(false)
+  const titleSavedRef = useRef(false)
+  const savePendingRef = useRef(false)
+  const messagesRef = useRef<Message[]>([])
 
   const startToolCallTurn = useCallback(() => {
     turnBoundaryRef.current = true
@@ -121,12 +164,15 @@ export function useGeminiBrainstorm() {
         last?.role === role &&
         !!last.isToolResponse === shouldAppend
 
+      let next: Message[]
       if (canAppend) {
-        const updated = [...previous]
-        updated[updated.length - 1] = { ...last, content: last.content + content }
-        return updated
+        next = [...previous]
+        next[next.length - 1] = { ...last, content: last.content + content }
+      } else {
+        next = [...previous, { role, content, isToolResponse: shouldAppend ?? undefined }]
       }
-      return [...previous, { role, content, isToolResponse: shouldAppend ?? undefined }]
+      messagesRef.current = next
+      return next
     })
   }, [])
 
@@ -165,12 +211,71 @@ export function useGeminiBrainstorm() {
     setMessages([])
     setArtifacts(new Map())
     setIsGenerating(false)
+    setSessionTitle(null)
+    messagesRef.current = []
     sessionHandleRef.current = null
     turnBoundaryRef.current = false
     toolCallPendingRef.current = false
     toolResponseTurnRef.current = false
+    titleSavedRef.current = false
+    savePendingRef.current = false
     intensityRef.current = 0
     nextPlayTimeRef.current = 0
+  }, [])
+
+  /**
+   * Persist the current transcript state for the active signed-in session.
+   * Also generates and saves a title if one hasn't been saved yet.
+   */
+  const persistCurrentTurns = useCallback((currentMessages: Message[]) => {
+    const sid = activeSessionIdRef.current
+    const mode = sessionModeRef.current
+    if (!sid || mode !== 'persisted' || savePendingRef.current) return
+
+    const turns = messagesToPersistedTurns(currentMessages)
+    if (turns.length === 0) return
+
+    savePendingRef.current = true
+    void saveBrainstormTurns(sid, turns)
+      .then(() => {
+        // Generate and save title on first substantive save
+        if (!titleSavedRef.current) {
+          const generatedTitle = generateSessionTitle(currentMessages)
+          if (generatedTitle) {
+            titleSavedRef.current = true
+            setSessionTitle(generatedTitle)
+            void updateBrainstormSessionTitle(sid, generatedTitle).catch(
+              (error: unknown) => {
+                console.error('Failed to save session title:', error)
+              },
+            )
+          }
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to save brainstorm turns:', error)
+      })
+      .finally(() => {
+        savePendingRef.current = false
+      })
+  }, [])
+
+  /**
+   * Load previously saved turns for a signed-in session to restore history.
+   */
+  const loadSavedTurns = useCallback(async (sessionId: string): Promise<Message[]> => {
+    try {
+      const turns = await loadBrainstormTurns(sessionId)
+      if (turns.length === 0) return []
+      return turns.map((turn) => ({
+        role: turn.role as MessageRole,
+        content: turn.content,
+        isToolResponse: turn.isToolResponse ?? undefined,
+      }))
+    } catch (error) {
+      console.error('Failed to load saved turns:', error)
+      return []
+    }
   }, [])
 
   const stop = useCallback(() => {
@@ -205,14 +310,35 @@ export function useGeminiBrainstorm() {
     setSessionMode('guest')
   }, [resetWorkspaceState, stop])
 
-  const preparePersistedWorkspace = useCallback((sessionId: string) => {
-    stop()
-    resetWorkspaceState()
-    activeSessionIdRef.current = sessionId
-    sessionModeRef.current = 'persisted'
-    setActiveSessionId(sessionId)
-    setSessionMode('persisted')
-  }, [resetWorkspaceState, stop])
+  const preparePersistedWorkspace = useCallback(
+    async (
+      sessionId: string,
+      options?: { title?: string; restoreTurns?: boolean },
+    ) => {
+      stop()
+      resetWorkspaceState()
+      activeSessionIdRef.current = sessionId
+      sessionModeRef.current = 'persisted'
+      setActiveSessionId(sessionId)
+      setSessionMode('persisted')
+
+      // Restore session title if provided
+      if (options?.title && options.title !== 'Untitled session') {
+        setSessionTitle(options.title)
+        titleSavedRef.current = true
+      }
+
+      // Restore saved turns for existing sessions
+      if (options?.restoreTurns) {
+        const savedMessages = await loadSavedTurns(sessionId)
+        if (savedMessages.length > 0) {
+          messagesRef.current = savedMessages
+          setMessages(savedMessages)
+        }
+      }
+    },
+    [resetWorkspaceState, stop, loadSavedTurns],
+  )
 
   const setupAudioProcessing = useCallback(() => {
     if (!streamRef.current || !audioContextRef.current) return
@@ -299,6 +425,8 @@ export function useGeminiBrainstorm() {
           case 'turn_complete':
             turnBoundaryRef.current = true
             toolResponseTurnRef.current = false
+            // Persist transcript state after each completed turn (signed-in only)
+            persistCurrentTurns(messagesRef.current)
             break
         }
       }
@@ -338,7 +466,7 @@ export function useGeminiBrainstorm() {
     } finally {
       setIsStarting(false)
     }
-  }, [addMessage, selectedFlashModel, selectedTools, stop, startToolCallTurn, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing])
+  }, [addMessage, selectedFlashModel, selectedTools, stop, startToolCallTurn, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing, persistCurrentTurns])
 
   const sendText = useCallback(
     (text: string) => {
@@ -364,6 +492,7 @@ export function useGeminiBrainstorm() {
     isGenerating,
     activeSessionId,
     sessionMode,
+    sessionTitle,
     intensityRef,
     selectedFlashModel,
     setSelectedFlashModel,
