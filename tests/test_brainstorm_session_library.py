@@ -89,6 +89,13 @@ class FakeCollectionReference:
             global_stores=self._global_stores,
         )
 
+    def stream(self) -> list[FakeDocumentSnapshot]:
+        """Stream all documents in the collection (used by artifact listing)."""
+        return [
+            FakeDocumentSnapshot(doc_id, data)
+            for doc_id, data in self._store.items()
+        ]
+
     def where(self, field_name: str, operator: str, value: str) -> FakeQuery:
         assert operator == '=='
         return FakeQuery(self._store, field_name, value)

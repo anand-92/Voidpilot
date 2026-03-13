@@ -14,9 +14,13 @@ import {
 } from '../utils/audio.ts'
 import type { Message, MessageRole } from './useGeminiLive.ts'
 import {
+  downloadBrainstormArtifact,
+  loadBrainstormArtifacts,
   loadBrainstormTurns,
+  saveBrainstormArtifact,
   saveBrainstormTurns,
   updateBrainstormSessionTitle,
+  type PersistedArtifactMetadata,
   type PersistedTurn,
 } from '@/lib/brainstormPersistenceApi'
 
@@ -191,6 +195,23 @@ export function useGeminiBrainstorm() {
     const artifact = createArtifact(filename, artifactContent, data.type, label, text)
     upsertArtifact(filename, artifact)
     setIsGenerating(false)
+
+    // Persist artifact to backend for signed-in sessions.
+    // Capture the session id at artifact arrival time so delayed completions
+    // always target the originating session, even if the user switches sessions.
+    const originatingSessionId = activeSessionIdRef.current
+    const originatingMode = sessionModeRef.current
+    if (originatingSessionId && originatingMode === 'persisted') {
+      void saveBrainstormArtifact(originatingSessionId, {
+        filename,
+        content: artifactContent,
+        mimeType: artifact.mimeType,
+        label,
+        text,
+      }).catch((error: unknown) => {
+        console.error('Failed to persist brainstorm artifact:', error)
+      })
+    }
   }, [upsertArtifact])
 
   const handleTextMessage = useCallback((data: { content: string; role: string }) => {
@@ -278,6 +299,68 @@ export function useGeminiBrainstorm() {
     }
   }, [])
 
+  /**
+   * Load saved artifacts for a signed-in session and hydrate the artifact map.
+   * Downloads each artifact's actual content so previews and downloads work.
+   */
+  const loadSavedArtifacts = useCallback(async (sessionId: string): Promise<Map<string, BrainstormArtifact>> => {
+    try {
+      const metadataList = await loadBrainstormArtifacts(sessionId)
+      if (metadataList.length === 0) return new Map()
+
+      const restoredArtifacts = new Map<string, BrainstormArtifact>()
+
+      // Download each artifact's content in parallel
+      const downloads = metadataList.map(async (meta: PersistedArtifactMetadata) => {
+        try {
+          const { blob, mimeType } = await downloadBrainstormArtifact(
+            sessionId,
+            meta.artifactId,
+          )
+
+          const isBinary = mimeType.startsWith('image/') || mimeType.startsWith('video/')
+
+          let content: string
+          if (isBinary) {
+            // Convert blob to base64 for binary artifacts (images, video)
+            const buffer = await blob.arrayBuffer()
+            const bytes = new Uint8Array(buffer)
+            let binary = ''
+            for (let i = 0; i < bytes.length; i += 1) {
+              binary += String.fromCharCode(bytes[i])
+            }
+            content = btoa(binary)
+          } else {
+            // Text artifacts are stored as UTF-8
+            content = await blob.text()
+          }
+
+          const artifact: BrainstormArtifact = {
+            filename: meta.filename,
+            content,
+            mimeType: meta.mimeType,
+            label: meta.label ?? undefined,
+            updatedAt: meta.createdAt,
+            text: meta.text ?? undefined,
+          }
+
+          restoredArtifacts.set(meta.filename, artifact)
+        } catch (downloadError) {
+          console.error(
+            `Failed to download artifact ${meta.filename}:`,
+            downloadError,
+          )
+        }
+      })
+
+      await Promise.all(downloads)
+      return restoredArtifacts
+    } catch (error) {
+      console.error('Failed to load saved artifacts:', error)
+      return new Map()
+    }
+  }, [])
+
   const stop = useCallback(() => {
     if (wsRef.current) {
       wsRef.current.close()
@@ -328,16 +411,22 @@ export function useGeminiBrainstorm() {
         titleSavedRef.current = true
       }
 
-      // Restore saved turns for existing sessions
+      // Restore saved turns and artifacts for existing sessions
       if (options?.restoreTurns) {
-        const savedMessages = await loadSavedTurns(sessionId)
+        const [savedMessages, savedArtifacts] = await Promise.all([
+          loadSavedTurns(sessionId),
+          loadSavedArtifacts(sessionId),
+        ])
         if (savedMessages.length > 0) {
           messagesRef.current = savedMessages
           setMessages(savedMessages)
         }
+        if (savedArtifacts.size > 0) {
+          setArtifacts(savedArtifacts)
+        }
       }
     },
-    [resetWorkspaceState, stop, loadSavedTurns],
+    [resetWorkspaceState, stop, loadSavedTurns, loadSavedArtifacts],
   )
 
   const setupAudioProcessing = useCallback(() => {

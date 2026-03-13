@@ -111,3 +111,101 @@ export async function updateBrainstormSessionTitle(
     },
   )
 }
+
+// ── Artifact persistence ─────────────────────────────────────────
+
+export type PersistedArtifactMetadata = {
+  artifactId: string
+  filename: string
+  mimeType: string
+  blobPath: string
+  label: string | null
+  text: string | null
+  createdAt: string
+}
+
+type SaveArtifactResponse = {
+  artifact: PersistedArtifactMetadata
+}
+
+type LoadArtifactsResponse = {
+  sessionId: string
+  artifacts: PersistedArtifactMetadata[]
+}
+
+/**
+ * Persist a single artifact (metadata + blob) to a signed-in session.
+ *
+ * The session_id targets the *originating* session so that delayed
+ * completions always land on the correct session even if the user
+ * has since switched to a different session in the frontend.
+ */
+export async function saveBrainstormArtifact(
+  sessionId: string,
+  artifact: {
+    filename: string
+    content: string
+    mimeType: string
+    label?: string
+    text?: string
+  },
+): Promise<SaveArtifactResponse> {
+  return authedFetch<SaveArtifactResponse>(
+    `${BRAINSTORM_SESSIONS_BASE}/${sessionId}/artifacts`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: artifact.filename,
+        content: artifact.content,
+        mimeType: artifact.mimeType,
+        label: artifact.label,
+        text: artifact.text,
+      }),
+    },
+  )
+}
+
+/**
+ * Load all artifact metadata for a signed-in session.
+ * Actual content must be fetched via downloadBrainstormArtifact.
+ */
+export async function loadBrainstormArtifacts(
+  sessionId: string,
+): Promise<PersistedArtifactMetadata[]> {
+  const response = await authedFetch<LoadArtifactsResponse>(
+    `${BRAINSTORM_SESSIONS_BASE}/${sessionId}/artifacts`,
+  )
+  return response.artifacts
+}
+
+/**
+ * Download a single artifact's content bytes.
+ * Returns {blob, mimeType, filename} for preview or download use.
+ */
+export async function downloadBrainstormArtifact(
+  sessionId: string,
+  artifactId: string,
+): Promise<{ blob: Blob; mimeType: string; filename: string }> {
+  const authHeaders = await getAuthHeaders()
+  const url = `${BRAINSTORM_SESSIONS_BASE}/${sessionId}/artifacts/${artifactId}/download`
+
+  const response = await fetch(url, {
+    headers: authHeaders,
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(
+      `Brainstorm artifact download failed (${response.status}): ${text}`,
+    )
+  }
+
+  const blob = await response.blob()
+  const contentDisposition = response.headers.get('content-disposition') ?? ''
+  const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
+  const filename = filenameMatch?.[1] ?? 'artifact'
+  const mimeType = response.headers.get('content-type') ?? 'application/octet-stream'
+
+  return { blob, mimeType, filename }
+}

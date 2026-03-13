@@ -8,6 +8,11 @@ from fastapi import APIRouter, Depends, Response, WebSocket, status
 from starlette.websockets import WebSocketState
 
 from src.app.core.config import settings
+from src.app.services.brainstorm_artifact_persistence import (
+    download_brainstorm_artifact,
+    load_brainstorm_artifacts,
+    save_brainstorm_artifact,
+)
 from src.app.services.brainstorm_auth import (
     BrainstormFirebaseUser,
     require_brainstorm_user,
@@ -430,6 +435,100 @@ async def update_brainstorm_session_title_endpoint(
         raise exc.to_http_exception() from exc
 
     return {"session": session_data}
+
+
+# ── Artifact persistence endpoints ───────────────────────────────
+
+
+@router.put("/brainstorm/sessions/{session_id}/artifacts")
+async def save_brainstorm_artifact_endpoint(
+    session_id: str,
+    body: dict,
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict:
+    """Persist a single artifact (metadata + blob) to a signed-in session.
+
+    The session_id in the URL is the *originating* session so that delayed
+    completions always land on the correct session, even if the user has
+    since switched to a different session in the frontend.
+    """
+    filename = body.get("filename", "")
+    content = body.get("content", "")
+    mime_type = body.get("mimeType", "text/markdown")
+    label = body.get("label")
+    text = body.get("text")
+
+    try:
+        metadata = save_brainstorm_artifact(
+            services,
+            session_id=session_id,
+            owner_uid=user.uid,
+            filename=filename,
+            content=content,
+            mime_type=mime_type,
+            label=label,
+            text=text,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return {"artifact": metadata}
+
+
+@router.get("/brainstorm/sessions/{session_id}/artifacts")
+async def list_brainstorm_artifacts_endpoint(
+    session_id: str,
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict:
+    """List all artifact metadata for a signed-in session."""
+    try:
+        artifacts = load_brainstorm_artifacts(
+            services,
+            session_id=session_id,
+            owner_uid=user.uid,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return {"sessionId": session_id, "artifacts": artifacts}
+
+
+@router.get("/brainstorm/sessions/{session_id}/artifacts/{artifact_id}/download")
+async def download_brainstorm_artifact_endpoint(
+    session_id: str,
+    artifact_id: str,
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> Response:
+    """Download a single artifact's content bytes."""
+    try:
+        content_bytes, mime_type, filename = download_brainstorm_artifact(
+            services,
+            session_id=session_id,
+            owner_uid=user.uid,
+            artifact_id=artifact_id,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return Response(
+        content=content_bytes,
+        media_type=mime_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
 
 
 # ── WebSocket endpoint ───────────────────────────────────────────  # noqa: E501
