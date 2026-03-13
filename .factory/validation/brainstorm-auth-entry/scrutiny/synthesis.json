@@ -1,59 +1,40 @@
 {
   "milestone": "brainstorm-auth-entry",
-  "round": 1,
-  "status": "fail",
+  "round": 2,
+  "status": "pass",
   "validatorsRun": {
     "test": {
       "passed": true,
-      "command": "cd \"/Users/dks0662779/gemini-live-3d-bridge\" && uv run pytest tests/",
+      "command": "sh -c 'cd \"/Users/dks0662779/gemini-live-3d-bridge\" && uv run pytest tests/'",
       "exitCode": 0
     },
     "typecheck": {
       "passed": true,
-      "command": "cd \"/Users/dks0662779/gemini-live-3d-bridge\" && uv run mypy src/ && cd \"/Users/dks0662779/gemini-live-3d-bridge/frontend\" && npm exec tsc -b --pretty false",
+      "command": "sh -c 'cd \"/Users/dks0662779/gemini-live-3d-bridge\" && uv run mypy src/ && cd \"/Users/dks0662779/gemini-live-3d-bridge/frontend\" && npm exec tsc -b --pretty false'",
       "exitCode": 0
     },
     "lint": {
       "passed": true,
-      "command": "cd \"/Users/dks0662779/gemini-live-3d-bridge\" && uv run ruff check src/ && cd \"/Users/dks0662779/gemini-live-3d-bridge/frontend\" && npm run lint",
+      "command": "sh -c 'cd \"/Users/dks0662779/gemini-live-3d-bridge\" && uv run ruff check src/ && cd \"/Users/dks0662779/gemini-live-3d-bridge/frontend\" && npm run lint'",
       "exitCode": 0
     }
   },
   "reviewsSummary": {
-    "total": 2,
+    "total": 1,
     "passed": 1,
-    "failed": 1,
-    "failedFeatures": [
-      "brainstorm-entry-modal-and-auth-flows"
-    ]
+    "failed": 0,
+    "failedFeatures": []
   },
-  "blockingIssues": [
+  "blockingIssues": [],
+  "nonBlockingIssues": [
     {
-      "featureId": "brainstorm-entry-modal-and-auth-flows",
-      "severity": "blocking",
-      "description": "The signed-in brainstorm modal is only a placeholder screen and does not provide actual library actions to start or reopen sessions, so auth success does not return users to the required usable library-first flow."
+      "featureId": "brainstorm-session-library-crud",
+      "severity": "non_blocking",
+      "description": "Library action handlers in `BrainstormEntryModal` intentionally discard promises while `useBrainstormSessionLibrary` rethrows failures after setting UI errors, so backend failures can still surface uncaught rejected promises in the browser console."
     }
   ],
-  "appliedUpdates": [
-    {
-      "target": "library",
-      "description": "Expanded `.factory/library/environment.md` with the required brainstorm Firebase admin settings and Application Default Credentials fallback used by the backend foundation.",
-      "sourceFeature": "brainstorm-firebase-auth-foundation"
-    },
-    {
-      "target": "library",
-      "description": "Documented that brainstorm auth uses checked-in public Firebase web config and relies on the standard local frontend origin for popup-auth validation.",
-      "sourceFeature": "brainstorm-entry-modal-and-auth-flows"
-    }
-  ],
-  "suggestedGuidanceUpdates": [
-    {
-      "target": "mission-worker-base skill",
-      "suggestion": "Mention that mission startup may require running `.factory/init.sh` through `sh` when a checkout is missing the executable bit, instead of assuming direct execution always works.",
-      "evidence": "The `brainstorm-firebase-auth-foundation` handoff recorded a startup deviation because direct execution of `.factory/init.sh` failed and `sh .factory/init.sh` was needed to continue.",
-      "isSystemic": false
-    }
-  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
   "rejectedObservations": [],
-  "previousRound": null
+  "previousRound": ".factory/validation/brainstorm-auth-entry/scrutiny/synthesis.round1.json"
 }
