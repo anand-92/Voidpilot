@@ -292,14 +292,19 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
           }
           // Lock on the "typing" animation (hide = working at desk)
         } else {
-          // Stay in place - no wandering when not working
+          // Wander
           if (agent.anim === 'walk') {
             agent.anim = 'idle'
             agent.frame = 0
           }
-          // Keep target at current position
-          agent.targetX = agent.x
-          agent.targetY = agent.y
+          agent.wanderTimer -= dt
+          if (agent.wanderTimer <= 0) {
+            const tc = Math.max(0, Math.min(COLS - 1, Math.floor(agent.x / TILE_SIZE) + Math.floor(Math.random() * 5) - 2))
+            const tr = Math.max(1, Math.min(ROWS - 1, Math.floor(agent.y / TILE_SIZE) + Math.floor(Math.random() * 3) - 1))
+            agent.targetX = tc * TILE_SIZE + TILE_SIZE / 2
+            agent.targetY = tr * TILE_SIZE + TILE_SIZE / 2
+            agent.wanderTimer = 3 + Math.random() * 5
+          }
         }
       }
     }
