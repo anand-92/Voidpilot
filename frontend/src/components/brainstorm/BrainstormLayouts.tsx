@@ -25,6 +25,7 @@ export type BrainstormLayoutProps = {
   handleSend: () => void
   handleConnect: () => Promise<void>
   stop: () => void
+  onCreateShare?: () => Promise<string | null>
 }
 
 export { BrainstormDesktopLayout } from './BrainstormDesktopLayout'

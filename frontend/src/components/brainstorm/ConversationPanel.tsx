@@ -1,6 +1,8 @@
-import type { RefObject } from 'react'
+import { useCallback, useState, type RefObject } from 'react'
+import { Share2, Check, Link as LinkIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { DotPattern } from '@/components/ui/dot-pattern'
@@ -14,9 +16,29 @@ type ConversationPanelProps = {
   messagesEndRef: RefObject<HTMLDivElement | null>
   mobile: boolean
   sessionTitle?: string | null
+  onCreateShare?: () => Promise<string | null>
 }
 
-export function ConversationPanel({ messages, messagesEndRef, mobile, sessionTitle }: ConversationPanelProps) {
+export function ConversationPanel({ messages, messagesEndRef, mobile, sessionTitle, onCreateShare }: ConversationPanelProps) {
+  const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
+
+  const handleShare = useCallback(async () => {
+    if (!onCreateShare || shareState === 'loading') return
+    setShareState('loading')
+    try {
+      const shareUrl = await onCreateShare()
+      if (shareUrl) {
+        await navigator.clipboard.writeText(shareUrl)
+        setShareState('copied')
+        setTimeout(() => setShareState('idle'), 2500)
+      } else {
+        setShareState('idle')
+      }
+    } catch {
+      setShareState('idle')
+    }
+  }, [onCreateShare, shareState])
+
   return (
     <>
       <div
@@ -29,6 +51,29 @@ export function ConversationPanel({ messages, messagesEndRef, mobile, sessionTit
         <span className="min-w-0 truncate text-sm font-semibold text-white">
           {sessionTitle ?? 'Conversation'}
         </span>
+        {onCreateShare && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleShare}
+            disabled={shareState === 'loading'}
+            className={cn(
+              'ml-1 size-7 shrink-0 rounded-lg transition-all',
+              shareState === 'copied'
+                ? 'bg-emerald-500/10 text-emerald-400'
+                : 'text-stone-500 hover:bg-white/[0.06] hover:text-stone-300',
+            )}
+            title={shareState === 'copied' ? 'Link copied!' : 'Share session'}
+          >
+            {shareState === 'copied' ? (
+              <Check className="size-3.5" />
+            ) : shareState === 'loading' ? (
+              <LinkIcon className="size-3.5 animate-pulse" />
+            ) : (
+              <Share2 className="size-3.5" />
+            )}
+          </Button>
+        )}
         <Badge
           variant="outline"
           className="ml-auto shrink-0 border-transparent bg-transparent px-0 text-[10px] font-medium uppercase tracking-widest text-stone-600"

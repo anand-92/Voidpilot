@@ -38,6 +38,7 @@ export function BrainstormMobileLayout({
   handleSend,
   handleConnect,
   stop,
+  onCreateShare,
 }: BrainstormLayoutProps) {
   const [activeTab, setActiveTab] = useState<string>('chat')
 
@@ -141,7 +142,7 @@ export function BrainstormMobileLayout({
             </section>
 
             <section className="mt-4 flex min-h-0 flex-1 flex-col rounded-3xl border border-white/[0.05] bg-stone-950/60 shadow-[0_20px_60px_rgba(12,10,9,0.4)]">
-              <ConversationPanel messages={messages} messagesEndRef={messagesEndRef} mobile sessionTitle={sessionTitle} />
+              <ConversationPanel messages={messages} messagesEndRef={messagesEndRef} mobile sessionTitle={sessionTitle} onCreateShare={onCreateShare} />
             </section>
           </>
         ) : (

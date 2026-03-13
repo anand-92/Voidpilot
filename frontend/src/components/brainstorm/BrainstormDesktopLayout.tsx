@@ -30,6 +30,7 @@ export function BrainstormDesktopLayout({
   handleSend,
   handleConnect,
   stop,
+  onCreateShare,
 }: BrainstormLayoutProps) {
   return (
     <main className="relative flex h-screen w-full overflow-hidden bg-[#0a0a0a] text-stone-100 font-sans p-6 gap-6">
@@ -68,7 +69,7 @@ export function BrainstormDesktopLayout({
       {/* Right Sidebar (30%) */}
       <div className="w-[30%] min-w-[340px] max-w-[480px] shrink-0 z-40 flex flex-col overflow-hidden rounded-[2rem] border border-white/[0.08] bg-black/60 backdrop-blur-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] relative h-full">
         {isConnected && <BorderBeam size={100} duration={10} colorFrom="#d97706" colorTo="#b45309" />}
-        <ConversationPanel messages={messages} messagesEndRef={messagesEndRef} mobile={false} sessionTitle={sessionTitle} />
+        <ConversationPanel messages={messages} messagesEndRef={messagesEndRef} mobile={false} sessionTitle={sessionTitle} onCreateShare={onCreateShare} />
 
         <BrainstormControls
           isConnected={isConnected}

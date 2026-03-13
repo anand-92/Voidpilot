@@ -28,6 +28,12 @@ from src.app.services.brainstorm_session_library import (
     get_brainstorm_session_for_user,
     list_brainstorm_sessions_for_user,
 )
+from src.app.services.brainstorm_share import (
+    create_or_get_share,
+    delete_shares_for_session,
+    download_public_artifact,
+    resolve_public_share,
+)
 from src.app.services.brainstorm_turn_persistence import (
     load_brainstorm_turns,
     save_brainstorm_turns,
@@ -359,6 +365,8 @@ async def delete_brainstorm_session_record(
             owner_uid=user.uid,
             session_id=session_id,
         )
+        # Cascade-delete any public share records for this session
+        delete_shares_for_session(services, session_id=session_id)
     except BrainstormSessionError as exc:
         raise exc.to_http_exception() from exc
 
@@ -527,6 +535,90 @@ async def download_brainstorm_artifact_endpoint(
         media_type=mime_type,
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
+# ── Share endpoints ───────────────────────────────────────────────
+
+
+@router.post("/brainstorm/sessions/{session_id}/share")
+async def create_brainstorm_share(
+    session_id: str,
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict:
+    """Create or retrieve a public share link for a persisted session.
+
+    Only the session owner can create a share. Repeated calls return the
+    same stable share token.
+    """
+    try:
+        share_data = create_or_get_share(
+            services,
+            session_id=session_id,
+            owner_uid=user.uid,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return {"share": share_data}
+
+
+@router.get("/brainstorm/share/{share_token}")
+async def get_public_share(
+    share_token: str,
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict:
+    """Resolve a public share token and return session data.
+
+    This endpoint does not require authentication. Anyone with a valid
+    share token can view the session read-only.
+    """
+    try:
+        share_data = resolve_public_share(services, share_token=share_token)
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return share_data
+
+
+@router.get(
+    "/brainstorm/share/{share_token}/artifacts/{artifact_id}/download"
+)
+async def download_public_artifact_endpoint(
+    share_token: str,
+    artifact_id: str,
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> Response:
+    """Download a single artifact via a public share link.
+
+    This endpoint does not require authentication.
+    """
+    try:
+        content_bytes, mime_type, filename = download_public_artifact(
+            services,
+            share_token=share_token,
+            artifact_id=artifact_id,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    safe_filename = filename.replace('"', "'")
+    return Response(
+        content=content_bytes,
+        media_type=mime_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_filename}"',
         },
     )
 

@@ -5,6 +5,7 @@ import { getArtifactSize } from '../components/brainstorm/utils'
 import { useBrainstormEntryAuth } from '../hooks/useBrainstormEntryAuth'
 import { useGeminiBrainstorm } from '../hooks/useGeminiBrainstorm'
 import { useBrainstormSessionLibrary } from '../hooks/useBrainstormSessionLibrary'
+import { createBrainstormShare } from '../lib/brainstormShareApi'
 
 export default function BrainstormPage() {
   const {
@@ -25,6 +26,8 @@ export default function BrainstormPage() {
     messages,
     artifacts,
     isGenerating,
+    activeSessionId,
+    sessionMode,
     sessionTitle,
     prepareGuestWorkspace,
     preparePersistedWorkspace,
@@ -152,6 +155,18 @@ export default function BrainstormPage() {
     await deleteSession(sessionId)
   }, [clearEntryError, deleteSession])
 
+  const handleCreateShare = useCallback(async (): Promise<string | null> => {
+    if (sessionMode !== 'persisted' || !activeSessionId) return null
+    try {
+      const share = await createBrainstormShare(activeSessionId)
+      const shareUrl = `${window.location.origin}${window.location.pathname}#/share/${share.shareToken}`
+      return shareUrl
+    } catch (error) {
+      console.error('Failed to create share link:', error)
+      return null
+    }
+  }, [activeSessionId, sessionMode])
+
   const artifactList = Array.from(artifacts.entries())
   const totalSize = artifactList.reduce(
     (acc, [, artifact]) => acc + getArtifactSize(artifact),
@@ -160,6 +175,8 @@ export default function BrainstormPage() {
 
   const currentArtifact =
     selectedArtifact !== null ? artifacts.get(selectedArtifact) ?? null : null
+
+  const onCreateShare = sessionMode === 'persisted' ? handleCreateShare : undefined
 
   const sharedProps: BrainstormLayoutProps = {
     intensityRef,
@@ -184,6 +201,7 @@ export default function BrainstormPage() {
     handleSend,
     handleConnect,
     stop,
+    onCreateShare,
   }
 
   return (
