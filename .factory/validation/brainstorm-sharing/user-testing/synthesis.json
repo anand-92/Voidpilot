@@ -1,0 +1,26 @@
+{
+  "milestone": "brainstorm-sharing",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-SHARE-001",
+    "VAL-SHARE-002",
+    "VAL-SHARE-003",
+    "VAL-SHARE-004",
+    "VAL-SHARE-005",
+    "VAL-SHARE-006",
+    "VAL-CROSS-003",
+    "VAL-CROSS-004",
+    "VAL-CROSS-005"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": null
+}

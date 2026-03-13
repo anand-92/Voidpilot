@@ -1,0 +1,47 @@
+{
+  "groupId": "api-share-tests",
+  "testedAt": "2026-03-13T00:00:00Z",
+  "isolation": {
+    "backend": "http://127.0.0.1:8000",
+    "frontend": "http://127.0.0.1:5173",
+    "projectRoot": "/Users/dks0662779/gemini-live-3d-bridge",
+    "testMode": "api-only"
+  },
+  "toolsUsed": ["pytest", "curl"],
+  "assertions": {
+    "VAL-SHARE-004": {
+      "status": "pass",
+      "evidence": [
+        "brainstorm-sharing/api-share-tests/pytest-results.txt"
+      ],
+      "notes": "TestShareReflectsLatestState::test_share_reflects_updated_turns passed. Test creates a session, shares it, saves 1 turn, verifies public share shows 1 turn, then updates to 2 turns and verifies same share token now shows 2 turns with latest content. Share token remains stable across updates. No new link is generated."
+    },
+    "VAL-SHARE-005": {
+      "status": "pass",
+      "evidence": [
+        "brainstorm-sharing/api-share-tests/pytest-results.txt",
+        "brainstorm-sharing/api-share-tests/curl-live-server.txt"
+      ],
+      "notes": "Two pytest tests passed: test_delete_session_invalidates_share (share returns 404 after session delete) and test_delete_session_invalidates_public_artifact_downloads (artifact download returns 404 after session delete). Live server also confirms GET /share/nonexistent-token returns 404 with code brainstorm_share_not_found."
+    },
+    "VAL-CROSS-004": {
+      "status": "pass",
+      "evidence": [
+        "brainstorm-sharing/api-share-tests/pytest-results.txt",
+        "brainstorm-sharing/api-share-tests/curl-live-server.txt"
+      ],
+      "notes": "test_create_share_rejects_non_owner passed: user-2 cannot create a share for user-1's session (403). test_public_share_does_not_require_auth passed: public share endpoint works without auth. Live server confirms GET /sessions without auth returns 401 (private library is owner-only) while public share resolution would return 200 for valid tokens."
+    },
+    "VAL-CROSS-005": {
+      "status": "pass",
+      "evidence": [
+        "brainstorm-sharing/api-share-tests/pytest-results.txt",
+        "brainstorm-sharing/api-share-tests/curl-live-server.txt"
+      ],
+      "notes": "9 parametrized test_private_endpoints_reject_missing_auth cases all passed, confirming 401 for every private endpoint (sessions list, create, get, delete, turns get/put, artifacts list, artifact download, share create) without auth. test_public_share_does_not_require_auth confirms public share returns 200 without auth. Live server curl tests confirm all 6 tested private endpoints return 401 with code brainstorm_auth_missing, and public share returns 404 for invalid token (not 401)."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 4 assertions (VAL-SHARE-004, VAL-SHARE-005, VAL-CROSS-004, VAL-CROSS-005): all 4 passed. All 22 pytest tests in test_brainstorm_share.py passed. All live server curl checks confirmed expected HTTP status codes. Frontend lint and build both succeeded cleanly."
+}

@@ -1,0 +1,212 @@
+{
+  "groupId": "browser-share-tests",
+  "testedAt": "2026-03-13T07:50:00.000Z",
+  "isolation": {
+    "backend": "http://127.0.0.1:8000",
+    "frontend": "http://127.0.0.1:5173",
+    "shareRoute": "/#/share/{shareToken}",
+    "brainstormRoute": "/#/brainstorm",
+    "testAccount": "testvalidator+share001@gmail.com"
+  },
+  "toolsUsed": ["chrome-devtools"],
+  "assertions": [
+    {
+      "id": "VAL-SHARE-001",
+      "title": "Only persisted signed-in sessions can produce a public share link",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Navigate to /#/brainstorm and continue as guest",
+          "expected": "Guest workspace without share button",
+          "observed": "Guest workspace rendered with Connect, Artifact, Image, Video, and message input buttons — no Share button visible in the Conversation panel header"
+        },
+        {
+          "action": "Reload, sign up as testvalidator+share001@gmail.com, create new session from library",
+          "expected": "Signed-in workspace with share button",
+          "observed": "Signed-in workspace shows 'Share session' button in the Conversation panel header alongside message count"
+        },
+        {
+          "action": "Click Share session button",
+          "expected": "Share link created via API",
+          "observed": "POST /api/v1/live/brainstorm/sessions/{id}/share returned 200 with shareToken '7ad9ecfac9424f0594f22220b72c128e'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-001-guest-workspace-no-share.png",
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-001-signed-in-share-button.png"
+        ],
+        "consoleErrors": "none",
+        "network": "POST /api/v1/live/brainstorm/sessions/96ff88280a3d408fbad3a6e75e6c849f/share -> 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SHARE-002",
+      "title": "Anyone with the link can open a read-only share page without auth",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Clear all IndexedDB (firebaseLocalStorageDb, firebase-heartbeat-database) to simulate fully signed-out state",
+          "expected": "No Firebase auth state",
+          "observed": "Both databases deleted successfully"
+        },
+        {
+          "action": "Navigate to /#/share/7ad9ecfac9424f0594f22220b72c128e (valid share token)",
+          "expected": "Public share page loads without requiring sign-in",
+          "observed": "Share page loaded successfully showing session title, conversation, and artifacts. No auth prompt or redirect."
+        },
+        {
+          "action": "Inspect page snapshot for composer, mic controls, Connect button, tool/model toggles, library controls",
+          "expected": "No interactive brainstorm controls",
+          "observed": "Page contains only: header (Voidpilot link, session title, SHARED badge), Conversation panel (messages), Artifacts panel (artifact cards with download). No textbox/input, no Connect button, no Artifact/Image/Video tool buttons, no model toggles, no library controls."
+        },
+        {
+          "action": "Check network requests for websocket connections",
+          "expected": "No websocket or audio session started",
+          "observed": "Only GET /api/v1/live/brainstorm/share/{token} requests (200). Zero websocket connections."
+        },
+        {
+          "action": "Navigate to /#/share/test-invalid-token (invalid token)",
+          "expected": "Error/unavailable state",
+          "observed": "'Share Unavailable' page with message 'This brainstorm share link is no longer valid. The session may have been deleted by its owner.' and 'Back to Voidpilot' link."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-002-public-share-page.png",
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-002-no-composer-or-controls.png",
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-002-signed-out-share-page.png",
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-002-error-state.png"
+        ],
+        "consoleErrors": "none (on valid share page); expected 404 errors on invalid token page",
+        "network": "GET /api/v1/live/brainstorm/share/7ad9ecfac9424f0594f22220b72c128e -> 200 (no auth header); GET /api/v1/live/brainstorm/share/test-invalid-token -> 404; no websocket connections on share pages"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SHARE-003",
+      "title": "Public share pages show transcript plus artifacts and allow artifact downloads",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create brainstorm session with text message 'Create a short markdown artifact about testing best practices', receive Gemini response with artifact",
+          "expected": "Session has transcript and artifact",
+          "observed": "Session contains 2 user-visible messages (user text + Gemini tool result with markdown artifact) and 1 artifact (testing_best_practices.md, 1.2 KB)"
+        },
+        {
+          "action": "Reload share page /#/share/7ad9ecfac9424f0594f22220b72c128e",
+          "expected": "Transcript and artifacts displayed",
+          "observed": "Share page shows: title 'Create a short markdown artifact about testing best…', 2 MESSAGES with full conversation text, Artifacts panel with 1 FILE (testing_best_practices.md) and download button"
+        },
+        {
+          "action": "Click artifact card to view preview",
+          "expected": "Artifact preview with rendered markdown content",
+          "observed": "Preview panel opens with 'PREVIEW' label, filename, close button, and fully rendered markdown content including headings (Testing Best Practices, Key Principles), bullet points, and formatted text"
+        },
+        {
+          "action": "Click download button on artifact card",
+          "expected": "Artifact download succeeds",
+          "observed": "GET /api/v1/live/brainstorm/share/{token}/artifacts/{aid}/download -> 200. Download triggered via blob URL."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-003-transcript-and-artifacts.png",
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-003-artifact-preview.png"
+        ],
+        "consoleErrors": "none",
+        "network": "GET /api/v1/live/brainstorm/share/{token} -> 200; GET /api/v1/live/brainstorm/share/{token}/artifacts/{aid}/download -> 200 (multiple successful downloads)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-SHARE-006",
+      "title": "The public share page feels intentionally designed, not like a fallback dump",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect loading state of share page (intercepted fetch with 10s delay)",
+          "expected": "Polished loading state with brainstorm-aligned design",
+          "observed": "Loading state shows: dark background (#0a0a0a), animated particle effects, dot pattern, rounded brainstorm icon with amber pulsing animation, 'Loading shared brainstorm…' heading with 'Fetching the latest session data' subtitle. Intentionally designed, not a generic spinner."
+        },
+        {
+          "action": "Inspect error/unavailable state with invalid token",
+          "expected": "Polished unavailable state",
+          "observed": "Error state shows: dark background with particles and dot pattern, rose-colored alert icon in rounded container with shadow, 'Share Unavailable' heading, contextual error message, 'Back to Voidpilot' navigation button. Branded and intentional, not a raw error or blank page."
+        },
+        {
+          "action": "Inspect loaded share page with content",
+          "expected": "Polished brainstorm-aligned layout",
+          "observed": "Full layout shows: glass-surface header with amber brainstorm icon, truncated title, 'SHARED' badge with amber styling, separated Conversation and Artifacts panels with rounded corners (2rem radius), dark backdrop blur, stone/amber color scheme, proper message bubbles with role labels, artifact cards with hover effects and download buttons, artifact preview with ShineBorder animation. Consistent with brainstorm workspace design language."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-006-loading-state.png",
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-006-unavailable-state.png",
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-006-full-layout.png",
+          "brainstorm-sharing/browser-share-tests/VAL-SHARE-006-full-layout-with-content.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A (design/visual assertion)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "title": "Session titles and saved state stay consistent across owner and public surfaces",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check owner library for session title",
+          "expected": "AI-generated title visible in library",
+          "observed": "Library shows session entry with title 'Create a short markdown artifact about testing best…' dated Mar 13, 3:50 AM"
+        },
+        {
+          "action": "Reopen session from library",
+          "expected": "Same title and content in workspace",
+          "observed": "Workspace shows title 'Create a short markdown artifact about testing best…' in conversation header, 2 messages (user text + Gemini tool result), and artifact (testing_best_practices.md, 1.2 KB) — all matching library entry"
+        },
+        {
+          "action": "Check public share page for same session",
+          "expected": "Same title and content on share page",
+          "observed": "Share page heading shows 'Create a short markdown artifact about testing best…', 2 MESSAGES with identical conversation text, Artifacts panel with same testing_best_practices.md file — title and content match owner library and workspace exactly"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "brainstorm-sharing/browser-share-tests/VAL-CROSS-003-owner-library.png",
+          "brainstorm-sharing/browser-share-tests/VAL-CROSS-003-owner-reopened-workspace.png",
+          "brainstorm-sharing/browser-share-tests/VAL-CROSS-003-public-share-page.png",
+          "brainstorm-sharing/browser-share-tests/VAL-CROSS-003-owner-workspace.png"
+        ],
+        "consoleErrors": "none across all three surfaces",
+        "network": "GET /api/v1/live/brainstorm/sessions -> 200 (library); GET /api/v1/live/brainstorm/sessions/{id} -> 200 (reopen); GET /api/v1/live/brainstorm/share/{token} -> 200 (public)"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Hash-based routing means changing the hash fragment within the same browser page does not trigger a full page reload, so React Router may reuse stale component state when navigating between different share tokens. A full page reload was needed to properly load a new share token after previously viewing a different token on the same tab.",
+      "resolved": true,
+      "resolution": "Used page reload after hash change to ensure fresh component mount and data fetch",
+      "affectedAssertions": ["VAL-SHARE-002"]
+    },
+    {
+      "description": "Clearing IndexedDB to simulate signed-out state also clears auth on other tabs sharing the same browser profile, requiring re-authentication on the brainstorm tab",
+      "resolved": true,
+      "resolution": "Re-signed in with the same test account after clearing IndexedDB",
+      "affectedAssertions": ["VAL-SHARE-002", "VAL-CROSS-003"]
+    },
+    {
+      "description": "The share page API call is duplicated (two identical GET requests to the same share endpoint on each page load). This appears to be a React StrictMode double-render effect in development mode, not a production issue.",
+      "resolved": true,
+      "resolution": "Confirmed this is expected React StrictMode behavior; both requests return 200",
+      "affectedAssertions": ["VAL-SHARE-002", "VAL-SHARE-003"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 5 assertions: all 5 passed. VAL-SHARE-001 confirmed share button only appears for persisted signed-in sessions (absent for guests). VAL-SHARE-002 confirmed public share pages load without auth, are read-only with no interactive controls, and don't start websockets. VAL-SHARE-003 confirmed transcript, artifacts, preview, and downloads all work on share pages. VAL-SHARE-006 confirmed polished design with intentional loading, error, and content states. VAL-CROSS-003 confirmed session title and content are consistent across owner library, reopened workspace, and public share page."
+}
