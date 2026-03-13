@@ -54,6 +54,8 @@
 - Browser validation for public share pages must confirm no live brainstorm websocket/audio session is started from the public route.
 - Google OAuth popup cannot be completed in chrome-devtools automation — the button works, opens the real Google accounts popup, and cancellation is handled gracefully, but full completion requires real Google credentials and interactive popup navigation.
 - The chrome-devtools MCP can become disconnected for subagents if a prior session left a browser profile lock. When this happens, API-based validation (Firebase REST API + curl) and code review can serve as a fallback for auth and session CRUD assertions.
+- To connect chrome-devtools MCP to Chrome: quit Chrome completely, then start with `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug-profile --no-first-run`. Then update `/Users/dks0662779/Library/Application Support/Google/Chrome/DevToolsActivePort` with the port and WebSocket path from the custom profile.
+- Firebase auth state persists in IndexedDB (database `firebaseLocalStorageDb`). To simulate a signed-out state, delete all IndexedDB databases and reload.
 
 ## Validated API Endpoints
 
@@ -61,7 +63,25 @@
 - `POST /api/v1/live/brainstorm/sessions` — creates a new persisted session (returns 201)
 - `GET /api/v1/live/brainstorm/sessions/{id}` — reopens a session (returns session data or 404 if deleted)
 - `DELETE /api/v1/live/brainstorm/sessions/{id}` — deletes a session (returns 204)
+- `PUT /api/v1/live/brainstorm/sessions/{id}/turns` — saves turns for a session (returns 200 with turnCount)
+- `GET /api/v1/live/brainstorm/sessions/{id}/turns` — loads saved turns for a session
+- `PATCH /api/v1/live/brainstorm/sessions/{id}/title` — updates session title
+- `PUT /api/v1/live/brainstorm/sessions/{id}/artifacts` — saves artifact (requires Cloud Storage bucket — see Known Limitations)
+- `GET /api/v1/live/brainstorm/sessions/{id}/artifacts` — lists artifact metadata
+- `GET /api/v1/live/brainstorm/sessions/{id}/artifacts/{aid}/download` — downloads artifact content
 - All endpoints return 401 for missing/invalid auth tokens with code `brainstorm_auth_missing` or `brainstorm_auth_invalid`
+
+## Cloud Storage Limitation
+
+The Firebase Cloud Storage bucket `gen-lang-client-0579048282.firebasestorage.app` is **not provisioned**. Artifact upload/download operations return HTTP 404 from the Google Cloud Storage API:
+
+```
+google.api_core.exceptions.NotFound: 404 POST https://storage.googleapis.com/upload/storage/v1/b/gen-lang-client-0579048282.firebasestorage.app/o?uploadType=multipart: The specified bucket does not exist.
+```
+
+This blocks artifact persistence validation (VAL-SESSION-009, VAL-SESSION-010) and will also block artifact download in share pages. The Firestore operations (sessions, turns, titles) work correctly with the legacy ADC credentials.
+
+To fix: provision the bucket in the Firebase Console or via `gsutil mb gs://gen-lang-client-0579048282.firebasestorage.app`.
 
 ## Flow Validator Guidance: browser
 
