@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_JSON: str | None = Field(default=None)
     GOOGLE_API_KEY: str | None = Field(default=None)
     GEMINI_FILE_SEARCH_STORE_ID: str = (
-        "fileSearchStores/voidpilotdocscontext-hka0fgfp7dbl"
+        "fileSearchStores/voidpilotdocscontext-cs0t6mbqauxc"
     )
 
 
