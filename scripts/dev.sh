@@ -2,6 +2,9 @@
 
 # --- Gemini Live Unified Dev Kill any existing processes Script ---
 
+# Always run from the project root (parent of scripts/)
+cd "$(dirname "$0")/.." || exit 1
+
 # on our ports
 echo "[System] Killing any existing processes on ports 8000 and 5173..."
 lsof -ti:8000 -ti:5173 2>/dev/null | xargs kill -9 2>/dev/null
