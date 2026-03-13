@@ -20,13 +20,13 @@ export function BrainstormMobileLayout({
   isConnected,
   isStarting,
   messages,
-  artifacts,
   artifactList,
   totalSize,
   isGenerating,
   inputText,
   selectedArtifact,
   currentArtifact,
+  selectedArtifactLoadState,
   sessionTitle,
   selectedFlashModel,
   setSelectedFlashModel,
@@ -35,6 +35,8 @@ export function BrainstormMobileLayout({
   messagesEndRef,
   setInputText,
   setSelectedArtifact,
+  downloadArtifact,
+  downloadAllArtifacts,
   handleSend,
   handleConnect,
   stop,
@@ -147,13 +149,15 @@ export function BrainstormMobileLayout({
           </>
         ) : (
           <WorkspacePanel
-            artifacts={artifacts}
             artifactList={artifactList}
             totalSize={totalSize}
             isGenerating={isGenerating}
             selectedArtifact={selectedArtifact}
             currentArtifact={currentArtifact}
+            selectedArtifactLoadState={selectedArtifactLoadState}
             setSelectedArtifact={setSelectedArtifact}
+            downloadArtifact={downloadArtifact}
+            downloadAllArtifacts={downloadAllArtifacts}
             mobile
           />
         )}

@@ -7,13 +7,13 @@ export type BrainstormLayoutProps = {
   isConnected: boolean
   isStarting: boolean
   messages: Message[]
-  artifacts: Map<string, BrainstormArtifact>
   artifactList: Array<[string, BrainstormArtifact]>
   totalSize: number
   isGenerating: boolean
   inputText: string
   selectedArtifact: string | null
   currentArtifact: BrainstormArtifact | null
+  selectedArtifactLoadState: 'loading' | 'error' | null
   sessionTitle: string | null
   selectedFlashModel: BrainstormFlashModel
   setSelectedFlashModel: Dispatch<SetStateAction<BrainstormFlashModel>>
@@ -22,6 +22,8 @@ export type BrainstormLayoutProps = {
   messagesEndRef: RefObject<HTMLDivElement | null>
   setInputText: (value: string) => void
   setSelectedArtifact: Dispatch<SetStateAction<string | null>>
+  downloadArtifact: (filename: string) => Promise<void>
+  downloadAllArtifacts: () => Promise<void>
   handleSend: () => void
   handleConnect: () => Promise<void>
   stop: () => void

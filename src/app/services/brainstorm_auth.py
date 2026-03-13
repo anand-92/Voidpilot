@@ -84,7 +84,9 @@ def parse_brainstorm_bearer_token(authorization: str | None) -> str:
 
     stripped_token = token.strip()
     if not stripped_token:
-        raise MissingBrainstormAuthError()
+        raise InvalidBrainstormAuthError(
+            "Authorization header included the Bearer scheme but no token."
+        )
 
     return stripped_token
 

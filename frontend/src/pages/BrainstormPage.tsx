@@ -25,12 +25,16 @@ export default function BrainstormPage() {
     isStarting,
     messages,
     artifacts,
+    artifactLoadStates,
     isGenerating,
     activeSessionId,
     sessionMode,
     sessionTitle,
     prepareGuestWorkspace,
     preparePersistedWorkspace,
+    ensureArtifactContent,
+    downloadArtifact,
+    downloadAllArtifacts,
     intensityRef,
     selectedFlashModel,
     setSelectedFlashModel,
@@ -94,6 +98,14 @@ export default function BrainstormPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (!selectedArtifact) {
+      return
+    }
+
+    void ensureArtifactContent(selectedArtifact)
+  }, [ensureArtifactContent, selectedArtifact])
 
   const handleSend = useCallback(() => {
     if (inputText.trim()) {
@@ -175,6 +187,8 @@ export default function BrainstormPage() {
 
   const currentArtifact =
     selectedArtifact !== null ? artifacts.get(selectedArtifact) ?? null : null
+  const selectedArtifactLoadState =
+    selectedArtifact !== null ? artifactLoadStates[selectedArtifact] ?? null : null
 
   const onCreateShare = sessionMode === 'persisted' ? handleCreateShare : undefined
 
@@ -183,13 +197,13 @@ export default function BrainstormPage() {
     isConnected,
     isStarting,
     messages,
-    artifacts,
     artifactList,
     totalSize,
     isGenerating,
     inputText,
     selectedArtifact,
     currentArtifact,
+    selectedArtifactLoadState,
     sessionTitle,
     selectedFlashModel,
     setSelectedFlashModel,
@@ -198,6 +212,8 @@ export default function BrainstormPage() {
     messagesEndRef,
     setInputText,
     setSelectedArtifact,
+    downloadArtifact,
+    downloadAllArtifacts,
     handleSend,
     handleConnect,
     stop,

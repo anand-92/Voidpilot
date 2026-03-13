@@ -5,6 +5,7 @@
  */
 
 import { firebaseAuth } from '@/lib/firebase'
+import { getDownloadFilename } from '@/lib/contentDisposition'
 
 const BRAINSTORM_SESSIONS_BASE = '/api/v1/live/brainstorm/sessions'
 
@@ -119,6 +120,7 @@ export type PersistedArtifactMetadata = {
   filename: string
   mimeType: string
   blobPath: string
+  sizeBytes?: number | null
   label: string | null
   text: string | null
   createdAt: string
@@ -202,9 +204,9 @@ export async function downloadBrainstormArtifact(
   }
 
   const blob = await response.blob()
-  const contentDisposition = response.headers.get('content-disposition') ?? ''
-  const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
-  const filename = filenameMatch?.[1] ?? 'artifact'
+  const filename = getDownloadFilename(
+    response.headers.get('content-disposition'),
+  )
   const mimeType = response.headers.get('content-type') ?? 'application/octet-stream'
 
   return { blob, mimeType, filename }

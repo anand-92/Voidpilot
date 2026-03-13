@@ -2,9 +2,10 @@ import asyncio
 import base64
 import logging
 import traceback
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Response, WebSocket, status
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.websockets import WebSocketState
 
 from src.app.core.config import settings
@@ -15,11 +16,15 @@ from src.app.services.brainstorm_artifact_persistence import (
 )
 from src.app.services.brainstorm_auth import (
     BrainstormFirebaseUser,
+    get_optional_brainstorm_user,
     require_brainstorm_user,
 )
 from src.app.services.brainstorm_persistence import (
     BrainstormPersistenceServices,
     get_brainstorm_persistence_services,
+)
+from src.app.services.brainstorm_persistence_utils import (
+    build_attachment_content_disposition,
 )
 from src.app.services.brainstorm_session_library import (
     BrainstormSessionError,
@@ -101,6 +106,25 @@ for them.
 structured data extraction, instead of speaking it.
 - Keep talking to the user while tools execute. You'll be notified when they \
 complete."""
+
+
+class SaveBrainstormTurnsRequest(BaseModel):
+    turns: list[dict[str, Any]]
+
+
+class UpdateBrainstormSessionTitleRequest(BaseModel):
+    title: str
+
+
+class SaveBrainstormArtifactRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    filename: str
+    content: str
+    mime_type: str = Field(alias="mimeType")
+    label: str | None = None
+    text: str | None = None
+
 
 # ── Tool handler factories ───────────────────────────────────────  # noqa: C901
 
@@ -379,20 +403,19 @@ async def delete_brainstorm_session_record(
 @router.put("/brainstorm/sessions/{session_id}/turns")
 async def save_brainstorm_session_turns(
     session_id: str,
-    body: dict,
+    body: SaveBrainstormTurnsRequest,
     user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
     services: Annotated[
         BrainstormPersistenceServices,
         Depends(get_brainstorm_persistence_services),
     ],
 ) -> dict:
-    turns = body.get("turns", [])
     try:
         turn_count = save_brainstorm_turns(
             services,
             session_id=session_id,
             owner_uid=user.uid,
-            turns=turns,
+            turns=body.turns,
         )
     except BrainstormSessionError as exc:
         raise exc.to_http_exception() from exc
@@ -424,20 +447,19 @@ async def get_brainstorm_session_turns(
 @router.patch("/brainstorm/sessions/{session_id}/title")
 async def update_brainstorm_session_title_endpoint(
     session_id: str,
-    body: dict,
+    body: UpdateBrainstormSessionTitleRequest,
     user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
     services: Annotated[
         BrainstormPersistenceServices,
         Depends(get_brainstorm_persistence_services),
     ],
 ) -> dict:
-    title = body.get("title", "")
     try:
         session_data = update_brainstorm_session_title(
             services,
             session_id=session_id,
             owner_uid=user.uid,
-            title=title,
+            title=body.title,
         )
     except BrainstormSessionError as exc:
         raise exc.to_http_exception() from exc
@@ -451,7 +473,7 @@ async def update_brainstorm_session_title_endpoint(
 @router.put("/brainstorm/sessions/{session_id}/artifacts")
 async def save_brainstorm_artifact_endpoint(
     session_id: str,
-    body: dict,
+    body: SaveBrainstormArtifactRequest,
     user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
     services: Annotated[
         BrainstormPersistenceServices,
@@ -464,22 +486,16 @@ async def save_brainstorm_artifact_endpoint(
     completions always land on the correct session, even if the user has
     since switched to a different session in the frontend.
     """
-    filename = body.get("filename", "")
-    content = body.get("content", "")
-    mime_type = body.get("mimeType", "text/markdown")
-    label = body.get("label")
-    text = body.get("text")
-
     try:
         metadata = save_brainstorm_artifact(
             services,
             session_id=session_id,
             owner_uid=user.uid,
-            filename=filename,
-            content=content,
-            mime_type=mime_type,
-            label=label,
-            text=text,
+            filename=body.filename,
+            content=body.content,
+            mime_type=body.mime_type,
+            label=body.label,
+            text=body.text,
         )
     except BrainstormSessionError as exc:
         raise exc.to_http_exception() from exc
@@ -534,7 +550,9 @@ async def download_brainstorm_artifact_endpoint(
         content=content_bytes,
         media_type=mime_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": build_attachment_content_disposition(
+                filename
+            ),
         },
     )
 
@@ -571,6 +589,10 @@ async def create_brainstorm_share(
 @router.get("/brainstorm/share/{share_token}")
 async def get_public_share(
     share_token: str,
+    _optional_user: Annotated[
+        BrainstormFirebaseUser | None,
+        Depends(get_optional_brainstorm_user),
+    ],
     services: Annotated[
         BrainstormPersistenceServices,
         Depends(get_brainstorm_persistence_services),
@@ -595,6 +617,10 @@ async def get_public_share(
 async def download_public_artifact_endpoint(
     share_token: str,
     artifact_id: str,
+    _optional_user: Annotated[
+        BrainstormFirebaseUser | None,
+        Depends(get_optional_brainstorm_user),
+    ],
     services: Annotated[
         BrainstormPersistenceServices,
         Depends(get_brainstorm_persistence_services),
@@ -613,12 +639,13 @@ async def download_public_artifact_endpoint(
     except BrainstormSessionError as exc:
         raise exc.to_http_exception() from exc
 
-    safe_filename = filename.replace('"', "'")
     return Response(
         content=content_bytes,
         media_type=mime_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{safe_filename}"',
+            "Content-Disposition": build_attachment_content_disposition(
+                filename
+            ),
         },
     )
 

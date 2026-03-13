@@ -6,6 +6,7 @@
  */
 
 import { firebaseAuth } from '@/lib/firebase'
+import { getDownloadFilename } from '@/lib/contentDisposition'
 
 const BRAINSTORM_BASE = '/api/v1/live/brainstorm'
 
@@ -17,8 +18,6 @@ export type ShareInfo = {
 
 export type PublicShareSession = {
   id: string
-  ownerUid: string
-  ownerEmail: string | null
   ownerName: string | null
   mode: string
   title: string
@@ -36,6 +35,7 @@ export type PublicShareArtifact = {
   artifactId: string
   filename: string
   mimeType: string
+  sizeBytes?: number | null
   label: string | null
   text: string | null
   createdAt: string
@@ -126,9 +126,9 @@ export async function downloadPublicArtifact(
   }
 
   const blob = await response.blob()
-  const contentDisposition = response.headers.get('content-disposition') ?? ''
-  const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
-  const filename = filenameMatch?.[1] ?? 'artifact'
+  const filename = getDownloadFilename(
+    response.headers.get('content-disposition'),
+  )
   const mimeType = response.headers.get('content-type') ?? 'application/octet-stream'
 
   return { blob, mimeType, filename }

@@ -4,17 +4,19 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { BrainstormArtifact } from '../../hooks/useGeminiBrainstorm'
-import { formatFileSize, getArtifactSize, downloadSingleArtifact } from './utils'
+import { formatFileSize, getArtifactSize } from './utils'
 
 export function ArtifactRow({
   artifact,
   isSelected,
   onSelect,
+  onDownload,
   downloadButtonClassName,
 }: {
   artifact: BrainstormArtifact
   isSelected: boolean
   onSelect: () => void
+  onDownload: () => void
   downloadButtonClassName?: string
 }) {
   const isImage = artifact.mimeType === 'image/png'
@@ -35,7 +37,7 @@ export function ArtifactRow({
       role="button"
       tabIndex={0}
     >
-      {isImage && (
+      {isImage && artifact.content !== null && (
         <div className="relative aspect-video w-full overflow-hidden border-b border-white/[0.06] bg-stone-950/50">
           <img 
             src={`data:image/png;base64,${artifact.content}`}
@@ -46,7 +48,7 @@ export function ArtifactRow({
         </div>
       )}
       
-      {isVideo && (
+      {isVideo && artifact.content !== null && (
         <div className="relative aspect-video w-full overflow-hidden border-b border-white/[0.06] bg-stone-950/50">
           <video
             src={`data:video/mp4;base64,${artifact.content}`}
@@ -62,7 +64,7 @@ export function ArtifactRow({
         </div>
       )}
       
-      {isText && (
+      {isText && artifact.content !== null && (
         <div className="relative h-48 w-full border-b border-white/[0.06] bg-stone-950/50 p-4">
           <ScrollArea className="h-full w-full mask-image-bottom">
             <div className="prose prose-invert prose-xs max-w-none prose-headings:text-stone-300 prose-p:text-stone-400 prose-a:text-amber-500 prose-code:text-amber-400 prose-pre:bg-stone-900/50 pointer-events-none">
@@ -70,6 +72,12 @@ export function ArtifactRow({
             </div>
           </ScrollArea>
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
+        </div>
+      )}
+
+      {artifact.content === null && (
+        <div className="flex h-28 w-full items-center justify-center border-b border-white/[0.06] bg-stone-950/50 px-4 text-center text-xs uppercase tracking-[0.2em] text-stone-600">
+          Select to load preview
         </div>
       )}
 
@@ -102,7 +110,7 @@ export function ArtifactRow({
           size="icon-sm"
           onClick={(event) => {
             event.stopPropagation()
-            downloadSingleArtifact(artifact)
+            onDownload()
           }}
           aria-label="Download artifact"
           className={cn(

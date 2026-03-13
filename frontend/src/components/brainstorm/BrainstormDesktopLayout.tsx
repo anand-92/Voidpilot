@@ -12,13 +12,13 @@ export function BrainstormDesktopLayout({
   isConnected,
   isStarting,
   messages,
-  artifacts,
   artifactList,
   totalSize,
   isGenerating,
   inputText,
   selectedArtifact,
   currentArtifact,
+  selectedArtifactLoadState,
   sessionTitle,
   selectedFlashModel,
   setSelectedFlashModel,
@@ -27,6 +27,8 @@ export function BrainstormDesktopLayout({
   messagesEndRef,
   setInputText,
   setSelectedArtifact,
+  downloadArtifact,
+  downloadAllArtifacts,
   handleSend,
   handleConnect,
   stop,
@@ -54,13 +56,15 @@ export function BrainstormDesktopLayout({
         {/* Bottom: Workspace Panel */}
         <div className="flex-1 min-h-0 flex flex-col z-40 transition-all duration-500 relative">
           <WorkspacePanel
-            artifacts={artifacts}
             artifactList={artifactList}
             totalSize={totalSize}
             isGenerating={isGenerating}
             selectedArtifact={selectedArtifact}
             currentArtifact={currentArtifact}
+            selectedArtifactLoadState={selectedArtifactLoadState}
             setSelectedArtifact={setSelectedArtifact}
+            downloadArtifact={downloadArtifact}
+            downloadAllArtifacts={downloadAllArtifacts}
             mobile={false}
           />
         </div>

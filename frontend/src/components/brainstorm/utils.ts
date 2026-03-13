@@ -1,4 +1,8 @@
 import JSZip from 'jszip'
+import {
+  artifactToBlob,
+  downloadBlob,
+} from '@/lib/brainstormArtifactFiles'
 import type { BrainstormArtifact } from '../../hooks/useGeminiBrainstorm'
 
 export function formatFileSize(bytes: number): string {
@@ -8,34 +12,14 @@ export function formatFileSize(bytes: number): string {
 }
 
 export function getArtifactSize(artifact: BrainstormArtifact): number {
-  if (artifact.mimeType.startsWith('image/') || artifact.mimeType.startsWith('video/')) {
-    return Math.floor((artifact.content.length * 3) / 4)
-  }
-  return new Blob([artifact.content]).size
-}
-
-export function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  document.body.appendChild(anchor)
-  anchor.click()
-  document.body.removeChild(anchor)
-  URL.revokeObjectURL(url)
-}
-
-export function artifactToBlob(artifact: BrainstormArtifact): Blob {
-  if (artifact.mimeType.startsWith('image/') || artifact.mimeType.startsWith('video/')) {
-    const binary = atob(artifact.content)
-    const bytes = new Uint8Array(binary.length)
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index)
-    }
-    return new Blob([bytes], { type: artifact.mimeType })
+  if (artifact.content === null) {
+    return artifact.sizeBytes ?? 0
   }
 
-  return new Blob([artifact.content], { type: artifact.mimeType })
+  if (artifact.mimeType.startsWith('image/') || artifact.mimeType.startsWith('video/')) {
+    return artifact.sizeBytes ?? Math.floor((artifact.content.length * 3) / 4)
+  }
+  return artifact.sizeBytes ?? new Blob([artifact.content]).size
 }
 
 export function downloadSingleArtifact(artifact: BrainstormArtifact) {
@@ -46,16 +30,11 @@ export async function downloadAllArtifacts(artifacts: Map<string, BrainstormArti
   const zip = new JSZip()
 
   for (const [filename, artifact] of artifacts) {
-    if (artifact.mimeType.startsWith('image/') || artifact.mimeType.startsWith('video/')) {
-      const binary = atob(artifact.content)
-      const bytes = new Uint8Array(binary.length)
-      for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index)
-      }
-      zip.file(filename, bytes)
-    } else {
-      zip.file(filename, artifact.content)
+    if (artifact.content === null) {
+      continue
     }
+
+    zip.file(filename, artifactToBlob(artifact))
   }
 
   const blob = await zip.generateAsync({ type: 'blob' })

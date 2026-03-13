@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
-from typing import NoReturn
 from uuid import uuid4
 
 from fastapi import HTTPException, status
@@ -11,6 +9,10 @@ from google.auth.exceptions import DefaultCredentialsError
 
 from src.app.services.brainstorm_auth import BrainstormFirebaseUser
 from src.app.services.brainstorm_persistence import BrainstormPersistenceServices
+from src.app.services.brainstorm_persistence_utils import (
+    now_timestamp,
+    raise_session_dependency_error,
+)
 from src.app.services.firebase_admin import BrainstormFirebaseConfigurationError
 
 BRAINSTORM_SESSION_COLLECTION = "brainstorm_sessions"
@@ -79,45 +81,6 @@ def _sessions_collection(services: BrainstormPersistenceServices):
     return services.firestore_client.collection(BRAINSTORM_SESSION_COLLECTION)
 
 
-def _raise_session_dependency_error(error: Exception) -> NoReturn:
-    if isinstance(error, BrainstormFirebaseConfigurationError):
-        raise BrainstormSessionDependencyError(
-            "Brainstorm session storage is unavailable because the backend "
-            "Firebase configuration is incomplete."
-        ) from error
-
-    if isinstance(error, DefaultCredentialsError):
-        raise BrainstormSessionDependencyError(
-            "Brainstorm session storage is unavailable because backend Google "
-            "credentials are not configured."
-        ) from error
-
-    if isinstance(error, google_api_exceptions.NotFound):
-        lowered_message = str(error).lower()
-        if "database (default) does not exist" in lowered_message:
-            raise BrainstormSessionDependencyError(
-                "Brainstorm session storage is unavailable because the "
-                "Firestore database is not provisioned for this project yet."
-            ) from error
-
-    if isinstance(error, google_api_exceptions.PermissionDenied):
-        raise BrainstormSessionDependencyError(
-            "Brainstorm session storage is unavailable because the backend "
-            "does not have permission to access Firestore."
-        ) from error
-
-    if isinstance(error, google_api_exceptions.GoogleAPICallError):
-        raise BrainstormSessionDependencyError(
-            "Brainstorm session storage is temporarily unavailable."
-        ) from error
-
-    raise error
-
-
-def _now_timestamp() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
-
-
 def _session_record_from_snapshot(document_snapshot) -> BrainstormSessionRecord:
     payload = document_snapshot.to_dict()
     return BrainstormSessionRecord(
@@ -149,7 +112,7 @@ def list_brainstorm_sessions_for_user(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     return sorted(sessions, key=lambda session: session.updated_at, reverse=True)
 
@@ -160,7 +123,7 @@ def create_brainstorm_session(
     user: BrainstormFirebaseUser,
 ) -> BrainstormSessionRecord:
     session_id = uuid4().hex
-    now = _now_timestamp()
+    now = now_timestamp()
     session_record = BrainstormSessionRecord(
         id=session_id,
         owner_uid=user.uid,
@@ -188,7 +151,7 @@ def create_brainstorm_session(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     return session_record
 
@@ -207,7 +170,7 @@ def get_brainstorm_session_for_user(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not snapshot.exists:
         raise BrainstormSessionNotFoundError()
@@ -233,7 +196,7 @@ def delete_brainstorm_session_for_user(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not snapshot.exists:
         raise BrainstormSessionNotFoundError()
@@ -249,4 +212,4 @@ def delete_brainstorm_session_for_user(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)

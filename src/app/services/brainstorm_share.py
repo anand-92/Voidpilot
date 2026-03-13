@@ -19,13 +19,15 @@ from google.api_core import exceptions as google_api_exceptions
 from google.auth.exceptions import DefaultCredentialsError
 
 from src.app.services.brainstorm_persistence import BrainstormPersistenceServices
+from src.app.services.brainstorm_persistence_utils import (
+    now_timestamp,
+    raise_session_dependency_error,
+)
 from src.app.services.brainstorm_session_library import (
     BRAINSTORM_SESSION_COLLECTION,
     BrainstormSessionAccessDeniedError,
     BrainstormSessionError,
     BrainstormSessionNotFoundError,
-    _now_timestamp,
-    _raise_session_dependency_error,
     _session_record_from_snapshot,
 )
 from src.app.services.firebase_admin import BrainstormFirebaseConfigurationError
@@ -70,7 +72,7 @@ def create_or_get_share(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not session_snapshot.exists:
         raise BrainstormSessionNotFoundError()
@@ -94,7 +96,7 @@ def create_or_get_share(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if existing_shares:
         share_data = existing_shares[0].to_dict()
@@ -106,7 +108,7 @@ def create_or_get_share(
 
     # Create a new share
     share_token = uuid4().hex
-    now = _now_timestamp()
+    now = now_timestamp()
     share_doc = {
         "session_id": session_id,
         "owner_uid": owner_uid,
@@ -120,7 +122,7 @@ def create_or_get_share(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     return {
         "shareToken": share_token,
@@ -149,7 +151,7 @@ def resolve_public_share(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not share_snapshot.exists:
         raise BrainstormShareNotFoundError()
@@ -166,7 +168,7 @@ def resolve_public_share(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not session_snapshot.exists:
         # Session was deleted — clean up the orphaned share
@@ -194,7 +196,7 @@ def resolve_public_share(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     turns: list[dict[str, Any]] = []
     if turns_snapshot.exists:
@@ -213,7 +215,7 @@ def resolve_public_share(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     artifact_list = []
     for snap in artifact_snapshots:
@@ -223,6 +225,7 @@ def resolve_public_share(
                 "artifactId": data["artifact_id"],
                 "filename": data["filename"],
                 "mimeType": data["mime_type"],
+                "sizeBytes": data.get("size_bytes"),
                 "label": data.get("label"),
                 "text": data.get("text"),
                 "createdAt": data.get("created_at"),
@@ -230,8 +233,12 @@ def resolve_public_share(
         )
     artifact_list.sort(key=lambda a: a.get("createdAt") or "")
 
+    session_data = session_record.to_response_dict()
+    session_data.pop("ownerUid", None)
+    session_data.pop("ownerEmail", None)
+
     return {
-        "session": session_record.to_response_dict(),
+        "session": session_data,
         "turns": turns,
         "artifacts": artifact_list,
     }
@@ -256,7 +263,7 @@ def download_public_artifact(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not share_snapshot.exists:
         raise BrainstormShareNotFoundError()
@@ -273,7 +280,7 @@ def download_public_artifact(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not session_snapshot.exists:
         try:
@@ -298,7 +305,7 @@ def download_public_artifact(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not artifact_snapshot.exists:
         raise BrainstormSessionNotFoundError(
@@ -320,7 +327,7 @@ def download_public_artifact(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     return content_bytes, mime_type, filename
 
@@ -346,7 +353,7 @@ def delete_shares_for_session(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     count = 0
     for snap in share_snapshots:

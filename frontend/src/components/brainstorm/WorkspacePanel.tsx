@@ -9,27 +9,31 @@ import { GeminiStar } from '../icons/GeminiIcons'
 import { ArtifactPreview } from './ArtifactPreview'
 import { ArtifactRow } from './ArtifactRow'
 import { ActivitySpinner } from './ActivitySpinner'
-import { formatFileSize, downloadAllArtifacts, downloadSingleArtifact } from './utils'
+import { formatFileSize } from './utils'
 
 type WorkspacePanelProps = {
-  artifacts: Map<string, BrainstormArtifact>
   artifactList: Array<[string, BrainstormArtifact]>
   totalSize: number
   isGenerating: boolean
   selectedArtifact: string | null
   currentArtifact: BrainstormArtifact | null
+  selectedArtifactLoadState: 'loading' | 'error' | null
   setSelectedArtifact: Dispatch<SetStateAction<string | null>>
+  downloadArtifact: (filename: string) => Promise<void>
+  downloadAllArtifacts: () => Promise<void>
   mobile: boolean
 }
 
 export function WorkspacePanel({
-  artifacts,
   artifactList,
   totalSize,
   isGenerating,
   selectedArtifact,
   currentArtifact,
+  selectedArtifactLoadState,
   setSelectedArtifact,
+  downloadArtifact,
+  downloadAllArtifacts,
   mobile,
 }: WorkspacePanelProps) {
   const selectArtifact = (filename: string) => {
@@ -62,7 +66,7 @@ export function WorkspacePanel({
           {artifactList.length > 0 && (
             <Button
               variant="outline"
-              onClick={() => downloadAllArtifacts(artifacts)}
+              onClick={() => void downloadAllArtifacts()}
               className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-amber-500/20 bg-amber-500/[0.08] px-4 py-3 text-sm font-semibold text-amber-300 transition-all hover:bg-amber-500/15"
             >
               <Download className="size-4" />
@@ -93,18 +97,27 @@ export function WorkspacePanel({
                       artifact={artifact}
                       isSelected={selectedArtifact === filename}
                       onSelect={() => selectArtifact(filename)}
+                      onDownload={() => void downloadArtifact(filename)}
                       downloadButtonClassName="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-stone-400 transition-all hover:bg-white/[0.08]"
                     />
                   </div>
                 ))}
               </div>
 
-              {currentArtifact ? (
+              {currentArtifact && currentArtifact.content !== null ? (
                 <div>
                   <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-600">
                     Preview — {currentArtifact.filename}
                   </div>
                   <ArtifactPreview artifact={currentArtifact} />
+                </div>
+              ) : currentArtifact && selectedArtifactLoadState === 'loading' ? (
+                <div className="rounded-2xl border border-dashed border-white/[0.06] bg-white/[0.02] px-4 py-6 text-center text-sm leading-6 text-stone-500">
+                  Loading preview…
+                </div>
+              ) : currentArtifact && selectedArtifactLoadState === 'error' ? (
+                <div className="rounded-2xl border border-dashed border-rose-500/20 bg-rose-500/[0.04] px-4 py-6 text-center text-sm leading-6 text-stone-400">
+                  We couldn&apos;t load that artifact preview. Try downloading it instead.
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/[0.06] bg-white/[0.02] px-4 py-6 text-center text-sm leading-6 text-stone-500">
@@ -163,6 +176,7 @@ export function WorkspacePanel({
                         artifact={artifact}
                         isSelected={selectedArtifact === filename}
                         onSelect={() => selectArtifact(filename)}
+                        onDownload={() => void downloadArtifact(filename)}
                         downloadButtonClassName="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-stone-400 transition-all hover:bg-white/[0.08] hover:text-white"
                       />
                     </MagicCard>
@@ -175,7 +189,7 @@ export function WorkspacePanel({
               <div className="shrink-0 pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <Button
                   variant="outline"
-                  onClick={() => downloadAllArtifacts(artifacts)}
+                  onClick={() => void downloadAllArtifacts()}
                   className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-amber-500/20 bg-amber-500/[0.08] px-4 py-6 text-sm font-bold tracking-wide text-amber-400 transition-all hover:bg-amber-500/20 hover:scale-[1.01] active:scale-[0.98]"
                 >
                   <Download className="size-5" />
@@ -197,7 +211,7 @@ export function WorkspacePanel({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => downloadSingleArtifact(currentArtifact)}
+                    onClick={() => void downloadArtifact(currentArtifact.filename)}
                     className="size-9 rounded-xl hover:bg-white/10 text-stone-400"
                     title="Download"
                   >
@@ -216,9 +230,19 @@ export function WorkspacePanel({
                 </div>
               </div>
               <ScrollArea className="flex-1 min-h-0">
-                <div className="p-6">
-                  <ArtifactPreview artifact={currentArtifact} />
-                </div>
+                {currentArtifact.content !== null ? (
+                  <div className="p-6">
+                    <ArtifactPreview artifact={currentArtifact} />
+                  </div>
+                ) : selectedArtifactLoadState === 'loading' ? (
+                  <div className="flex h-full items-center justify-center p-6 text-sm text-stone-500">
+                    Loading preview…
+                  </div>
+                ) : selectedArtifactLoadState === 'error' ? (
+                  <div className="flex h-full items-center justify-center p-6 text-center text-sm text-stone-400">
+                    We couldn&apos;t load that artifact preview. Try downloading it instead.
+                  </div>
+                ) : null}
               </ScrollArea>
             </div>
           )}

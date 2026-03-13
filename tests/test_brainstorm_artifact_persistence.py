@@ -99,6 +99,27 @@ def _create_session(client: TestClient) -> str:
 class TestSaveArtifact:
     """VAL-SESSION-009/010: Artifact persistence basics."""
 
+    def test_save_artifact_requires_mime_type(self):
+        fake_firestore = FakeFirestoreClient()
+        fake_storage = FakeStorageBucket()
+        services = _make_services(fake_firestore, fake_storage)
+        client = TestClient(app)
+        _setup_overrides(services=services)
+
+        try:
+            session_id = _create_session(client)
+
+            resp = client.put(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/artifacts",
+                json={
+                    "filename": "brainstorm_notes.md",
+                    "content": "# My Brainstorm Notes\n\nSome ideas here.",
+                },
+            )
+            assert resp.status_code == 422
+        finally:
+            _clear_overrides()
+
     def test_save_text_artifact(self):
         fake_firestore = FakeFirestoreClient()
         fake_storage = FakeStorageBucket()
@@ -286,6 +307,12 @@ class TestLoadArtifacts:
             filenames = [a["filename"] for a in body["artifacts"]]
             assert "notes.md" in filenames
             assert "diagram.png" in filenames
+            notes_artifact = next(
+                artifact
+                for artifact in body["artifacts"]
+                if artifact["filename"] == "notes.md"
+            )
+            assert notes_artifact["sizeBytes"] == len(b"# Notes")
         finally:
             _clear_overrides()
 
@@ -336,6 +363,39 @@ class TestLoadArtifacts:
 
 class TestDownloadArtifact:
     """VAL-SESSION-010: Artifact previews and downloads work after reopen."""
+
+    def test_download_artifact_quotes_content_disposition_filename(self):
+        fake_firestore = FakeFirestoreClient()
+        fake_storage = FakeStorageBucket()
+        services = _make_services(fake_firestore, fake_storage)
+        client = TestClient(app)
+        _setup_overrides(services=services)
+
+        try:
+            session_id = _create_session(client)
+
+            save_resp = client.put(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/artifacts",
+                json={
+                    "filename": 'notes with spaces;".md',
+                    "content": "# My Notes\n\nContent here.",
+                    "mimeType": "text/markdown",
+                },
+            )
+            artifact_id = save_resp.json()["artifact"]["artifactId"]
+
+            download_resp = client.get(
+                f"/api/v1/live/brainstorm/sessions/{session_id}"
+                f"/artifacts/{artifact_id}/download"
+            )
+        finally:
+            _clear_overrides()
+
+        assert download_resp.status_code == 200
+        assert (
+            download_resp.headers["content-disposition"]
+            == "attachment; filename*=UTF-8''notes%20with%20spaces%3B%22.md"
+        )
 
     def test_download_text_artifact(self):
         fake_firestore = FakeFirestoreClient()

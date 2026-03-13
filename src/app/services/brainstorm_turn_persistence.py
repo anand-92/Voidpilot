@@ -14,12 +14,14 @@ from google.api_core import exceptions as google_api_exceptions
 from google.auth.exceptions import DefaultCredentialsError
 
 from src.app.services.brainstorm_persistence import BrainstormPersistenceServices
+from src.app.services.brainstorm_persistence_utils import (
+    now_timestamp,
+    raise_session_dependency_error,
+)
 from src.app.services.brainstorm_session_library import (
     BRAINSTORM_SESSION_COLLECTION,
     BrainstormSessionAccessDeniedError,
     BrainstormSessionNotFoundError,
-    _now_timestamp,
-    _raise_session_dependency_error,
 )
 from src.app.services.firebase_admin import BrainstormFirebaseConfigurationError
 
@@ -47,7 +49,7 @@ def _verify_session_ownership(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not snapshot.exists:
         raise BrainstormSessionNotFoundError()
@@ -82,7 +84,7 @@ def save_brainstorm_turns(
         .document(BRAINSTORM_TURNS_DOCUMENT_ID)
     )
 
-    now = _now_timestamp()
+    now = now_timestamp()
 
     try:
         turns_doc_ref.set(
@@ -103,7 +105,7 @@ def save_brainstorm_turns(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     return len(turns)
 
@@ -134,7 +136,7 @@ def load_brainstorm_turns(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not snapshot.exists:
         return []
@@ -171,7 +173,7 @@ def update_brainstorm_session_title(
 
     _verify_session_ownership(services, session_id=session_id, owner_uid=owner_uid)
 
-    now = _now_timestamp()
+    now = now_timestamp()
     doc_ref = _sessions_collection(services).document(session_id)
 
     try:
@@ -188,7 +190,7 @@ def update_brainstorm_session_title(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     record = _session_record_from_snapshot(snapshot)
     return record.to_response_dict()

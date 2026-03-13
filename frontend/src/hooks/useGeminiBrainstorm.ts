@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import JSZip from 'jszip'
 import {
   API_BASE_URL,
   AUDIO_BUFFER_SIZE,
@@ -13,6 +14,11 @@ import {
   scheduleAudioPlayback,
 } from '../utils/audio.ts'
 import type { Message, MessageRole } from './useGeminiLive.ts'
+import {
+  artifactToBlob,
+  blobToArtifactContent,
+  downloadBlob,
+} from '@/lib/brainstormArtifactFiles'
 import {
   downloadBrainstormArtifact,
   loadBrainstormArtifacts,
@@ -53,9 +59,12 @@ const DEFAULT_ENABLED_TOOLS: BrainstormToolId[] = [
 ]
 
 export type BrainstormArtifact = {
+  artifactId?: string
+  sessionId?: string
   filename: string
-  content: string
+  content: string | null
   mimeType: string
+  sizeBytes?: number
   label?: string
   updatedAt: string
   text?: string  // Interleaved text from image generation
@@ -106,6 +115,7 @@ function createArtifact(filename: string, data: string, type: string, label?: st
     filename,
     content: data,
     mimeType: ARTIFACT_MIME_TYPES[type] || 'text/markdown',
+    sizeBytes: undefined,
     label,
     updatedAt: new Date().toISOString(),
     text,
@@ -117,6 +127,7 @@ export function useGeminiBrainstorm() {
   const [isStarting, setIsStarting] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [artifacts, setArtifacts] = useState<Map<string, BrainstormArtifact>>(new Map())
+  const [artifactLoadStates, setArtifactLoadStates] = useState<Record<string, 'loading' | 'error'>>({})
   const [isGenerating, setIsGenerating] = useState(false)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [sessionMode, setSessionMode] = useState<BrainstormSessionMode>('guest')
@@ -143,6 +154,34 @@ export function useGeminiBrainstorm() {
   const titleSavedRef = useRef(false)
   const savePendingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
+  const artifactsRef = useRef<Map<string, BrainstormArtifact>>(new Map())
+  const artifactLoadPromisesRef = useRef<Map<string, Promise<BrainstormArtifact | null>>>(new Map())
+
+  const setArtifactLoadState = useCallback(
+    (filename: string, nextState: 'loading' | 'error' | null) => {
+      setArtifactLoadStates((previous) => {
+        if (nextState === null) {
+          if (!(filename in previous)) {
+            return previous
+          }
+
+          const next = { ...previous }
+          delete next[filename]
+          return next
+        }
+
+        return {
+          ...previous,
+          [filename]: nextState,
+        }
+      })
+    },
+    [],
+  )
+
+  useEffect(() => {
+    artifactsRef.current = artifacts
+  }, [artifacts])
 
   const startToolCallTurn = useCallback(() => {
     turnBoundaryRef.current = true
@@ -184,9 +223,11 @@ export function useGeminiBrainstorm() {
     setArtifacts((prev) => {
       const next = new Map(prev)
       next.set(filename, artifact)
+      artifactsRef.current = next
       return next
     })
-  }, [])
+    setArtifactLoadState(filename, null)
+  }, [setArtifactLoadState])
 
   const handleArtifactMessage = useCallback((data: Record<string, string>) => {
     const { filename, content, data: mediaData, label, text } = data
@@ -231,6 +272,8 @@ export function useGeminiBrainstorm() {
   const resetWorkspaceState = useCallback(() => {
     setMessages([])
     setArtifacts(new Map())
+    artifactsRef.current = new Map()
+    setArtifactLoadStates({})
     setIsGenerating(false)
     setSessionTitle(null)
     messagesRef.current = []
@@ -240,6 +283,7 @@ export function useGeminiBrainstorm() {
     toolResponseTurnRef.current = false
     titleSavedRef.current = false
     savePendingRef.current = false
+    artifactLoadPromisesRef.current.clear()
     intensityRef.current = 0
     nextPlayTimeRef.current = 0
   }, [])
@@ -300,8 +344,8 @@ export function useGeminiBrainstorm() {
   }, [])
 
   /**
-   * Load saved artifacts for a signed-in session and hydrate the artifact map.
-   * Downloads each artifact's actual content so previews and downloads work.
+   * Load saved artifact metadata for a signed-in session.
+   * Actual content stays deferred until preview/download time.
    */
   const loadSavedArtifacts = useCallback(async (sessionId: string): Promise<Map<string, BrainstormArtifact>> => {
     try {
@@ -310,55 +354,137 @@ export function useGeminiBrainstorm() {
 
       const restoredArtifacts = new Map<string, BrainstormArtifact>()
 
-      // Download each artifact's content in parallel
-      const downloads = metadataList.map(async (meta: PersistedArtifactMetadata) => {
-        try {
-          const { blob, mimeType } = await downloadBrainstormArtifact(
-            sessionId,
-            meta.artifactId,
-          )
-
-          const isBinary = mimeType.startsWith('image/') || mimeType.startsWith('video/')
-
-          let content: string
-          if (isBinary) {
-            // Convert blob to base64 for binary artifacts (images, video)
-            const buffer = await blob.arrayBuffer()
-            const bytes = new Uint8Array(buffer)
-            let binary = ''
-            for (let i = 0; i < bytes.length; i += 1) {
-              binary += String.fromCharCode(bytes[i])
-            }
-            content = btoa(binary)
-          } else {
-            // Text artifacts are stored as UTF-8
-            content = await blob.text()
-          }
-
-          const artifact: BrainstormArtifact = {
-            filename: meta.filename,
-            content,
-            mimeType: meta.mimeType,
-            label: meta.label ?? undefined,
-            updatedAt: meta.createdAt,
-            text: meta.text ?? undefined,
-          }
-
-          restoredArtifacts.set(meta.filename, artifact)
-        } catch (downloadError) {
-          console.error(
-            `Failed to download artifact ${meta.filename}:`,
-            downloadError,
-          )
+      metadataList.forEach((meta: PersistedArtifactMetadata) => {
+        const artifact: BrainstormArtifact = {
+          artifactId: meta.artifactId,
+          sessionId,
+          filename: meta.filename,
+          content: null,
+          mimeType: meta.mimeType,
+          sizeBytes: meta.sizeBytes ?? undefined,
+          label: meta.label ?? undefined,
+          updatedAt: meta.createdAt,
+          text: meta.text ?? undefined,
         }
+
+        restoredArtifacts.set(meta.filename, artifact)
       })
 
-      await Promise.all(downloads)
       return restoredArtifacts
     } catch (error) {
       console.error('Failed to load saved artifacts:', error)
       return new Map()
     }
+  }, [])
+
+  const ensureArtifactContent = useCallback(async (filename: string) => {
+    const artifact = artifactsRef.current.get(filename)
+    if (!artifact) {
+      return null
+    }
+
+    if (artifact.content !== null) {
+      return artifact
+    }
+
+    if (!artifact.sessionId || !artifact.artifactId) {
+      return artifact
+    }
+
+    const existingLoad = artifactLoadPromisesRef.current.get(filename)
+    if (existingLoad) {
+      return existingLoad
+    }
+
+    setArtifactLoadState(filename, 'loading')
+
+    const loadPromise = downloadBrainstormArtifact(
+      artifact.sessionId,
+      artifact.artifactId,
+    )
+      .then(async ({ blob, mimeType }) => {
+        const content = await blobToArtifactContent(blob, mimeType)
+
+        let loadedArtifact: BrainstormArtifact | null = null
+        setArtifacts((previous) => {
+          const currentArtifact = previous.get(filename)
+          if (!currentArtifact) {
+            return previous
+          }
+
+          loadedArtifact = {
+            ...currentArtifact,
+            content,
+            mimeType,
+            sizeBytes: currentArtifact.sizeBytes ?? blob.size,
+          }
+
+          const next = new Map(previous)
+          next.set(filename, loadedArtifact)
+          artifactsRef.current = next
+          return next
+        })
+
+        setArtifactLoadState(filename, null)
+        return loadedArtifact
+      })
+      .catch((error: unknown) => {
+        setArtifactLoadState(filename, 'error')
+        console.error(`Failed to load artifact ${filename}:`, error)
+        return null
+      })
+      .finally(() => {
+        artifactLoadPromisesRef.current.delete(filename)
+      })
+
+    artifactLoadPromisesRef.current.set(filename, loadPromise)
+    return loadPromise
+  }, [setArtifactLoadState])
+
+  const downloadArtifact = useCallback(async (filename: string) => {
+    const artifact = artifactsRef.current.get(filename)
+    if (!artifact) {
+      return
+    }
+
+    if (artifact.content !== null) {
+      downloadBlob(artifactToBlob(artifact), artifact.filename)
+      return
+    }
+
+    if (!artifact.sessionId || !artifact.artifactId) {
+      return
+    }
+
+    const { blob, filename: downloadFilename } = await downloadBrainstormArtifact(
+      artifact.sessionId,
+      artifact.artifactId,
+    )
+    downloadBlob(blob, downloadFilename)
+  }, [])
+
+  const downloadAllArtifacts = useCallback(async () => {
+    const zip = new JSZip()
+
+    for (const artifact of artifactsRef.current.values()) {
+      if (artifact.content !== null) {
+        zip.file(artifact.filename, artifactToBlob(artifact))
+        continue
+      }
+
+      if (!artifact.sessionId || !artifact.artifactId) {
+        continue
+      }
+
+      const { blob } = await downloadBrainstormArtifact(
+        artifact.sessionId,
+        artifact.artifactId,
+      )
+      zip.file(artifact.filename, blob)
+    }
+
+    const archive = await zip.generateAsync({ type: 'blob' })
+    downloadBlob(archive, 'brainstorm-artifacts.zip')
   }, [])
 
   const stop = useCallback(() => {
@@ -578,6 +704,7 @@ export function useGeminiBrainstorm() {
     isStarting,
     messages,
     artifacts,
+    artifactLoadStates,
     isGenerating,
     activeSessionId,
     sessionMode,
@@ -589,6 +716,9 @@ export function useGeminiBrainstorm() {
     setSelectedTools,
     prepareGuestWorkspace,
     preparePersistedWorkspace,
+    ensureArtifactContent,
+    downloadArtifact,
+    downloadAllArtifacts,
     start,
     stop,
     sendText,

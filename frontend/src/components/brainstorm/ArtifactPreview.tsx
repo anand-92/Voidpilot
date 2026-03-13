@@ -3,6 +3,10 @@ import { ShineBorder } from '@/components/ui/shine-border'
 import type { BrainstormArtifact } from '../../hooks/useGeminiBrainstorm'
 
 export function ArtifactPreview({ artifact }: { artifact: BrainstormArtifact }) {
+  if (artifact.content === null) {
+    return null
+  }
+
   if (artifact.mimeType === 'image/png') {
     return (
       <div className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-stone-950/60 p-2">

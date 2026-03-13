@@ -61,6 +61,24 @@ def _clear_overrides():
 class TestSaveTurns:
     """VAL-SESSION-002: Signed-in sessions save transcript after each turn."""
 
+    def test_save_turns_requires_turns_field(self):
+        fake_firestore = FakeFirestoreClient()
+        services = _make_services(fake_firestore)
+        client = TestClient(app)
+        _setup_overrides(services=services)
+
+        try:
+            create_resp = client.post("/api/v1/live/brainstorm/sessions")
+            session_id = create_resp.json()["session"]["id"]
+
+            save_resp = client.put(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/turns",
+                json={},
+            )
+            assert save_resp.status_code == 422
+        finally:
+            _clear_overrides()
+
     def test_save_turns_to_new_session(self):
         fake_firestore = FakeFirestoreClient()
         services = _make_services(fake_firestore)
@@ -260,6 +278,24 @@ class TestSaveTurnsOverwrites:
 
 class TestUpdateTitle:
     """VAL-SESSION-004: AI-generated title appears and stays attached."""
+
+    def test_update_title_requires_title_field(self):
+        fake_firestore = FakeFirestoreClient()
+        services = _make_services(fake_firestore)
+        client = TestClient(app)
+        _setup_overrides(services=services)
+
+        try:
+            create_resp = client.post("/api/v1/live/brainstorm/sessions")
+            session_id = create_resp.json()["session"]["id"]
+
+            title_resp = client.patch(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/title",
+                json={},
+            )
+            assert title_resp.status_code == 422
+        finally:
+            _clear_overrides()
 
     def test_update_session_title(self):
         fake_firestore = FakeFirestoreClient()

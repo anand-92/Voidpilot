@@ -329,6 +329,8 @@ class TestPublicShareResolution:
         assert public_resp.status_code == 200
         data = public_resp.json()
         assert data["session"]["id"] == session_id
+        assert "ownerUid" not in data["session"]
+        assert "ownerEmail" not in data["session"]
         assert data["turns"] == [{"role": "user", "content": "hello"}]
         assert data["artifacts"] == []
 
@@ -430,6 +432,45 @@ class TestPublicArtifactDownload:
         assert download_resp.status_code == 200
         assert download_resp.content == b"# My Notes"
         assert "notes.md" in download_resp.headers.get("content-disposition", "")
+
+    def test_public_artifact_download_quotes_content_disposition_filename(self):
+        fs = FakeFirestoreClient()
+        bucket = FakeStorageBucket()
+        user = make_user("user-1", "user-1@example.com")
+        _setup_overrides(user=user, firestore_client=fs, storage_bucket=bucket)
+        client = TestClient(app)
+
+        try:
+            session_resp = client.post("/api/v1/live/brainstorm/sessions")
+            session_id = session_resp.json()["session"]["id"]
+
+            save_resp = client.put(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/artifacts",
+                json={
+                    "filename": 'shared notes;".md',
+                    "content": "# Shared Notes",
+                    "mimeType": "text/markdown",
+                },
+            )
+            artifact_id = save_resp.json()["artifact"]["artifactId"]
+
+            share_resp = client.post(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/share"
+            )
+            share_token = share_resp.json()["share"]["shareToken"]
+
+            download_resp = client.get(
+                f"/api/v1/live/brainstorm/share/{share_token}"
+                f"/artifacts/{artifact_id}/download"
+            )
+        finally:
+            _clear_overrides()
+
+        assert download_resp.status_code == 200
+        assert (
+            download_resp.headers["content-disposition"]
+            == "attachment; filename*=UTF-8''shared%20notes%3B%22.md"
+        )
 
     def test_public_artifact_download_invalid_share_returns_404(self):
         fs = FakeFirestoreClient()
@@ -615,6 +656,138 @@ class TestOwnerOnlyPrivacy:
             _clear_overrides()
 
         assert public_resp.status_code == 200
+
+    def test_public_share_rejects_malformed_auth(self):
+        fs = FakeFirestoreClient()
+        bucket = FakeStorageBucket()
+        user = make_user("user-1", "user-1@example.com")
+        _setup_overrides(user=user, firestore_client=fs, storage_bucket=bucket)
+        client = TestClient(app)
+
+        try:
+            session_resp = client.post("/api/v1/live/brainstorm/sessions")
+            session_id = session_resp.json()["session"]["id"]
+            share_resp = client.post(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/share"
+            )
+            share_token = share_resp.json()["share"]["shareToken"]
+
+            _clear_overrides()
+            _setup_overrides(firestore_client=fs, storage_bucket=bucket)
+
+            public_resp = client.get(
+                f"/api/v1/live/brainstorm/share/{share_token}",
+                headers={"Authorization": "Basic nope"},
+            )
+        finally:
+            _clear_overrides()
+
+        assert public_resp.status_code == 401
+
+    def test_public_share_rejects_empty_bearer_auth(self):
+        fs = FakeFirestoreClient()
+        bucket = FakeStorageBucket()
+        user = make_user("user-1", "user-1@example.com")
+        _setup_overrides(user=user, firestore_client=fs, storage_bucket=bucket)
+        client = TestClient(app)
+
+        try:
+            session_resp = client.post("/api/v1/live/brainstorm/sessions")
+            session_id = session_resp.json()["session"]["id"]
+            share_resp = client.post(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/share"
+            )
+            share_token = share_resp.json()["share"]["shareToken"]
+
+            _clear_overrides()
+            _setup_overrides(firestore_client=fs, storage_bucket=bucket)
+
+            public_resp = client.get(
+                f"/api/v1/live/brainstorm/share/{share_token}",
+                headers={"Authorization": "Bearer "},
+            )
+        finally:
+            _clear_overrides()
+
+        assert public_resp.status_code == 401
+
+    def test_public_artifact_download_rejects_malformed_auth(self):
+        fs = FakeFirestoreClient()
+        bucket = FakeStorageBucket()
+        user = make_user("user-1", "user-1@example.com")
+        _setup_overrides(user=user, firestore_client=fs, storage_bucket=bucket)
+        client = TestClient(app)
+
+        try:
+            session_resp = client.post("/api/v1/live/brainstorm/sessions")
+            session_id = session_resp.json()["session"]["id"]
+
+            save_resp = client.put(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/artifacts",
+                json={
+                    "filename": "notes.md",
+                    "content": "# My Notes",
+                    "mimeType": "text/markdown",
+                },
+            )
+            artifact_id = save_resp.json()["artifact"]["artifactId"]
+
+            share_resp = client.post(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/share"
+            )
+            share_token = share_resp.json()["share"]["shareToken"]
+
+            _clear_overrides()
+            _setup_overrides(firestore_client=fs, storage_bucket=bucket)
+
+            download_resp = client.get(
+                f"/api/v1/live/brainstorm/share/{share_token}"
+                f"/artifacts/{artifact_id}/download",
+                headers={"Authorization": "Basic nope"},
+            )
+        finally:
+            _clear_overrides()
+
+        assert download_resp.status_code == 401
+
+    def test_public_artifact_download_rejects_empty_bearer_auth(self):
+        fs = FakeFirestoreClient()
+        bucket = FakeStorageBucket()
+        user = make_user("user-1", "user-1@example.com")
+        _setup_overrides(user=user, firestore_client=fs, storage_bucket=bucket)
+        client = TestClient(app)
+
+        try:
+            session_resp = client.post("/api/v1/live/brainstorm/sessions")
+            session_id = session_resp.json()["session"]["id"]
+
+            save_resp = client.put(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/artifacts",
+                json={
+                    "filename": "notes.md",
+                    "content": "# My Notes",
+                    "mimeType": "text/markdown",
+                },
+            )
+            artifact_id = save_resp.json()["artifact"]["artifactId"]
+
+            share_resp = client.post(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/share"
+            )
+            share_token = share_resp.json()["share"]["shareToken"]
+
+            _clear_overrides()
+            _setup_overrides(firestore_client=fs, storage_bucket=bucket)
+
+            download_resp = client.get(
+                f"/api/v1/live/brainstorm/share/{share_token}"
+                f"/artifacts/{artifact_id}/download",
+                headers={"Authorization": "Bearer "},
+            )
+        finally:
+            _clear_overrides()
+
+        assert download_resp.status_code == 401
 
 
 # ── Tests: Share reflects latest session state ───────────────────

@@ -24,12 +24,14 @@ from src.app.services.brainstorm_persistence import (
     BrainstormPersistenceServices,
     build_brainstorm_artifact_blob_path,
 )
+from src.app.services.brainstorm_persistence_utils import (
+    now_timestamp,
+    raise_session_dependency_error,
+)
 from src.app.services.brainstorm_session_library import (
     BRAINSTORM_SESSION_COLLECTION,
     BrainstormSessionAccessDeniedError,
     BrainstormSessionNotFoundError,
-    _now_timestamp,
-    _raise_session_dependency_error,
 )
 from src.app.services.firebase_admin import BrainstormFirebaseConfigurationError
 
@@ -57,7 +59,7 @@ def _verify_session_ownership(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not snapshot.exists:
         raise BrainstormSessionNotFoundError()
@@ -103,7 +105,7 @@ def save_brainstorm_artifact(
     mime_type: str,
     label: str | None = None,
     text: str | None = None,
-) -> dict[str, str | None]:
+ ) -> dict[str, str | int | None]:
     """Persist a brainstorm artifact (metadata + blob) for a signed-in session.
 
     Artifacts are always bound to an explicit session_id so that delayed
@@ -115,7 +117,7 @@ def save_brainstorm_artifact(
     _verify_session_ownership(services, session_id=session_id, owner_uid=owner_uid)
 
     artifact_id = uuid4().hex
-    now = _now_timestamp()
+    now = now_timestamp()
 
     # Decode content: base64 for binary (images, video), raw string for text
     is_binary = mime_type.startswith("image/") or mime_type.startswith("video/")
@@ -146,7 +148,7 @@ def save_brainstorm_artifact(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     # Save metadata to Firestore
     artifact_metadata = {
@@ -154,6 +156,7 @@ def save_brainstorm_artifact(
         "filename": filename,
         "mime_type": mime_type,
         "blob_path": blob_path,
+        "size_bytes": len(content_bytes),
         "label": label,
         "text": text,
         "created_at": now,
@@ -179,12 +182,13 @@ def save_brainstorm_artifact(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     return {
         "artifactId": artifact_id,
         "filename": filename,
         "mimeType": mime_type,
+        "sizeBytes": len(content_bytes),
         "label": label,
         "text": text,
         "createdAt": now,
@@ -196,7 +200,7 @@ def load_brainstorm_artifacts(
     *,
     session_id: str,
     owner_uid: str,
-) -> list[dict[str, str | None]]:
+ ) -> list[dict[str, str | int | None]]:
     """Load all artifact metadata for a signed-in brainstorm session.
 
     Returns a list of camelCase metadata dicts. The actual content must
@@ -217,7 +221,7 @@ def load_brainstorm_artifacts(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     result = []
     for snapshot in snapshots:
@@ -228,6 +232,7 @@ def load_brainstorm_artifacts(
                 "filename": data["filename"],
                 "mimeType": data["mime_type"],
                 "blobPath": data["blob_path"],
+                "sizeBytes": data.get("size_bytes"),
                 "label": data.get("label"),
                 "text": data.get("text"),
                 "createdAt": data.get("created_at"),
@@ -267,7 +272,7 @@ def download_brainstorm_artifact(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     if not snapshot.exists:
         raise BrainstormSessionNotFoundError(
@@ -286,6 +291,6 @@ def download_brainstorm_artifact(
         DefaultCredentialsError,
         google_api_exceptions.GoogleAPICallError,
     ) as exc:
-        _raise_session_dependency_error(exc)
+        raise_session_dependency_error(exc)
 
     return content_bytes, mime_type, filename
