@@ -67,7 +67,7 @@ class DisabledBrainstormAuthError(BrainstormAuthError):
 
 AuthorizationHeader = Annotated[
     str | None,
-    Header(default=None, alias="Authorization"),
+    Header(alias="Authorization"),
 ]
 
 
@@ -145,7 +145,7 @@ def get_brainstorm_user_from_authorization(
 
 
 def require_brainstorm_user(
-    authorization: AuthorizationHeader,
+    authorization: AuthorizationHeader = None,
 ) -> BrainstormFirebaseUser:
     """FastAPI dependency for future brainstorm-private endpoints."""
     try:
@@ -155,7 +155,7 @@ def require_brainstorm_user(
 
 
 def get_optional_brainstorm_user(
-    authorization: AuthorizationHeader,
+    authorization: AuthorizationHeader = None,
 ) -> BrainstormFirebaseUser | None:
     """Resolve brainstorm auth when present without forcing it on public flows."""
     if authorization is None:

@@ -2,11 +2,27 @@ import asyncio
 import base64
 import logging
 import traceback
+from typing import Annotated
 
-from fastapi import APIRouter, WebSocket
+from fastapi import APIRouter, Depends, Response, WebSocket, status
 from starlette.websockets import WebSocketState
 
 from src.app.core.config import settings
+from src.app.services.brainstorm_auth import (
+    BrainstormFirebaseUser,
+    require_brainstorm_user,
+)
+from src.app.services.brainstorm_persistence import (
+    BrainstormPersistenceServices,
+    get_brainstorm_persistence_services,
+)
+from src.app.services.brainstorm_session_library import (
+    BrainstormSessionError,
+    create_brainstorm_session,
+    delete_brainstorm_session_for_user,
+    get_brainstorm_session_for_user,
+    list_brainstorm_sessions_for_user,
+)
 from src.app.services.flash_worker import (
     DEFAULT_FLASH_TEXT_MODEL_KEY,
     FLASH_TEXT_MODEL_OPTIONS,
@@ -253,6 +269,82 @@ def _build_tool_defs(enabled_tools: list[str] | None = None) -> list[dict]:
     )
 
     return [{"function_declarations": tool_defs}]
+
+
+def _session_response_payload(session) -> dict[str, dict | list | str | None]:
+    return {"session": session.to_response_dict()}
+
+
+@router.get("/brainstorm/sessions")
+async def list_brainstorm_sessions(
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict[str, list[dict[str, str | None]]]:
+    sessions = list_brainstorm_sessions_for_user(services, owner_uid=user.uid)
+    return {"sessions": [session.to_response_dict() for session in sessions]}
+
+
+@router.post(
+    "/brainstorm/sessions",
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_brainstorm_session_record(
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict[str, dict | list | str | None]:
+    session = create_brainstorm_session(services, user=user)
+    return _session_response_payload(session)
+
+
+@router.get("/brainstorm/sessions/{session_id}")
+async def reopen_brainstorm_session(
+    session_id: str,
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> dict[str, dict | list | str | None]:
+    try:
+        session = get_brainstorm_session_for_user(
+            services,
+            owner_uid=user.uid,
+            session_id=session_id,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return _session_response_payload(session)
+
+
+@router.delete(
+    "/brainstorm/sessions/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_brainstorm_session_record(
+    session_id: str,
+    user: Annotated[BrainstormFirebaseUser, Depends(require_brainstorm_user)],
+    services: Annotated[
+        BrainstormPersistenceServices,
+        Depends(get_brainstorm_persistence_services),
+    ],
+) -> Response:
+    try:
+        delete_brainstorm_session_for_user(
+            services,
+            owner_uid=user.uid,
+            session_id=session_id,
+        )
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # ── WebSocket endpoint ───────────────────────────────────────────  # noqa: E501

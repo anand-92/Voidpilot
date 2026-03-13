@@ -75,6 +75,7 @@ export function useBrainstormEntryAuth() {
   const [user, setUser] = useState<BrainstormEntryAuthUser | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [authChangeKey, setAuthChangeKey] = useState(0)
 
   useEffect(() => {
     void ensureFirebaseAuthPersistence().catch((error: unknown) => {
@@ -87,6 +88,7 @@ export function useBrainstormEntryAuth() {
       setUser(normalizeAuthUser(nextUser))
       setStatus(nextUser ? 'signed_in' : 'signed_out')
       setErrorMessage(null)
+      setAuthChangeKey((previous) => previous + 1)
     })
 
     return unsubscribe
@@ -172,6 +174,7 @@ export function useBrainstormEntryAuth() {
     user,
     errorMessage,
     isSubmitting,
+    authChangeKey,
     clearError,
     signInWithPassword,
     signUpWithPassword,

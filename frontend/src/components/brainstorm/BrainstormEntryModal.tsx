@@ -2,16 +2,23 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowRight,
   CircleAlert,
+  FolderOpen,
   Loader2,
   LogOut,
   Mail,
+  Plus,
   Sparkles,
+  Trash2,
   UserRound,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import type {
+  BrainstormLibraryAction,
+  BrainstormLibrarySession,
+} from '@/hooks/useBrainstormSessionLibrary'
 import type {
   BrainstormEntryAuthStatus,
   BrainstormEntryAuthUser,
@@ -22,9 +29,15 @@ type BrainstormEntryModalProps = {
   user: BrainstormEntryAuthUser | null
   isSubmitting: boolean
   errorMessage: string | null
+  librarySessions: BrainstormLibrarySession[]
+  isLibraryLoading: boolean
+  libraryActiveAction: BrainstormLibraryAction
+  libraryActiveSessionId: string | null
   onClearError: () => void
   onContinueAsGuest: () => void
-  onContinueToWorkspace: () => void
+  onCreateSession: () => Promise<void>
+  onReopenSession: (sessionId: string) => Promise<void>
+  onDeleteSession: (sessionId: string) => Promise<void>
   onSignInWithPassword: (email: string, password: string) => Promise<void>
   onSignUpWithPassword: (
     email: string,
@@ -93,15 +106,52 @@ function LoadingState() {
   )
 }
 
-function LibraryState({ user, isSubmitting, onContinueToWorkspace, onSignOut }: {
+function formatSessionTimestamp(timestamp: string) {
+  const date = new Date(timestamp)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Just now'
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function LibraryState({
+  user,
+  isSubmitting,
+  errorMessage,
+  sessions,
+  isLoading,
+  activeAction,
+  activeSessionId,
+  onCreateSession,
+  onReopenSession,
+  onDeleteSession,
+  onSignOut,
+}: {
   user: BrainstormEntryAuthUser | null
   isSubmitting: boolean
-  onContinueToWorkspace: () => void
+  errorMessage: string | null
+  sessions: BrainstormLibrarySession[]
+  isLoading: boolean
+  activeAction: BrainstormLibraryAction
+  activeSessionId: string | null
+  onCreateSession: () => Promise<void>
+  onReopenSession: (sessionId: string) => Promise<void>
+  onDeleteSession: (sessionId: string) => Promise<void>
   onSignOut: () => Promise<void>
 }) {
   const displayName =
-    user?.displayName?.trim() || user?.email?.split('@')[0] || 'Brainstorm operator'
+    user?.displayName?.trim() ?? user?.email?.split('@')[0] ?? 'Brainstorm operator'
   const avatarLabel = displayName.charAt(0).toUpperCase()
+  const isCreating = activeAction === 'create'
+  const isBusy = isSubmitting || isLoading || activeAction !== null
+  const hasSessions = sessions.length > 0
 
   return (
     <motion.div
@@ -113,7 +163,8 @@ function LibraryState({ user, isSubmitting, onContinueToWorkspace, onSignOut }: 
       className="relative my-auto w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/[0.08] bg-[#0c1229]/94 shadow-[0_32px_80px_rgba(0,0,0,0.62)] backdrop-blur-3xl max-h-[calc(100dvh-2rem)]"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(234,88,12,0.18),_transparent_38%)]" />
-      <div className="relative grid gap-6 p-6 md:grid-cols-[1.1fr,0.9fr] md:p-8">
+
+      <div className="relative grid gap-6 p-6 md:grid-cols-[0.95fr,1.05fr] md:p-8">
         <section className="rounded-[1.6rem] border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
           <div className="flex items-center gap-4">
             <div className="flex size-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-gradient-to-br from-amber-500/25 to-orange-500/15 text-lg font-bold text-white shadow-[0_12px_40px_rgba(245,158,11,0.18)]">
@@ -141,31 +192,19 @@ function LibraryState({ user, isSubmitting, onContinueToWorkspace, onSignOut }: 
             </div>
             <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                Entry state
+                Saved sessions
               </p>
-              <p className="mt-2 text-sm font-medium text-amber-200">Library-first restore active</p>
+              <p className="mt-2 text-sm font-medium text-amber-200">
+                {sessions.length === 1 ? '1 saved session' : `${sessions.length} saved sessions`}
+              </p>
             </div>
           </div>
-        </section>
 
-        <section className="flex flex-col gap-4 rounded-[1.6rem] border border-white/[0.06] bg-black/25 p-6 backdrop-blur-xl">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-              What happens next
-            </p>
-            <h3 className="mt-2 text-lg font-semibold text-slate-100">
-              Saved brainstorm sessions start here
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Returning signed-in users now land in the library state instead of dropping straight into a workspace. Session creation and reopening plug into this surface next.
-            </p>
-          </div>
-
-          <div className="space-y-3">
+          <div className="mt-6 space-y-3">
             {[
-              'Auth success stays inside the brainstorm modal flow.',
-              'Background controls remain blocked until an intentional entry path is chosen.',
-              'Guest access stays separate and explicitly ephemeral.',
+              'Create a fresh persisted session before the workspace unlocks.',
+              'Reopen an existing session from here instead of jumping straight into live controls.',
+              'Delete only the session you no longer want without disturbing the rest of your library.',
             ].map((item) => (
               <div
                 key={item}
@@ -177,14 +216,23 @@ function LibraryState({ user, isSubmitting, onContinueToWorkspace, onSignOut }: 
             ))}
           </div>
 
-          <div className="mt-auto grid gap-3 sm:grid-cols-2">
+          {errorMessage && (
+            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100">
+              <CircleAlert className="mt-0.5 size-4 shrink-0 text-rose-300" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <Button
-              onClick={onContinueToWorkspace}
-              disabled={isSubmitting}
+              onClick={() => {
+                void onCreateSession()
+              }}
+              disabled={isBusy}
               className="min-h-12 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(217,119,6,0.28)] hover:brightness-110"
             >
-              Continue to workspace
-              <ArrowRight className="size-4" />
+              {isCreating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+              New session
             </Button>
 
             <Button
@@ -192,13 +240,117 @@ function LibraryState({ user, isSubmitting, onContinueToWorkspace, onSignOut }: 
               onClick={() => {
                 void onSignOut()
               }}
-              disabled={isSubmitting}
+              disabled={isBusy}
               className="min-h-12 rounded-2xl border-white/[0.1] bg-white/[0.03] text-slate-200 hover:bg-white/[0.06]"
             >
               {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
               Sign out
             </Button>
           </div>
+        </section>
+
+        <section className="flex flex-col gap-4 rounded-[1.6rem] border border-white/[0.06] bg-black/25 p-6 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                Session library
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-slate-100">
+                {hasSessions ? 'Reopen a saved brainstorm' : 'No saved brainstorms yet'}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                {hasSessions
+                  ? 'Choose a session to reopen, or create a clean one from scratch.'
+                  : 'Create your first saved brainstorm session to enter a clean workspace.'}
+              </p>
+            </div>
+
+            {isLoading ? <Loader2 className="size-5 shrink-0 animate-spin text-amber-300" /> : null}
+          </div>
+
+          {isLoading ? (
+            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[1.5rem] border border-white/[0.05] bg-white/[0.03] px-6 text-center">
+              <Loader2 className="size-8 animate-spin text-amber-300" />
+              <p className="mt-4 text-sm font-medium text-slate-100">Loading your brainstorm sessions</p>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">
+                Restoring the signed-in library before the workspace can unlock.
+              </p>
+            </div>
+          ) : hasSessions ? (
+            <div className="space-y-3">
+              {sessions.map((session) => {
+                const isOpening =
+                  activeAction === 'open' && activeSessionId === session.id
+                const isDeleting =
+                  activeAction === 'delete' && activeSessionId === session.id
+
+                return (
+                  <article
+                    key={session.id}
+                    className="rounded-[1.4rem] border border-white/[0.06] bg-white/[0.03] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.16)]"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200/70">
+                          Persisted session
+                        </p>
+                        <h4 className="mt-2 truncate text-base font-semibold text-slate-100">
+                          {session.title}
+                        </h4>
+                        <p className="mt-2 text-sm leading-6 text-slate-400">
+                          Updated {formatSessionTimestamp(session.updatedAt)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/[0.06] bg-black/20 px-3 py-2 text-right">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                          Created
+                        </p>
+                        <p className="mt-1 text-sm text-slate-200">
+                          {formatSessionTimestamp(session.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <Button
+                        onClick={() => {
+                          void onReopenSession(session.id)
+                        }}
+                        disabled={isBusy}
+                        className="min-h-11 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(217,119,6,0.24)] hover:brightness-110"
+                      >
+                        {isOpening ? <Loader2 className="size-4 animate-spin" /> : <FolderOpen className="size-4" />}
+                        Reopen
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          void onDeleteSession(session.id)
+                        }}
+                        disabled={isBusy}
+                        className="min-h-11 rounded-2xl border-white/[0.1] bg-white/[0.03] text-slate-200 hover:bg-white/[0.06]"
+                      >
+                        {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                        Delete
+                      </Button>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-white/[0.08] bg-white/[0.03] px-6 text-center">
+              <div className="flex size-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 shadow-[0_12px_32px_rgba(245,158,11,0.12)]">
+                <FolderOpen className="size-6 text-amber-200" />
+              </div>
+              <h4 className="mt-5 text-lg font-semibold text-slate-100">Your library is empty</h4>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">
+                Start a new persisted brainstorm session and you will enter a clean workspace with no transcript or artifact carryover.
+              </p>
+            </div>
+          )}
         </section>
       </div>
     </motion.div>
@@ -210,9 +362,15 @@ export function BrainstormEntryModal({
   user,
   isSubmitting,
   errorMessage,
+  librarySessions,
+  isLibraryLoading,
+  libraryActiveAction,
+  libraryActiveSessionId,
   onClearError,
   onContinueAsGuest,
-  onContinueToWorkspace,
+  onCreateSession,
+  onReopenSession,
+  onDeleteSession,
   onSignInWithPassword,
   onSignUpWithPassword,
   onSignInWithGoogle,
@@ -335,7 +493,14 @@ export function BrainstormEntryModal({
             key="library-state"
             user={user}
             isSubmitting={isSubmitting}
-            onContinueToWorkspace={onContinueToWorkspace}
+            errorMessage={errorMessage}
+            sessions={librarySessions}
+            isLoading={isLibraryLoading}
+            activeAction={libraryActiveAction}
+            activeSessionId={libraryActiveSessionId}
+            onCreateSession={onCreateSession}
+            onReopenSession={onReopenSession}
+            onDeleteSession={onDeleteSession}
             onSignOut={onSignOut}
           />
         ) : (

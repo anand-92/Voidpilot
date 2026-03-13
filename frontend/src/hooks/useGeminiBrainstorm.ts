@@ -31,6 +31,8 @@ export type BrainstormToolId = (typeof BRAINSTORM_TOOL_OPTIONS)[number]['id']
 export type BrainstormFlashModel =
   (typeof BRAINSTORM_FLASH_MODEL_OPTIONS)[number]['value']
 
+export type BrainstormSessionMode = 'guest' | 'persisted'
+
 const DEFAULT_BRAINSTORM_FLASH_MODEL: BrainstormFlashModel =
   'gemini-3.1-flash-lite'
 
@@ -73,6 +75,8 @@ export function useGeminiBrainstorm() {
   const [messages, setMessages] = useState<Message[]>([])
   const [artifacts, setArtifacts] = useState<Map<string, BrainstormArtifact>>(new Map())
   const [isGenerating, setIsGenerating] = useState(false)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [sessionMode, setSessionMode] = useState<BrainstormSessionMode>('guest')
   const [selectedFlashModel, setSelectedFlashModel] = useState<BrainstormFlashModel>(
     DEFAULT_BRAINSTORM_FLASH_MODEL,
   )
@@ -87,6 +91,8 @@ export function useGeminiBrainstorm() {
   const streamRef = useRef<MediaStream | null>(null)
   const nextPlayTimeRef = useRef(0)
   const sessionHandleRef = useRef<string | null>(null)
+  const activeSessionIdRef = useRef<string | null>(null)
+  const sessionModeRef = useRef<BrainstormSessionMode>('guest')
   const turnBoundaryRef = useRef(false)
   const toolCallPendingRef = useRef(false)
   const toolResponseTurnRef = useRef(false)
@@ -155,6 +161,18 @@ export function useGeminiBrainstorm() {
     }
   }, [])
 
+  const resetWorkspaceState = useCallback(() => {
+    setMessages([])
+    setArtifacts(new Map())
+    setIsGenerating(false)
+    sessionHandleRef.current = null
+    turnBoundaryRef.current = false
+    toolCallPendingRef.current = false
+    toolResponseTurnRef.current = false
+    intensityRef.current = 0
+    nextPlayTimeRef.current = 0
+  }, [])
+
   const stop = useCallback(() => {
     if (wsRef.current) {
       wsRef.current.close()
@@ -171,9 +189,30 @@ export function useGeminiBrainstorm() {
     setIsConnected(false)
     setIsStarting(false)
     setIsGenerating(false)
+    turnBoundaryRef.current = false
+    toolCallPendingRef.current = false
+    toolResponseTurnRef.current = false
     intensityRef.current = 0
     nextPlayTimeRef.current = 0
   }, [])
+
+  const prepareGuestWorkspace = useCallback(() => {
+    stop()
+    resetWorkspaceState()
+    activeSessionIdRef.current = null
+    sessionModeRef.current = 'guest'
+    setActiveSessionId(null)
+    setSessionMode('guest')
+  }, [resetWorkspaceState, stop])
+
+  const preparePersistedWorkspace = useCallback((sessionId: string) => {
+    stop()
+    resetWorkspaceState()
+    activeSessionIdRef.current = sessionId
+    sessionModeRef.current = 'persisted'
+    setActiveSessionId(sessionId)
+    setSessionMode('persisted')
+  }, [resetWorkspaceState, stop])
 
   const setupAudioProcessing = useCallback(() => {
     if (!streamRef.current || !audioContextRef.current) return
@@ -216,6 +255,8 @@ export function useGeminiBrainstorm() {
           JSON.stringify({
             type: 'session_config',
             handle: sessionHandleRef.current,
+            session_id: activeSessionIdRef.current,
+            session_mode: sessionModeRef.current,
             flash_model: selectedFlashModel,
             enabled_tools: selectedTools,
           }),
@@ -321,11 +362,15 @@ export function useGeminiBrainstorm() {
     messages,
     artifacts,
     isGenerating,
+    activeSessionId,
+    sessionMode,
     intensityRef,
     selectedFlashModel,
     setSelectedFlashModel,
     selectedTools,
     setSelectedTools,
+    prepareGuestWorkspace,
+    preparePersistedWorkspace,
     start,
     stop,
     sendText,

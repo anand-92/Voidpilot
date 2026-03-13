@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import PurePosixPath
+from typing import Any
 
 from firebase_admin import firestore, storage
 
@@ -13,8 +14,8 @@ BRAINSTORM_STORAGE_PREFIX = "brainstorm/sessions"
 class BrainstormPersistenceServices:
     """Reusable Firebase-backed services for brainstorm persistence flows."""
 
-    firestore_client: object
-    storage_bucket: object
+    firestore_client: Any
+    storage_bucket: Any
     project_id: str
     location: str
 
