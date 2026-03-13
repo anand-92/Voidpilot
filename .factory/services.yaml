@@ -7,7 +7,7 @@ commands:
 
 services:
   api:
-    start: PORT=8000 uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000
+    start: FIREBASE_PROJECT_ID=gen-lang-client-0579048282 FIREBASE_STORAGE_BUCKET=gen-lang-client-0579048282.firebasestorage.app PORT=8000 uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000
     stop: lsof -ti :8000 | xargs kill
     healthcheck: curl -sf http://127.0.0.1:8000/health
     port: 8000

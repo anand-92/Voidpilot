@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from typing import NoReturn
 from uuid import uuid4
 
 from fastapi import HTTPException, status
+from google.api_core import exceptions as google_api_exceptions
+from google.auth.exceptions import DefaultCredentialsError
 
 from src.app.services.brainstorm_auth import BrainstormFirebaseUser
 from src.app.services.brainstorm_persistence import BrainstormPersistenceServices
+from src.app.services.firebase_admin import BrainstormFirebaseConfigurationError
 
 BRAINSTORM_SESSION_COLLECTION = "brainstorm_sessions"
 DEFAULT_BRAINSTORM_SESSION_TITLE = "Untitled session"
@@ -65,8 +69,49 @@ class BrainstormSessionAccessDeniedError(BrainstormSessionError):
     default_message = "You do not have access to that brainstorm session."
 
 
+class BrainstormSessionDependencyError(BrainstormSessionError):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    error_code = "brainstorm_session_dependency_unavailable"
+    default_message = "Brainstorm session storage is unavailable right now."
+
+
 def _sessions_collection(services: BrainstormPersistenceServices):
     return services.firestore_client.collection(BRAINSTORM_SESSION_COLLECTION)
+
+
+def _raise_session_dependency_error(error: Exception) -> NoReturn:
+    if isinstance(error, BrainstormFirebaseConfigurationError):
+        raise BrainstormSessionDependencyError(
+            "Brainstorm session storage is unavailable because the backend "
+            "Firebase configuration is incomplete."
+        ) from error
+
+    if isinstance(error, DefaultCredentialsError):
+        raise BrainstormSessionDependencyError(
+            "Brainstorm session storage is unavailable because backend Google "
+            "credentials are not configured."
+        ) from error
+
+    if isinstance(error, google_api_exceptions.NotFound):
+        lowered_message = str(error).lower()
+        if "database (default) does not exist" in lowered_message:
+            raise BrainstormSessionDependencyError(
+                "Brainstorm session storage is unavailable because the "
+                "Firestore database is not provisioned for this project yet."
+            ) from error
+
+    if isinstance(error, google_api_exceptions.PermissionDenied):
+        raise BrainstormSessionDependencyError(
+            "Brainstorm session storage is unavailable because the backend "
+            "does not have permission to access Firestore."
+        ) from error
+
+    if isinstance(error, google_api_exceptions.GoogleAPICallError):
+        raise BrainstormSessionDependencyError(
+            "Brainstorm session storage is temporarily unavailable."
+        ) from error
+
+    raise error
 
 
 def _now_timestamp() -> str:
@@ -92,12 +137,20 @@ def list_brainstorm_sessions_for_user(
     *,
     owner_uid: str,
 ) -> list[BrainstormSessionRecord]:
-    snapshots = (
-        _sessions_collection(services)
-        .where("owner_uid", "==", owner_uid)
-        .stream()
-    )
-    sessions = [_session_record_from_snapshot(snapshot) for snapshot in snapshots]
+    try:
+        snapshots = (
+            _sessions_collection(services)
+            .where("owner_uid", "==", owner_uid)
+            .stream()
+        )
+        sessions = [_session_record_from_snapshot(snapshot) for snapshot in snapshots]
+    except (
+        BrainstormFirebaseConfigurationError,
+        DefaultCredentialsError,
+        google_api_exceptions.GoogleAPICallError,
+    ) as exc:
+        _raise_session_dependency_error(exc)
+
     return sorted(sessions, key=lambda session: session.updated_at, reverse=True)
 
 
@@ -118,17 +171,25 @@ def create_brainstorm_session(
         created_at=now,
         updated_at=now,
     )
-    _sessions_collection(services).document(session_id).set(
-        {
-            "owner_uid": session_record.owner_uid,
-            "owner_email": session_record.owner_email,
-            "owner_name": session_record.owner_name,
-            "mode": session_record.mode,
-            "title": session_record.title,
-            "created_at": session_record.created_at,
-            "updated_at": session_record.updated_at,
-        }
-    )
+    try:
+        _sessions_collection(services).document(session_id).set(
+            {
+                "owner_uid": session_record.owner_uid,
+                "owner_email": session_record.owner_email,
+                "owner_name": session_record.owner_name,
+                "mode": session_record.mode,
+                "title": session_record.title,
+                "created_at": session_record.created_at,
+                "updated_at": session_record.updated_at,
+            }
+        )
+    except (
+        BrainstormFirebaseConfigurationError,
+        DefaultCredentialsError,
+        google_api_exceptions.GoogleAPICallError,
+    ) as exc:
+        _raise_session_dependency_error(exc)
+
     return session_record
 
 
@@ -139,7 +200,15 @@ def get_brainstorm_session_for_user(
     session_id: str,
 ) -> BrainstormSessionRecord:
     document_reference = _sessions_collection(services).document(session_id)
-    snapshot = document_reference.get()
+    try:
+        snapshot = document_reference.get()
+    except (
+        BrainstormFirebaseConfigurationError,
+        DefaultCredentialsError,
+        google_api_exceptions.GoogleAPICallError,
+    ) as exc:
+        _raise_session_dependency_error(exc)
+
     if not snapshot.exists:
         raise BrainstormSessionNotFoundError()
 
@@ -157,7 +226,15 @@ def delete_brainstorm_session_for_user(
     session_id: str,
 ) -> None:
     document_reference = _sessions_collection(services).document(session_id)
-    snapshot = document_reference.get()
+    try:
+        snapshot = document_reference.get()
+    except (
+        BrainstormFirebaseConfigurationError,
+        DefaultCredentialsError,
+        google_api_exceptions.GoogleAPICallError,
+    ) as exc:
+        _raise_session_dependency_error(exc)
+
     if not snapshot.exists:
         raise BrainstormSessionNotFoundError()
 
@@ -165,4 +242,11 @@ def delete_brainstorm_session_for_user(
     if session_record.owner_uid != owner_uid:
         raise BrainstormSessionAccessDeniedError()
 
-    document_reference.delete()
+    try:
+        document_reference.delete()
+    except (
+        BrainstormFirebaseConfigurationError,
+        DefaultCredentialsError,
+        google_api_exceptions.GoogleAPICallError,
+    ) as exc:
+        _raise_session_dependency_error(exc)

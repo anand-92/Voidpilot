@@ -1,12 +1,15 @@
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from google.auth.exceptions import DefaultCredentialsError
 
 from src.app.api.v1.router import api_router
 from src.app.core.config import settings
+from src.app.services.firebase_admin import BrainstormFirebaseConfigurationError
 
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
 
@@ -24,6 +27,41 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+@app.exception_handler(BrainstormFirebaseConfigurationError)
+async def handle_brainstorm_firebase_configuration_error(
+    request: Request,
+    exc: BrainstormFirebaseConfigurationError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": {
+                "code": "brainstorm_firebase_unavailable",
+                "message": str(exc),
+            }
+        },
+    )
+
+
+@app.exception_handler(DefaultCredentialsError)
+async def handle_default_credentials_error(
+    request: Request,
+    exc: DefaultCredentialsError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": {
+                "code": "brainstorm_google_credentials_unavailable",
+                "message": (
+                    "Brainstorm persistence is unavailable because backend "
+                    "Google credentials are not configured."
+                ),
+            }
+        },
+    )
 
 
 @app.get("/health", tags=["Health"])

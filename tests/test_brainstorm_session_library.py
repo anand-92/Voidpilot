@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import pytest
 from fastapi.testclient import TestClient
+from google.api_core import exceptions as google_exceptions
 
 from src.app.main import app
 from src.app.services.brainstorm_auth import BrainstormFirebaseUser
@@ -71,6 +73,48 @@ class FakeFirestoreClient:
     def collection(self, collection_name: str) -> FakeCollectionReference:
         collection_store = self._collections.setdefault(collection_name, {})
         return FakeCollectionReference(collection_store)
+
+
+class UnavailableDocumentReference:
+    def __init__(self, error: Exception):
+        self._error = error
+
+    def get(self):
+        raise self._error
+
+    def set(self, value: dict) -> None:
+        raise self._error
+
+    def delete(self) -> None:
+        raise self._error
+
+
+class UnavailableQuery:
+    def __init__(self, error: Exception):
+        self._error = error
+
+    def stream(self):
+        raise self._error
+
+
+class UnavailableCollectionReference:
+    def __init__(self, error: Exception):
+        self._error = error
+
+    def document(self, document_id: str) -> UnavailableDocumentReference:
+        return UnavailableDocumentReference(self._error)
+
+    def where(self, field_name: str, operator: str, value: str) -> UnavailableQuery:
+        assert operator == '=='
+        return UnavailableQuery(self._error)
+
+
+class UnavailableFirestoreClient:
+    def __init__(self, error: Exception):
+        self._error = error
+
+    def collection(self, collection_name: str) -> UnavailableCollectionReference:
+        return UnavailableCollectionReference(self._error)
 
 
 def make_user(uid: str, email: str) -> BrainstormFirebaseUser:
@@ -169,8 +213,12 @@ def test_brainstorm_session_delete_removes_only_selected_session():
     )
 
     try:
-        first_session = client.post('/api/v1/live/brainstorm/sessions').json()['session']
-        second_session = client.post('/api/v1/live/brainstorm/sessions').json()['session']
+        first_session = client.post('/api/v1/live/brainstorm/sessions').json()[
+            'session'
+        ]
+        second_session = client.post('/api/v1/live/brainstorm/sessions').json()[
+            'session'
+        ]
 
         delete_response = client.delete(
             f"/api/v1/live/brainstorm/sessions/{first_session['id']}"
@@ -222,3 +270,114 @@ def test_brainstorm_session_reopen_rejects_non_owner():
         app.dependency_overrides.clear()
 
     assert reopen_response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    ('method', 'path'),
+    [
+        ('get', '/api/v1/live/brainstorm/sessions'),
+        ('post', '/api/v1/live/brainstorm/sessions'),
+        ('get', '/api/v1/live/brainstorm/sessions/session-123'),
+        ('delete', '/api/v1/live/brainstorm/sessions/session-123'),
+    ],
+)
+def test_brainstorm_session_routes_surface_firestore_dependency_errors(
+    method: str,
+    path: str,
+):
+    from src.app.api.v1.endpoints import brainstorm
+    from src.app.services import brainstorm_persistence
+
+    dependency_error = google_exceptions.NotFound(
+        'The database (default) does not exist for project '
+        'gen-lang-client-0579048282.'
+    )
+    client = TestClient(app, raise_server_exceptions=False)
+
+    app.dependency_overrides[brainstorm.require_brainstorm_user] = lambda: make_user(
+        'user-1', 'user-1@example.com'
+    )
+    app.dependency_overrides[
+        brainstorm_persistence.get_brainstorm_persistence_services
+    ] = lambda: brainstorm_persistence.BrainstormPersistenceServices(
+        firestore_client=UnavailableFirestoreClient(dependency_error),
+        storage_bucket=None,
+        project_id='gen-lang-client-0579048282',
+        location='us-east1',
+    )
+
+    try:
+        response = getattr(client, method)(path)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {
+        'detail': {
+            'code': 'brainstorm_session_dependency_unavailable',
+            'message': (
+                'Brainstorm session storage is unavailable because the '
+                'Firestore database is not provisioned for this project yet.'
+            ),
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ('error_kind', 'expected_detail'),
+    [
+        (
+            'firebase_config',
+            {
+                'code': 'brainstorm_firebase_unavailable',
+                'message': (
+                    'FIREBASE_STORAGE_BUCKET must be configured before '
+                    'brainstorm Firebase services are used.'
+                ),
+            },
+        ),
+        (
+            'default_credentials',
+            {
+                'code': 'brainstorm_google_credentials_unavailable',
+                'message': (
+                    'Brainstorm persistence is unavailable because backend '
+                    'Google credentials are not configured.'
+                ),
+            },
+        ),
+    ],
+)
+def test_brainstorm_session_routes_surface_dependency_initialization_errors(
+    error_kind: str,
+    expected_detail: dict[str, str],
+):
+    from google.auth.exceptions import DefaultCredentialsError
+
+    from src.app.api.v1.endpoints import brainstorm
+    from src.app.services import brainstorm_persistence
+    from src.app.services.firebase_admin import BrainstormFirebaseConfigurationError
+
+    client = TestClient(app, raise_server_exceptions=False)
+
+    app.dependency_overrides[brainstorm.require_brainstorm_user] = lambda: make_user(
+        'user-1', 'user-1@example.com'
+    )
+
+    def broken_services():
+        if error_kind == 'firebase_config':
+            raise BrainstormFirebaseConfigurationError(expected_detail['message'])
+
+        raise DefaultCredentialsError('ADC unavailable')
+
+    app.dependency_overrides[
+        brainstorm_persistence.get_brainstorm_persistence_services
+    ] = broken_services
+
+    try:
+        response = client.get('/api/v1/live/brainstorm/sessions')
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {'detail': expected_detail}

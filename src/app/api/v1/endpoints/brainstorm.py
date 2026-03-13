@@ -283,7 +283,11 @@ async def list_brainstorm_sessions(
         Depends(get_brainstorm_persistence_services),
     ],
 ) -> dict[str, list[dict[str, str | None]]]:
-    sessions = list_brainstorm_sessions_for_user(services, owner_uid=user.uid)
+    try:
+        sessions = list_brainstorm_sessions_for_user(services, owner_uid=user.uid)
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
     return {"sessions": [session.to_response_dict() for session in sessions]}
 
 
@@ -298,7 +302,11 @@ async def create_brainstorm_session_record(
         Depends(get_brainstorm_persistence_services),
     ],
 ) -> dict[str, dict | list | str | None]:
-    session = create_brainstorm_session(services, user=user)
+    try:
+        session = create_brainstorm_session(services, user=user)
+    except BrainstormSessionError as exc:
+        raise exc.to_http_exception() from exc
+
     return _session_response_payload(session)
 
 

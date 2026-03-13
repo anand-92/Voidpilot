@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -90,6 +91,11 @@ def test_get_firebase_admin_app_initializes_with_project_and_bucket():
             firebase_service.firebase_admin, "get_app", side_effect=ValueError
         ),
         patch.object(
+            firebase_service,
+            "_find_gcloud_legacy_adc_path",
+            return_value=None,
+        ),
+        patch.object(
             firebase_service.credentials,
             "ApplicationDefault",
             return_value="application-default-creds",
@@ -131,6 +137,51 @@ def test_get_firebase_admin_app_wraps_invalid_service_account_payload():
             firebase_service.get_firebase_admin_app()
 
 
+def test_get_firebase_admin_app_uses_legacy_gcloud_refresh_token_fallback():
+    from src.app.services import firebase_admin as firebase_service
+
+    mock_settings = SimpleNamespace(
+        FIREBASE_PROJECT_ID="gen-lang-client-0579048282",
+        FIREBASE_STORAGE_BUCKET="gen-lang-client-0579048282.firebasestorage.app",
+        FIREBASE_CREDENTIALS_JSON=None,
+    )
+    legacy_adc_path = Path("/tmp/gcloud-legacy-adc.json")
+
+    with (
+        patch.object(firebase_service, "settings", mock_settings),
+        patch.object(
+            firebase_service.firebase_admin, "get_app", side_effect=ValueError
+        ),
+        patch.object(
+            firebase_service,
+            "_find_gcloud_legacy_adc_path",
+            return_value=legacy_adc_path,
+        ),
+        patch.object(
+            firebase_service.credentials,
+            "ApplicationDefault",
+            return_value="application-default-creds",
+        ) as application_default,
+        patch.object(
+            firebase_service.firebase_admin,
+            "initialize_app",
+            return_value="firebase-app",
+        ) as initialize_app,
+        patch.dict(firebase_service.os.environ, {}, clear=True),
+    ):
+        app = firebase_service.get_firebase_admin_app()
+
+    assert app == "firebase-app"
+    application_default.assert_called_once_with()
+    initialize_app.assert_called_once_with(
+        "application-default-creds",
+        {
+            "projectId": "gen-lang-client-0579048282",
+            "storageBucket": "gen-lang-client-0579048282.firebasestorage.app",
+        },
+    )
+
+
 def test_get_brainstorm_firestore_client_uses_firebase_app():
     from src.app.services import brainstorm_persistence
 
@@ -155,12 +206,12 @@ def test_get_brainstorm_firestore_client_uses_firebase_app():
 def test_get_brainstorm_storage_bucket_uses_configured_bucket():
     from src.app.services import brainstorm_persistence
 
-    mock_settings = SimpleNamespace(
-        FIREBASE_STORAGE_BUCKET="gen-lang-client-0579048282.firebasestorage.app"
-    )
-
     with (
-        patch.object(brainstorm_persistence, "settings", mock_settings),
+        patch.object(
+            brainstorm_persistence,
+            "get_configured_firebase_storage_bucket",
+            return_value="gen-lang-client-0579048282.firebasestorage.app",
+        ),
         patch.object(
             brainstorm_persistence,
             "get_firebase_admin_app",
