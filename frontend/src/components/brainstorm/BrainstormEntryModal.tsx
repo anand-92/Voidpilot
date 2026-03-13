@@ -10,10 +10,20 @@ import {
   Sparkles,
   Trash2,
   UserRound,
+  Zap,
+  Clock,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useWebHaptics } from 'web-haptics/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { BlurFade } from '@/components/ui/blur-fade'
+import { MagicCard } from '@/components/ui/magic-card'
+import { BorderBeam } from '@/components/ui/border-beam'
+import { DotPattern } from '@/components/ui/dot-pattern'
+import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
+import { PulseDot } from '@/components/landing/PulseDot'
 import { cn } from '@/lib/utils'
 import type {
   BrainstormLibraryAction,
@@ -50,7 +60,7 @@ type BrainstormEntryModalProps = {
 
 type AuthMode = 'sign_up' | 'sign_in'
 
-const MODAL_TRANSITION = { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const }
+const EASE = [0.22, 1, 0.36, 1] as const
 
 function GoogleGlyph() {
   return (
@@ -79,28 +89,66 @@ function LoadingState() {
   return (
     <motion.div
       key="loading"
-      initial={{ opacity: 0, y: 18, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 18, scale: 0.97 }}
-      transition={MODAL_TRANSITION}
-      className="relative my-auto w-full max-w-xl overflow-y-auto rounded-[2rem] border border-white/[0.08] bg-[#0c1229]/92 p-8 shadow-[0_32px_80px_rgba(0,0,0,0.6)] backdrop-blur-3xl max-h-[calc(100dvh-2rem)]"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.4, ease: EASE }}
+      className="relative my-auto w-full max-w-md overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#0c1229]/94 p-8 shadow-[0_32px_80px_rgba(0,0,0,0.6)] backdrop-blur-3xl max-h-[calc(100dvh-2rem)]"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_48%),radial-gradient(circle_at_bottom_right,_rgba(234,88,12,0.14),_transparent_42%)]" />
-      <div className="relative flex flex-col items-center gap-4 text-center">
-        <div className="flex size-16 items-center justify-center rounded-3xl border border-amber-400/20 bg-amber-500/10 shadow-[0_0_40px_rgba(245,158,11,0.12)]">
-          <Loader2 className="size-7 animate-spin text-amber-300" />
-        </div>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/70">
-            Brainstorm Entry
-          </p>
-          <h2 id="brainstorm-entry-loading-title" className="mt-2 text-2xl font-semibold tracking-tight text-slate-100">
-            Checking your brainstorm access
-          </h2>
-          <p id="brainstorm-entry-loading-description" className="mt-2 text-sm leading-6 text-slate-400">
-            Restoring your signed-in state before any workspace controls unlock.
-          </p>
-        </div>
+      <BorderBeam
+        colorFrom="#f59e0b"
+        colorTo="#ea580c"
+        size={80}
+        duration={8}
+        borderWidth={1}
+      />
+      <DotPattern
+        width={24}
+        height={24}
+        cr={0.8}
+        className="text-amber-400/[0.06] [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_70%)]"
+      />
+
+      <div className="relative flex flex-col items-center gap-5 text-center">
+        <BlurFade delay={0.05}>
+          <Badge
+            variant="outline"
+            className="h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-4 py-1.5 text-[10px] font-medium tracking-widest text-amber-200 uppercase"
+          >
+            <PulseDot />
+            Brainstorm Mode
+          </Badge>
+        </BlurFade>
+
+        <BlurFade delay={0.12}>
+          <div className="flex size-16 items-center justify-center rounded-3xl border border-amber-400/20 bg-amber-500/10 shadow-[0_0_40px_rgba(245,158,11,0.15)]">
+            <Loader2 className="size-7 animate-spin text-amber-300" />
+          </div>
+        </BlurFade>
+
+        <BlurFade delay={0.2}>
+          <div>
+            <h2
+              id="brainstorm-entry-loading-title"
+              className="text-2xl font-semibold tracking-tight text-slate-100"
+            >
+              <AnimatedGradientText
+                colorFrom="#f59e0b"
+                colorTo="#ea580c"
+                speed={2}
+                className="text-2xl font-semibold tracking-tight"
+              >
+                Preparing your studio
+              </AnimatedGradientText>
+            </h2>
+            <p
+              id="brainstorm-entry-loading-description"
+              className="mt-3 text-sm leading-6 text-slate-400"
+            >
+              Restoring your creative session — hang tight.
+            </p>
+          </div>
+        </BlurFade>
       </div>
     </motion.div>
   )
@@ -146,8 +194,9 @@ function LibraryState({
   onDeleteSession: (sessionId: string) => Promise<void>
   onSignOut: () => Promise<void>
 }) {
+  const haptic = useWebHaptics()
   const displayName =
-    user?.displayName?.trim() ?? user?.email?.split('@')[0] ?? 'Brainstorm operator'
+    user?.displayName?.trim() ?? user?.email?.split('@')[0] ?? 'Creative'
   const avatarLabel = displayName.charAt(0).toUpperCase()
   const isCreating = activeAction === 'create'
   const isBusy = isSubmitting || isLoading || activeAction !== null
@@ -156,202 +205,267 @@ function LibraryState({
   return (
     <motion.div
       key="library"
-      initial={{ opacity: 0, y: 18, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 18, scale: 0.97 }}
-      transition={MODAL_TRANSITION}
-      className="relative my-auto w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/[0.08] bg-[#0c1229]/94 shadow-[0_32px_80px_rgba(0,0,0,0.62)] backdrop-blur-3xl max-h-[calc(100dvh-2rem)]"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.4, ease: EASE }}
+      className="relative my-auto w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#0c1229]/94 shadow-[0_32px_80px_rgba(0,0,0,0.62)] backdrop-blur-3xl max-h-[calc(100dvh-2rem)]"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(234,88,12,0.18),_transparent_38%)]" />
+      <BorderBeam
+        colorFrom="#f59e0b"
+        colorTo="#ea580c"
+        size={100}
+        duration={10}
+        borderWidth={1}
+      />
+      <DotPattern
+        width={28}
+        height={28}
+        cr={0.7}
+        className="text-amber-400/[0.05] [mask-image:radial-gradient(ellipse_at_top_left,black_20%,transparent_60%)]"
+      />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.14),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(234,88,12,0.12),_transparent_45%)]" />
 
-      <div className="relative grid gap-6 p-6 md:grid-cols-[0.95fr,1.05fr] md:p-8">
-        <section className="rounded-[1.6rem] border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl">
-          <div className="flex items-center gap-4">
-            <div className="flex size-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-gradient-to-br from-amber-500/25 to-orange-500/15 text-lg font-bold text-white shadow-[0_12px_40px_rgba(245,158,11,0.18)]">
-              {avatarLabel}
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/70">
-                Brainstorm Library
-              </p>
-              <h2 id="brainstorm-entry-library-title" className="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-                Welcome back, {displayName}
-              </h2>
-              <p id="brainstorm-entry-library-description" className="mt-1 text-sm text-slate-400">
-                You are back in the signed-in library flow before any workspace session begins.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                Signed in as
-              </p>
-              <p className="mt-2 text-sm font-medium text-slate-100">{user?.email ?? 'Google account'}</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                Saved sessions
-              </p>
-              <p className="mt-2 text-sm font-medium text-amber-200">
-                {sessions.length === 1 ? '1 saved session' : `${sessions.length} saved sessions`}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-3">
-            {[
-              'Create a fresh persisted session before the workspace unlocks.',
-              'Reopen an existing session from here instead of jumping straight into live controls.',
-              'Delete only the session you no longer want without disturbing the rest of your library.',
-            ].map((item) => (
-              <div
-                key={item}
-                className="flex items-start gap-3 rounded-2xl border border-white/[0.05] bg-white/[0.03] p-4"
-              >
-                <Sparkles className="mt-0.5 size-4 shrink-0 text-amber-300" />
-                <p className="text-sm leading-6 text-slate-300">{item}</p>
+      <div className="relative overflow-y-auto p-5 sm:p-6 md:p-8 max-h-[calc(100dvh-2rem)]">
+        {/* Header */}
+        <BlurFade delay={0.05}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex size-12 items-center justify-center rounded-2xl border border-amber-400/20 bg-gradient-to-br from-amber-500/25 to-orange-500/15 text-lg font-bold text-white shadow-[0_12px_40px_rgba(245,158,11,0.18)]">
+                {avatarLabel}
               </div>
-            ))}
-          </div>
-
-          {errorMessage && (
-            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100">
-              <CircleAlert className="mt-0.5 size-4 shrink-0 text-rose-300" />
-              <span>{errorMessage}</span>
+              <div>
+                <Badge
+                  variant="outline"
+                  className="mb-1.5 h-auto gap-1.5 rounded-full border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[9px] font-medium tracking-widest text-amber-200 uppercase"
+                >
+                  <PulseDot />
+                  Your Studio
+                </Badge>
+                <h2
+                  id="brainstorm-entry-library-title"
+                  className="text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl"
+                >
+                  Welcome back, {displayName}
+                </h2>
+              </div>
             </div>
-          )}
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <Button
-              onClick={() => {
-                void onCreateSession()
-              }}
-              disabled={isBusy}
-              className="min-h-12 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(217,119,6,0.28)] hover:brightness-110"
-            >
-              {isCreating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-              New session
-            </Button>
-
             <Button
               variant="outline"
+              size="sm"
               onClick={() => {
+                haptic.trigger('light')
                 void onSignOut()
               }}
               disabled={isBusy}
-              className="min-h-12 rounded-2xl border-white/[0.1] bg-white/[0.03] text-slate-200 hover:bg-white/[0.06]"
+              className="rounded-xl border-white/[0.1] bg-white/[0.03] text-xs text-slate-300 hover:bg-white/[0.06]"
             >
-              {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+              {isSubmitting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <LogOut className="size-3.5" />
+              )}
               Sign out
             </Button>
           </div>
-        </section>
+        </BlurFade>
 
-        <section className="flex flex-col gap-4 rounded-[1.6rem] border border-white/[0.06] bg-black/25 p-6 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-                Session library
+        <BlurFade delay={0.1}>
+          <p
+            id="brainstorm-entry-library-description"
+            className="mt-3 text-sm leading-6 text-slate-400"
+          >
+            Pick up where you left off or start something new.
+          </p>
+        </BlurFade>
+
+        {/* Stats row */}
+        <BlurFade delay={0.15}>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 backdrop-blur-xl">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Signed in as
               </p>
-              <h3 className="mt-2 text-lg font-semibold text-slate-100">
-                {hasSessions ? 'Reopen a saved brainstorm' : 'No saved brainstorms yet'}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                {hasSessions
-                  ? 'Choose a session to reopen, or create a clean one from scratch.'
-                  : 'Create your first saved brainstorm session to enter a clean workspace.'}
+              <p className="mt-2 truncate text-sm font-medium text-slate-100">
+                {user?.email ?? 'Google account'}
               </p>
             </div>
-
-            {isLoading ? <Loader2 className="size-5 shrink-0 animate-spin text-amber-300" /> : null}
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 backdrop-blur-xl">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Creative sessions
+              </p>
+              <p className="mt-2 text-sm font-medium text-amber-200">
+                {sessions.length === 0
+                  ? 'None yet'
+                  : sessions.length === 1
+                    ? '1 session'
+                    : `${sessions.length} sessions`}
+              </p>
+            </div>
           </div>
+        </BlurFade>
 
-          {isLoading ? (
-            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[1.5rem] border border-white/[0.05] bg-white/[0.03] px-6 text-center">
-              <Loader2 className="size-8 animate-spin text-amber-300" />
-              <p className="mt-4 text-sm font-medium text-slate-100">Loading your brainstorm sessions</p>
-              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">
-                Restoring the signed-in library before the workspace can unlock.
-              </p>
+        {/* Error */}
+        {errorMessage && (
+          <BlurFade delay={0.08}>
+            <div className="mt-4 flex items-start gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100">
+              <CircleAlert className="mt-0.5 size-4 shrink-0 text-rose-300" />
+              <span>{errorMessage}</span>
             </div>
-          ) : hasSessions ? (
-            <div className="space-y-3">
-              {sessions.map((session) => {
-                const isOpening =
-                  activeAction === 'open' && activeSessionId === session.id
-                const isDeleting =
-                  activeAction === 'delete' && activeSessionId === session.id
+          </BlurFade>
+        )}
 
-                return (
-                  <article
-                    key={session.id}
-                    className="rounded-[1.4rem] border border-white/[0.06] bg-white/[0.03] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.16)]"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200/70">
-                          Persisted session
-                        </p>
-                        <h4 className="mt-2 truncate text-base font-semibold text-slate-100">
-                          {session.title}
-                        </h4>
-                        <p className="mt-2 text-sm leading-6 text-slate-400">
-                          Updated {formatSessionTimestamp(session.updatedAt)}
-                        </p>
-                      </div>
+        {/* New session CTA */}
+        <BlurFade delay={0.2}>
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+          >
+            <Button
+              onClick={() => {
+                haptic.trigger('success')
+                void onCreateSession()
+              }}
+              disabled={isBusy}
+              className="mt-5 min-h-12 w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(217,119,6,0.28)] hover:brightness-110"
+            >
+              {isCreating ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Plus className="size-4" />
+              )}
+              Start a new brainstorm
+            </Button>
+          </motion.div>
+        </BlurFade>
 
-                      <div className="rounded-2xl border border-white/[0.06] bg-black/20 px-3 py-2 text-right">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                          Created
-                        </p>
-                        <p className="mt-1 text-sm text-slate-200">
-                          {formatSessionTimestamp(session.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <Button
-                        onClick={() => {
-                          void onReopenSession(session.id)
-                        }}
-                        disabled={isBusy}
-                        className="min-h-11 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(217,119,6,0.24)] hover:brightness-110"
-                      >
-                        {isOpening ? <Loader2 className="size-4 animate-spin" /> : <FolderOpen className="size-4" />}
-                        Reopen
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          void onDeleteSession(session.id)
-                        }}
-                        disabled={isBusy}
-                        className="min-h-11 rounded-2xl border-white/[0.1] bg-white/[0.03] text-slate-200 hover:bg-white/[0.06]"
-                      >
-                        {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                        Delete
-                      </Button>
-                    </div>
-                  </article>
-                )
-              })}
+        {/* Session library */}
+        <BlurFade delay={0.25}>
+          <div className="mt-6">
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                {hasSessions ? 'Your sessions' : 'No sessions yet'}
+              </h3>
+              {isLoading ? (
+                <Loader2 className="size-4 shrink-0 animate-spin text-amber-300" />
+              ) : null}
             </div>
-          ) : (
-            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-white/[0.08] bg-white/[0.03] px-6 text-center">
-              <div className="flex size-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 shadow-[0_12px_32px_rgba(245,158,11,0.12)]">
-                <FolderOpen className="size-6 text-amber-200" />
+
+            {isLoading ? (
+              <div className="mt-4 flex min-h-[180px] flex-col items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] px-6 text-center">
+                <Loader2 className="size-7 animate-spin text-amber-300" />
+                <p className="mt-3 text-sm font-medium text-slate-200">
+                  Loading your sessions…
+                </p>
               </div>
-              <h4 className="mt-5 text-lg font-semibold text-slate-100">Your library is empty</h4>
-              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">
-                Start a new persisted brainstorm session and you will enter a clean workspace with no transcript or artifact carryover.
-              </p>
-            </div>
-          )}
-        </section>
+            ) : hasSessions ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {sessions.map((session, i) => {
+                  const isOpening =
+                    activeAction === 'open' && activeSessionId === session.id
+                  const isDeleting =
+                    activeAction === 'delete' &&
+                    activeSessionId === session.id
+
+                  return (
+                    <BlurFade key={session.id} delay={0.3 + i * 0.06}>
+                      <MagicCard
+                        className="rounded-2xl"
+                        gradientColor="#1c1917"
+                        gradientFrom="#d97706"
+                        gradientTo="#92400e"
+                        gradientOpacity={0.5}
+                      >
+                        <article className="flex min-h-[160px] flex-col p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="size-3.5 shrink-0 text-amber-400" />
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-200/70">
+                                  Session
+                                </p>
+                              </div>
+                              <h4 className="mt-2 truncate text-base font-semibold text-slate-100">
+                                {session.title}
+                              </h4>
+                            </div>
+                          </div>
+
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                            <Clock className="size-3" />
+                            <span>
+                              Updated{' '}
+                              {formatSessionTimestamp(session.updatedAt)}
+                            </span>
+                          </div>
+
+                          <div className="mt-auto flex gap-2 pt-4">
+                            <motion.div
+                              className="flex-1"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.97 }}
+                            >
+                              <Button
+                                onClick={() => {
+                                  haptic.trigger('selection')
+                                  void onReopenSession(session.id)
+                                }}
+                                disabled={isBusy}
+                                className="min-h-10 w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-xs font-semibold text-white shadow-[0_8px_24px_rgba(217,119,6,0.22)] hover:brightness-110"
+                              >
+                                {isOpening ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <FolderOpen className="size-3.5" />
+                                )}
+                                Reopen
+                              </Button>
+                            </motion.div>
+                            <motion.div
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => {
+                                  haptic.trigger('warning')
+                                  void onDeleteSession(session.id)
+                                }}
+                                disabled={isBusy}
+                                className="size-10 rounded-xl border-white/[0.08] bg-white/[0.03] text-slate-400 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/20"
+                              >
+                                {isDeleting ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-3.5" />
+                                )}
+                              </Button>
+                            </motion.div>
+                          </div>
+                        </article>
+                      </MagicCard>
+                    </BlurFade>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="mt-4 flex min-h-[140px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] px-6 text-center">
+                <div className="flex size-11 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/10 shadow-[0_8px_24px_rgba(245,158,11,0.1)]">
+                  <FolderOpen className="size-5 text-amber-200" />
+                </div>
+                <p className="mt-3 text-sm font-medium text-slate-200">
+                  Your library is empty
+                </p>
+                <p className="mt-1 max-w-xs text-xs leading-5 text-slate-500">
+                  Start a new brainstorm above and your sessions will appear
+                  here.
+                </p>
+              </div>
+            )}
+          </div>
+        </BlurFade>
       </div>
     </motion.div>
   )
@@ -376,25 +490,27 @@ export function BrainstormEntryModal({
   onSignInWithGoogle,
   onSignOut,
 }: BrainstormEntryModalProps) {
+  const haptic = useWebHaptics()
   const [authMode, setAuthMode] = useState<AuthMode>('sign_up')
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [fieldError, setFieldError] = useState<string | null>(null)
+  const tabIndicatorRef = useRef<HTMLDivElement>(null)
 
   const activeError = fieldError ?? errorMessage
 
   const modalTitle = useMemo(() => {
     if (status === 'loading') {
-      return 'Checking your brainstorm access'
+      return 'Preparing your studio'
     }
 
     if (status === 'signed_in') {
       return 'Brainstorm library'
     }
 
-    return 'Enter brainstorm mode'
+    return 'Enter the studio'
   }, [status])
 
   const dialogLabelledBy =
@@ -448,10 +564,12 @@ export function BrainstormEntryModal({
     const nextFieldError = validateForm()
     if (nextFieldError) {
       setFieldError(nextFieldError)
+      haptic.trigger('error')
       return
     }
 
     setFieldError(null)
+    haptic.trigger('selection')
 
     try {
       if (authMode === 'sign_up') {
@@ -466,6 +584,7 @@ export function BrainstormEntryModal({
 
   const handleGoogleSignIn = async () => {
     setFieldError(null)
+    haptic.trigger('selection')
 
     try {
       await onSignInWithGoogle()
@@ -482,8 +601,9 @@ export function BrainstormEntryModal({
       aria-describedby={dialogDescribedBy}
       className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:items-center sm:p-6"
     >
-      <div className="absolute inset-0 bg-[#060818]/88 backdrop-blur-xl" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),_transparent_36%),radial-gradient(circle_at_bottom_right,_rgba(234,88,12,0.1),_transparent_40%)]" />
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-[#060818]/90 backdrop-blur-xl" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.06),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(234,88,12,0.08),_transparent_45%)]" />
 
       <AnimatePresence mode="wait">
         {status === 'loading' ? (
@@ -506,232 +626,356 @@ export function BrainstormEntryModal({
         ) : (
           <motion.div
             key="entry-state"
-            initial={{ opacity: 0, y: 18, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.97 }}
-            transition={MODAL_TRANSITION}
-            className="relative my-auto w-full max-w-5xl overflow-y-auto rounded-[2rem] border border-white/[0.08] bg-[#0c1229]/94 shadow-[0_32px_80px_rgba(0,0,0,0.62)] backdrop-blur-3xl max-h-[calc(100dvh-2rem)]"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.4, ease: EASE }}
+            className="relative my-auto w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#0c1229]/94 shadow-[0_32px_80px_rgba(0,0,0,0.62)] backdrop-blur-3xl max-h-[calc(100dvh-2rem)]"
           >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(234,88,12,0.16),_transparent_40%)]" />
+            <BorderBeam
+              colorFrom="#f59e0b"
+              colorTo="#ea580c"
+              size={90}
+              duration={9}
+              borderWidth={1}
+            />
+            <DotPattern
+              width={26}
+              height={26}
+              cr={0.7}
+              className="text-amber-400/[0.04] [mask-image:radial-gradient(ellipse_at_top,black_25%,transparent_65%)]"
+            />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.14),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(234,88,12,0.12),_transparent_42%)]" />
 
-            <div className="relative grid gap-6 p-4 sm:p-6 md:grid-cols-[1.08fr,0.92fr] md:p-8">
-              <section className="flex flex-col rounded-[1.8rem] border border-white/[0.06] bg-black/25 p-6 backdrop-blur-xl md:p-7">
+            <div className="relative overflow-y-auto p-5 sm:p-6 md:p-8 max-h-[calc(100dvh-2rem)]">
+              {/* Header */}
+              <BlurFade delay={0.05}>
                 <div className="flex items-center gap-3">
-                  <div className="flex size-12 items-center justify-center rounded-2xl border border-amber-400/20 bg-gradient-to-br from-amber-500/25 to-orange-600/20 shadow-[0_12px_40px_rgba(245,158,11,0.18)]">
+                  <div className="flex size-11 items-center justify-center rounded-2xl border border-amber-400/20 bg-gradient-to-br from-amber-500/25 to-orange-600/20 shadow-[0_12px_40px_rgba(245,158,11,0.18)]">
                     <Sparkles className="size-5 text-amber-100" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/70">
+                    <Badge
+                      variant="outline"
+                      className="mb-1 h-auto gap-1.5 rounded-full border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[9px] font-medium tracking-widest text-amber-200 uppercase"
+                    >
+                      <PulseDot />
                       Brainstorm Mode
-                    </p>
-                    <h1 id="brainstorm-entry-title" className="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-                      {modalTitle}
+                    </Badge>
+                    <h1
+                      id="brainstorm-entry-title"
+                      className="text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl"
+                    >
+                      <AnimatedGradientText
+                        colorFrom="#f59e0b"
+                        colorTo="#ea580c"
+                        speed={2}
+                        className="text-xl font-semibold tracking-tight sm:text-2xl"
+                      >
+                        {modalTitle}
+                      </AnimatedGradientText>
                     </h1>
                   </div>
                 </div>
+              </BlurFade>
 
-                <p id="brainstorm-entry-description" className="mt-5 max-w-xl text-sm leading-7 text-slate-300">
-                  A deliberate entry step now gates the workspace so auth, guest mode, and future saved-session flows all start from one polished launch surface.
+              <BlurFade delay={0.1}>
+                <p
+                  id="brainstorm-entry-description"
+                  className="mt-4 text-sm leading-7 text-slate-300"
+                >
+                  Voice-powered creative workspace. Sign in to save your
+                  sessions, or jump in as a guest to explore freely.
                 </p>
+              </BlurFade>
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {/* Feature highlights */}
+              <BlurFade delay={0.15}>
+                <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                   {[
                     {
-                      icon: <Mail className="size-4 text-amber-300" />,
-                      title: 'Email + password',
-                      body: 'Create an account or sign in without ever leaving brainstorm.',
+                      icon: <Sparkles className="size-3.5 text-amber-300" />,
+                      label: 'Voice ideation',
                     },
                     {
-                      icon: <GoogleGlyph />,
-                      title: 'Google sign-in',
-                      body: 'Jump back into the signed-in brainstorm flow with a popup sign-in.',
+                      icon: <Zap className="size-3.5 text-orange-300" />,
+                      label: 'AI artifacts',
                     },
                     {
-                      icon: <UserRound className="size-4 text-amber-300" />,
-                      title: 'Guest access',
-                      body: 'Open the workspace instantly, but nothing survives a refresh or close.',
+                      icon: <FolderOpen className="size-3.5 text-amber-300" />,
+                      label: 'Saved sessions',
                     },
                     {
-                      icon: <ArrowRight className="size-4 text-amber-300" />,
-                      title: 'Library-first restore',
-                      body: 'Returning signed-in users re-enter through the modal instead of dropping into live controls.',
+                      icon: <ArrowRight className="size-3.5 text-orange-300" />,
+                      label: 'Instant export',
                     },
                   ].map((item) => (
                     <div
-                      key={item.title}
-                      className="rounded-2xl border border-white/[0.05] bg-white/[0.03] p-4"
+                      key={item.label}
+                      className="flex items-center gap-2 rounded-xl border border-white/[0.05] bg-white/[0.03] px-3 py-2"
                     >
-                      <div className="flex size-9 items-center justify-center rounded-xl border border-white/[0.06] bg-black/20">
-                        {item.icon}
-                      </div>
-                      <h2 className="mt-3 text-sm font-semibold text-slate-100">{item.title}</h2>
-                      <p className="mt-1 text-sm leading-6 text-slate-400">{item.body}</p>
+                      {item.icon}
+                      <span className="text-xs font-medium text-slate-300">
+                        {item.label}
+                      </span>
                     </div>
                   ))}
                 </div>
+              </BlurFade>
 
-                <div className="mt-6 rounded-[1.5rem] border border-amber-400/15 bg-gradient-to-br from-amber-500/12 to-orange-600/10 p-5 shadow-[0_18px_40px_rgba(217,119,6,0.12)]">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/80">
-                    Continue as guest
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-200">
-                    Guest sessions stay fully ephemeral. Refresh the page, close the tab, or come back later and they are gone.
-                  </p>
-                  <Button
-                    onClick={onContinueAsGuest}
-                    disabled={isSubmitting}
-                    className="mt-4 min-h-12 w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(217,119,6,0.28)] hover:brightness-110"
-                  >
-                    Continue as guest
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </div>
-              </section>
-
-              <section className="rounded-[1.8rem] border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl md:p-7">
-                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/[0.06] bg-black/20 p-1">
-                  {[
-                    { id: 'sign_up' as const, label: 'Sign up' },
-                    { id: 'sign_in' as const, label: 'Sign in' },
-                  ].map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => {
-                        setAuthMode(option.id)
-                        setFieldError(null)
-                        onClearError()
+              {/* Auth section */}
+              <BlurFade delay={0.2}>
+                <div className="mt-6 rounded-[1.5rem] border border-white/[0.06] bg-white/[0.02] p-5 backdrop-blur-xl sm:p-6">
+                  {/* Auth toggle */}
+                  <div className="relative grid grid-cols-2 gap-1 rounded-xl border border-white/[0.06] bg-black/25 p-1">
+                    <motion.div
+                      ref={tabIndicatorRef}
+                      layoutId="auth-tab-indicator"
+                      className="absolute inset-y-1 w-[calc(50%-2px)] rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/15 shadow-[0_0_24px_rgba(245,158,11,0.1)]"
+                      animate={{
+                        x: authMode === 'sign_up' ? 4 : 'calc(100% + 4px)',
                       }}
-                      className={cn(
-                        'min-h-11 rounded-xl px-4 text-sm font-semibold transition-colors',
-                        authMode === option.id
-                          ? 'bg-amber-500/18 text-amber-100 shadow-[0_0_30px_rgba(245,158,11,0.08)]'
-                          : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200',
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    void handleGoogleSignIn()
-                  }}
-                  disabled={isSubmitting}
-                  className="mt-5 min-h-12 w-full rounded-2xl border-white/[0.1] bg-white/[0.04] text-slate-100 hover:bg-white/[0.08]"
-                >
-                  {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <GoogleGlyph />}
-                  Continue with Google
-                </Button>
-
-                <div className="mt-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                  <span className="h-px flex-1 bg-white/[0.08]" />
-                  or use email
-                  <span className="h-px flex-1 bg-white/[0.08]" />
-                </div>
-
-                <div className="mt-5 space-y-4">
-                  {authMode === 'sign_up' && (
-                    <label className="block space-y-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                        Display name
-                      </span>
-                      <Input
-                        value={displayName}
-                        onChange={(event) => {
-                          setDisplayName(event.target.value)
+                      transition={{
+                        type: 'spring',
+                        stiffness: 400,
+                        damping: 30,
+                      }}
+                    />
+                    {[
+                      { id: 'sign_up' as const, label: 'Sign up' },
+                      { id: 'sign_in' as const, label: 'Sign in' },
+                    ].map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          haptic.trigger('selection')
+                          setAuthMode(option.id)
                           setFieldError(null)
                           onClearError()
                         }}
-                        placeholder="Your creative alias"
-                        className="min-h-12 rounded-2xl border-white/[0.08] bg-[#0b1120] px-4 text-slate-100 placeholder:text-slate-500"
+                        className={cn(
+                          'relative z-10 min-h-10 rounded-lg px-4 text-sm font-semibold transition-colors',
+                          authMode === option.id
+                            ? 'text-amber-100'
+                            : 'text-slate-400 hover:text-slate-200',
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Google sign-in */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  >
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        void handleGoogleSignIn()
+                      }}
+                      disabled={isSubmitting}
+                      className="mt-4 min-h-11 w-full rounded-xl border-white/[0.1] bg-white/[0.04] text-sm text-slate-100 hover:bg-white/[0.08]"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <GoogleGlyph />
+                      )}
+                      Continue with Google
+                    </Button>
+                  </motion.div>
+
+                  {/* Divider */}
+                  <div className="mt-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    <span className="h-px flex-1 bg-white/[0.08]" />
+                    or use email
+                    <span className="h-px flex-1 bg-white/[0.08]" />
+                  </div>
+
+                  {/* Form fields */}
+                  <div className="mt-4 space-y-3">
+                    <AnimatePresence mode="wait">
+                      {authMode === 'sign_up' && (
+                        <motion.label
+                          key="display-name-field"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2, ease: EASE }}
+                          className="block space-y-1.5 overflow-hidden"
+                        >
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                            Display name
+                          </span>
+                          <Input
+                            value={displayName}
+                            onChange={(event) => {
+                              setDisplayName(event.target.value)
+                              setFieldError(null)
+                              onClearError()
+                            }}
+                            placeholder="Your creative alias"
+                            className="min-h-11 rounded-xl border-white/[0.08] bg-[#0b1120] px-4 text-sm text-slate-100 placeholder:text-slate-500"
+                          />
+                        </motion.label>
+                      )}
+                    </AnimatePresence>
+
+                    <label className="block space-y-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                        Email address
+                      </span>
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(event) => {
+                          setEmail(event.target.value)
+                          setFieldError(null)
+                          onClearError()
+                        }}
+                        placeholder="name@example.com"
+                        aria-invalid={activeError ? 'true' : 'false'}
+                        className="min-h-11 rounded-xl border-white/[0.08] bg-[#0b1120] px-4 text-sm text-slate-100 placeholder:text-slate-500"
                       />
                     </label>
-                  )}
 
-                  <label className="block space-y-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                      Email address
-                    </span>
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(event) => {
-                        setEmail(event.target.value)
-                        setFieldError(null)
-                        onClearError()
-                      }}
-                      placeholder="name@example.com"
-                      aria-invalid={activeError ? 'true' : 'false'}
-                      className="min-h-12 rounded-2xl border-white/[0.08] bg-[#0b1120] px-4 text-slate-100 placeholder:text-slate-500"
-                    />
-                  </label>
-
-                  <label className="block space-y-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                      Password
-                    </span>
-                    <Input
-                      type="password"
-                      value={password}
-                      onChange={(event) => {
-                        setPassword(event.target.value)
-                        setFieldError(null)
-                        onClearError()
-                      }}
-                      placeholder={authMode === 'sign_up' ? 'At least 6 characters' : 'Enter your password'}
-                      aria-invalid={activeError ? 'true' : 'false'}
-                      className="min-h-12 rounded-2xl border-white/[0.08] bg-[#0b1120] px-4 text-slate-100 placeholder:text-slate-500"
-                    />
-                  </label>
-
-                  {authMode === 'sign_up' && (
-                    <label className="block space-y-2">
+                    <label className="block space-y-1.5">
                       <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                        Confirm password
+                        Password
                       </span>
                       <Input
                         type="password"
-                        value={confirmPassword}
+                        value={password}
                         onChange={(event) => {
-                          setConfirmPassword(event.target.value)
+                          setPassword(event.target.value)
                           setFieldError(null)
                           onClearError()
                         }}
-                        placeholder="Repeat your password"
+                        placeholder={
+                          authMode === 'sign_up'
+                            ? 'At least 6 characters'
+                            : 'Enter your password'
+                        }
                         aria-invalid={activeError ? 'true' : 'false'}
-                        className="min-h-12 rounded-2xl border-white/[0.08] bg-[#0b1120] px-4 text-slate-100 placeholder:text-slate-500"
+                        className="min-h-11 rounded-xl border-white/[0.08] bg-[#0b1120] px-4 text-sm text-slate-100 placeholder:text-slate-500"
                       />
                     </label>
-                  )}
-                </div>
 
-                {activeError && (
-                  <div className="mt-4 flex items-start gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100">
-                    <CircleAlert className="mt-0.5 size-4 shrink-0 text-rose-300" />
-                    <span>{activeError}</span>
+                    <AnimatePresence mode="wait">
+                      {authMode === 'sign_up' && (
+                        <motion.label
+                          key="confirm-password-field"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2, ease: EASE }}
+                          className="block space-y-1.5 overflow-hidden"
+                        >
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                            Confirm password
+                          </span>
+                          <Input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(event) => {
+                              setConfirmPassword(event.target.value)
+                              setFieldError(null)
+                              onClearError()
+                            }}
+                            placeholder="Repeat your password"
+                            aria-invalid={activeError ? 'true' : 'false'}
+                            className="min-h-11 rounded-xl border-white/[0.08] bg-[#0b1120] px-4 text-sm text-slate-100 placeholder:text-slate-500"
+                          />
+                        </motion.label>
+                      )}
+                    </AnimatePresence>
                   </div>
-                )}
 
-                <Button
-                  onClick={() => {
-                    void handleSubmit()
-                  }}
-                  disabled={isSubmitting}
-                  className="mt-5 min-h-12 w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(217,119,6,0.28)] hover:brightness-110"
-                >
-                  {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
-                  {authMode === 'sign_up' ? 'Create your brainstorm account' : 'Sign in to brainstorm'}
-                </Button>
+                  {/* Error display */}
+                  {activeError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100"
+                    >
+                      <CircleAlert className="mt-0.5 size-4 shrink-0 text-rose-300" />
+                      <span>{activeError}</span>
+                    </motion.div>
+                  )}
 
-                <p className="mt-4 text-sm leading-6 text-slate-500">
-                  {authMode === 'sign_up'
-                    ? 'A successful sign-up keeps you inside the brainstorm modal and restores the signed-in library state.'
-                    : 'A successful sign-in returns you to the brainstorm library state instead of dropping into the workspace.'}
-                </p>
-              </section>
+                  {/* Submit button */}
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  >
+                    <Button
+                      onClick={() => {
+                        void handleSubmit()
+                      }}
+                      disabled={isSubmitting}
+                      className="mt-4 min-h-11 w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(217,119,6,0.28)] hover:brightness-110"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Mail className="size-4" />
+                      )}
+                      {authMode === 'sign_up'
+                        ? 'Create account'
+                        : 'Sign in'}
+                    </Button>
+                  </motion.div>
+
+                  <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+                    {authMode === 'sign_up'
+                      ? 'Save brainstorms, revisit sessions, and share your ideas.'
+                      : 'Pick up right where you left off in your creative library.'}
+                  </p>
+                </div>
+              </BlurFade>
+
+              {/* Guest CTA */}
+              <BlurFade delay={0.28}>
+                <div className="mt-5 rounded-[1.2rem] border border-amber-400/10 bg-gradient-to-br from-amber-500/8 to-orange-600/6 p-4 sm:p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-amber-400/15 bg-amber-500/10">
+                      <UserRound className="size-4 text-amber-200" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-100">
+                        Just want to explore?
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">
+                        Guest sessions are fully ephemeral — nothing is saved
+                        after you close the tab.
+                      </p>
+                    </div>
+                  </div>
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  >
+                    <Button
+                      onClick={() => {
+                        haptic.trigger('light')
+                        onContinueAsGuest()
+                      }}
+                      disabled={isSubmitting}
+                      variant="outline"
+                      className="mt-3 min-h-10 w-full rounded-xl border-amber-500/15 bg-amber-500/8 text-sm font-semibold text-amber-100 hover:bg-amber-500/15 hover:border-amber-500/25"
+                    >
+                      Continue as guest
+                      <ArrowRight className="size-4" />
+                    </Button>
+                  </motion.div>
+                </div>
+              </BlurFade>
             </div>
           </motion.div>
         )}
