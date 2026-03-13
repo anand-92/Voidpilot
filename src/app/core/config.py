@@ -9,6 +9,10 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Modern Python Backend"
     API_V1_STR: str = "/api/v1"
+    FIREBASE_PROJECT_ID: str = Field(default="")
+    FIREBASE_STORAGE_BUCKET: str = Field(default="")
+    FIREBASE_LOCATION: str = "us-east1"
+    FIREBASE_CREDENTIALS_JSON: str | None = Field(default=None)
     GOOGLE_API_KEY: str | None = Field(default=None)
     GEMINI_FILE_SEARCH_STORE_ID: str = (
         "fileSearchStores/voidpilotdocscontext-hka0fgfp7dbl"
