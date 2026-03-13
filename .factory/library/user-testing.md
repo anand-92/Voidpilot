@@ -3,16 +3,16 @@
 ## Validation Surface
 
 ### Primary browser surface
-- Use `cmux-browser` first for browser-based validation, per user instruction.
-- If `cmux-browser` fails, is unavailable, or is too limited for popup/network inspection, fall back to `chrome-devtools`.
-- If `chrome-devtools` also fails or is unavailable, fall back to `agent-browser`.
-- If all three browser paths fail, do not block the mission on the remaining UI validation work; document the limitation and continue.
+- Use `chrome-devtools` for browser-based validation.
+- Do not use `cmux-browser` or `agent-browser` for this mission.
+- If `chrome-devtools` fails, is unavailable, or is too limited for popup/network inspection, do not block the mission on the remaining UI validation work; document the limitation and continue.
 
 ### Local app setup
 - Backend: `127.0.0.1:8000`
 - Frontend: `127.0.0.1:5173`
 - Brainstorm route: `/#/brainstorm`
 - Public share route should remain `HashRouter`-compatible.
+- Before browser validation, confirm `8000` and `5173` are serving the current checkout; if stale local servers are bound to those ports, restart via `.factory/services.yaml` or skip browser validation rather than blocking the mission.
 
 ### Browser flows to validate
 - Brainstorm entry modal on direct load and landing-page navigation

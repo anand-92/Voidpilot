@@ -54,14 +54,13 @@ This mission’s brainstorm auth/persistence/share features should usually use t
 6. Do not accidentally expose live workspace controls on read-only public share pages.
 
 ### 5. Manually verify the user flows
-1. Use `cmux-browser` first for browser validation.
-2. If `cmux-browser` fails, is unavailable, or cannot credibly verify popup/network-heavy behavior, use `chrome-devtools`.
-3. If `chrome-devtools` is not enough, use `agent-browser`.
-4. If all three fail, document the limitation explicitly in the handoff.
-5. For every fulfilled user-visible flow, add an `interactiveChecks` entry that states:
+1. Use `chrome-devtools` for browser validation.
+2. Do not use `cmux-browser` or `agent-browser` for this mission.
+3. If `chrome-devtools` is unavailable, flaky, or cannot credibly verify a flow, document the limitation explicitly in the handoff and continue without blocking the feature.
+4. For every fulfilled user-visible flow that you do validate, add an `interactiveChecks` entry that states:
    - what you did
    - what you observed
-   - whether you used `cmux-browser`, `chrome-devtools`, `agent-browser`, or had to skip UI validation
+   - whether you used `chrome-devtools` or had to skip UI validation
 
 ### 6. Run validators before finishing
 Run these after implementation, fixing failures before handoff:
@@ -97,9 +96,9 @@ Before handoff, verify:
       { "command": "cd /Users/dks0662779/gemini-live-3d-bridge/frontend && npm run lint", "exitCode": 0, "observation": "Lint passed with no new errors" }
     ],
     "interactiveChecks": [
-      { "action": "Used cmux-browser to open /#/brainstorm in a signed-out state and inspect the first paint", "observed": "Animated brainstorm entry modal appeared before the workspace was usable" },
-      { "action": "Used cmux-browser to complete sign-in and observe the post-auth destination", "observed": "Successful auth returned to the signed-in library inside the modal instead of dropping directly into the workspace" },
-      { "action": "Used cmux-browser to choose Continue as guest and inspect the workspace", "observed": "Guest entered the workspace with explicit ephemerality messaging and no signed-in library controls" }
+      { "action": "Used chrome-devtools to open /#/brainstorm in a signed-out state and inspect the first paint", "observed": "Animated brainstorm entry modal appeared before the workspace was usable" },
+      { "action": "Used chrome-devtools to complete sign-in and observe the post-auth destination", "observed": "Successful auth returned to the signed-in library inside the modal instead of dropping directly into the workspace" },
+      { "action": "Used chrome-devtools to choose Continue as guest and inspect the workspace", "observed": "Guest entered the workspace with explicit ephemerality messaging and no signed-in library controls" }
     ]
   },
   "tests": {
@@ -123,5 +122,5 @@ Before handoff, verify:
 - Firebase setup or access is blocked in a way you cannot resolve from the repo and local tooling.
 - A required dependency or credential boundary is missing and prevents implementation or validation.
 - The feature requires changing mission boundaries (for example, expanding auth beyond brainstorm or removing the hardcoded Gemini key behavior).
-- Browser validation fails in both `cmux-browser` and `agent-browser`, and the feature cannot be credibly verified without user help.
+- Do not return solely because `chrome-devtools` is unavailable or insufficient; document skipped UI validation and continue unless a real product or environment blocker still prevents completion.
 - Existing test failures appear unrelated to your changes and you cannot determine whether they are safe to fix.
