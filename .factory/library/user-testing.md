@@ -66,22 +66,14 @@
 - `PUT /api/v1/live/brainstorm/sessions/{id}/turns` — saves turns for a session (returns 200 with turnCount)
 - `GET /api/v1/live/brainstorm/sessions/{id}/turns` — loads saved turns for a session
 - `PATCH /api/v1/live/brainstorm/sessions/{id}/title` — updates session title
-- `PUT /api/v1/live/brainstorm/sessions/{id}/artifacts` — saves artifact (requires Cloud Storage bucket — see Known Limitations)
+- `PUT /api/v1/live/brainstorm/sessions/{id}/artifacts` — saves artifact to Cloud Storage
 - `GET /api/v1/live/brainstorm/sessions/{id}/artifacts` — lists artifact metadata
 - `GET /api/v1/live/brainstorm/sessions/{id}/artifacts/{aid}/download` — downloads artifact content
 - All endpoints return 401 for missing/invalid auth tokens with code `brainstorm_auth_missing` or `brainstorm_auth_invalid`
 
-## Cloud Storage Limitation
+## Cloud Storage
 
-The Firebase Cloud Storage bucket `gen-lang-client-0579048282.firebasestorage.app` is **not provisioned**. Artifact upload/download operations return HTTP 404 from the Google Cloud Storage API:
-
-```
-google.api_core.exceptions.NotFound: 404 POST https://storage.googleapis.com/upload/storage/v1/b/gen-lang-client-0579048282.firebasestorage.app/o?uploadType=multipart: The specified bucket does not exist.
-```
-
-This blocks artifact persistence validation (VAL-SESSION-009, VAL-SESSION-010) and will also block artifact download in share pages. The Firestore operations (sessions, turns, titles) work correctly with the legacy ADC credentials.
-
-To fix: provision the bucket in the Firebase Console or via `gsutil mb gs://gen-lang-client-0579048282.firebasestorage.app`.
+The Firebase Cloud Storage bucket `gen-lang-client-0579048282.firebasestorage.app` is provisioned in `US-EAST1` (standard storage class). Artifact upload/download operations should work with ADC credentials.
 
 ## Flow Validator Guidance: browser
 
