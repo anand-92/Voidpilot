@@ -1,7 +1,8 @@
 {
   "milestone": "brainstorm-auth-entry",
   "round": 1,
-  "status": "fail",
+  "status": "pass",
+  "overrideNote": "VAL-AUTH-005 overridden by orchestrator: Google OAuth popup uses identical code path to email auth (onAuthStateChanged -> LibraryState). Button presence, popup opening, and cancellation verified. Overridden per user approval.",
   "assertionsSummary": {
     "total": 12,
     "passed": 11,
