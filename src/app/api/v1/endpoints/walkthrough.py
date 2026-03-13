@@ -58,6 +58,7 @@ async def walkthrough_ws(websocket: WebSocket):
         api_key=api_key,
         model=MODEL,
         input_sample_rate=16000,
+        voice_name="Despina",
         tools=[SEARCH_PROJECT_CONTEXT_TOOL_DEF],
         tool_mapping={
             "search_project_context": partial(

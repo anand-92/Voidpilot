@@ -28,12 +28,14 @@ class GeminiLive:
         tools=None,
         tool_mapping=None,
         system_prompt=None,
+        voice_name: str = "Puck",
         session_resumption_handle: str | None = None,
     ):
         self.api_key = api_key
         self.model = model
         self.input_sample_rate = input_sample_rate
         self.system_prompt = system_prompt or "You are a helpful desktop assistant."
+        self.voice_name = voice_name
         self.session_resumption_handle = session_resumption_handle
         self.client = genai.Client(
             api_key=api_key, http_options={"api_version": "v1beta"}
@@ -255,7 +257,9 @@ class GeminiLive:
             response_modalities=[types.Modality.AUDIO],
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name=self.voice_name
+                    )
                 )
             ),
             system_instruction=types.Content(

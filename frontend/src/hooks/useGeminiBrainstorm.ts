@@ -13,7 +13,7 @@ import {
   resampleAudio,
   scheduleAudioPlayback,
 } from '../utils/audio.ts'
-import type { Message, MessageRole } from './useGeminiLive.ts'
+import type { Message, MessageRole } from '@/types/messages'
 import {
   artifactToBlob,
   blobToArtifactContent,

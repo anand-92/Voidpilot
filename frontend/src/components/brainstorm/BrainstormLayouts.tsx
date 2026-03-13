@@ -1,6 +1,6 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import type { BrainstormArtifact, BrainstormFlashModel, BrainstormToolId } from '../../hooks/useGeminiBrainstorm'
-import type { Message } from '../../hooks/useGeminiLive'
+import type { Message } from '@/types/messages'
 
 export type BrainstormLayoutProps = {
   intensityRef: React.MutableRefObject<number>

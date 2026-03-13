@@ -672,6 +672,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
         api_key=api_key,
         model=MODEL,
         input_sample_rate=16000,
+        voice_name="Aoede",
         tools=tool_defs,
         tool_mapping=tool_mapping,
         system_prompt=BRAINSTORM_SYSTEM_PROMPT,
