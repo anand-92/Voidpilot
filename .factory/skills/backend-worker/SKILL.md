@@ -9,44 +9,91 @@ NOTE: Startup and cleanup are handled by `worker-base`. This skill defines the W
 
 ## When to Use This Skill
 
-For modifying Python API routes, core logic, or background services, primarily around code structure, type hints, error handling, and separation of concerns.
+Use this skill for backend-focused features such as:
+- FastAPI routes and dependencies
+- Firebase token verification and backend access control
+- Firestore / Cloud Storage persistence services
+- Brainstorm websocket-side persistence hooks
+- Python typing, tests, and service-layer refactors that do not require substantial frontend UI work
 
 ## Work Procedure
 
-1. Read the feature description and related codebase context.
-2. Formulate a refactoring plan that doesn't change business functionality.
-3. Apply the changes strictly according to Python typing rules and the FastAPI framework standards.
-4. Run `uv run pytest tests/` and `uv run ruff check src/` and `uv run mypy src/`. Fix ALL errors.
-5. If the refactored code relies on environment variables, ensure validation using Pydantic Settings.
+1. Read the feature description, `fulfills`, mission `AGENTS.md`, and relevant `.factory/library/*.md` guidance before coding.
+2. Trace the existing backend flow in the relevant files before editing. For brainstorm work this often includes:
+   - `src/app/api/v1/endpoints/brainstorm.py`
+   - `src/app/services/gemini_audio.py`
+   - `src/app/services/ws_manager.py`
+   - any new persistence/auth services you introduce
+3. Write failing pytest coverage FIRST for any backend behavior change.
+4. Prefer narrow, explicit backend abstractions over hidden fallback behavior. Access control must fail clearly for missing, expired, invalid, or wrong-user auth.
+5. Preserve the current hardcoded Gemini API key behavior for this mission; do not remove it.
+6. Keep auth/persistence scoped to brainstorm only unless the feature explicitly says otherwise.
+7. Run and fix all backend validators before handoff:
+   - `uv run ruff check src/`
+   - `uv run mypy src/`
+   - `uv run pytest tests/ -v`
+8. If the feature changes a cross-stack contract (API shape, websocket message shape, persistence semantics), verify the affected frontend assumptions and mention them in the handoff.
 
 ## Example Handoff
 
+```json
 {
-  "salientSummary": "Refactored `flash_worker.py` to add `try/except` around LLM calls, checked array boundaries on `parts`, and updated types. Tests run successfully.",
-  "whatWasImplemented": "Replaced blind `response.candidates[0].content.parts` with safe `.get()` traversals and proper fallback error logging in `flash_worker.py`.",
+  "salientSummary": "Added Firebase-backed brainstorm auth verification and persistence service scaffolding to the backend. Private brainstorm routes now reject missing and wrong-user auth cleanly, while public share reads remain unauthenticated.",
+  "whatWasImplemented": "Created backend Firebase auth helpers plus brainstorm persistence service scaffolding for Firestore and Cloud Storage. Updated FastAPI dependencies so brainstorm-private flows can verify Firebase ID tokens and distinguish unauthorized callers from valid owners. Preserved the existing hardcoded Gemini API key behavior and kept the changes scoped to brainstorm-specific backend paths.",
   "whatWasLeftUndone": "",
   "verification": {
     "commandsRun": [
       {
-        "command": "uv run pytest tests/test_flash_worker.py",
+        "command": "uv run pytest tests/test_brainstorm_backend_auth.py -v",
         "exitCode": 0,
-        "observation": "All 9 tests passed."
+        "observation": "Focused auth coverage passed for valid owner, missing token, expired token, and wrong-user cases."
       },
       {
-        "command": "uv run mypy src/app/services/flash_worker.py",
+        "command": "uv run ruff check src/",
         "exitCode": 0,
-        "observation": "Success: no issues found in 1 source file"
+        "observation": "All backend lint checks passed."
+      },
+      {
+        "command": "uv run mypy src/",
+        "exitCode": 0,
+        "observation": "Backend typing passed with no new issues."
+      },
+      {
+        "command": "uv run pytest tests/ -v",
+        "exitCode": 0,
+        "observation": "Full backend test suite passed after the new auth/persistence additions."
       }
     ],
     "interactiveChecks": []
   },
   "tests": {
-    "added": []
+    "added": [
+      {
+        "file": "tests/test_brainstorm_backend_auth.py",
+        "cases": [
+          {
+            "name": "test_private_brainstorm_route_rejects_missing_token",
+            "verifies": "private brainstorm access is denied when no Firebase auth token is provided"
+          },
+          {
+            "name": "test_private_brainstorm_route_rejects_wrong_user",
+            "verifies": "private brainstorm access is denied when the caller is authenticated as a different user"
+          },
+          {
+            "name": "test_public_share_read_remains_unauthenticated",
+            "verifies": "public share reads remain accessible without auth while private owner routes stay protected"
+          }
+        ]
+      }
+    ]
   },
   "discoveredIssues": []
 }
+```
 
 ## When to Return to Orchestrator
 
-- Tests unrelated to the changed code suddenly fail.
-- Found severe logical bugs beyond refactoring scope that need user approval to fix.
+- Firebase/GCP project setup is blocked in a way you cannot resolve locally.
+- A required backend contract depends on unfinished frontend decisions that make the feature ambiguous.
+- Private-vs-public access control cannot be implemented without changing the agreed mission boundaries.
+- Existing unrelated backend tests fail and you cannot determine whether fixing them is safe within scope.
