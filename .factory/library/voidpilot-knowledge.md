@@ -39,7 +39,8 @@
 ## Frontend Artifact Content Format
 - **Markdown artifacts**: `brainstorm_artifact` messages carry `content` as raw markdown text (UTF-8 string). Rendered inline via react-markdown, downloadable as-is.
 - **Image artifacts**: `brainstorm_image` messages carry `data` as a base64-encoded string. Displayed inline via `data:image/png;base64,...` URIs. For downloads, the base64 string must be decoded to binary before creating Blobs or zip entries — otherwise downloaded files will be corrupt.
-- **State**: All artifacts are held in React state (`Map<string, BrainstormArtifact>`) with no server-side storage. Client-side downloads via Blob URLs and JSZip.
+- **State (guest)**: Guest sessions hold artifacts in React state only (`Map<string, BrainstormArtifact>`) with no server-side storage. Client-side downloads via Blob URLs and JSZip.
+- **State (signed-in)**: Signed-in sessions persist artifacts to Cloud Storage (blobs) with Firestore metadata in an `artifacts` subcollection under each session document. On session reopen, artifacts are hydrated from the backend. Turns (transcript state) are stored in a `turns` subcollection with a single `latest` document containing the full turn list.
 
 ## Icon Generation Pipeline
 - **Script**: `frontend/scripts/generate-icons.mjs` calls Gemini to generate all icons in `GeminiIcons.tsx`.

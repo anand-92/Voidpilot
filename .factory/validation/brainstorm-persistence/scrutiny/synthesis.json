@@ -1,0 +1,51 @@
+{
+  "milestone": "brainstorm-persistence",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "uv run pytest tests/ -v", "exitCode": 0 },
+    "typecheck": { "passed": true, "command": "uv run mypy src/", "exitCode": 0 },
+    "lint": { "passed": true, "command": "uv run ruff check src/ && cd frontend && npm run lint && npm run build", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Updated .factory/library/voidpilot-knowledge.md 'Frontend Artifact Content Format' section to reflect that signed-in sessions now persist artifacts to Cloud Storage + Firestore (artifacts subcollection) and turns to Firestore (turns subcollection with latest document), while guest sessions remain React-state-only.",
+      "sourceFeature": "brainstorm-artifact-persistence-and-session-isolation"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add to Backend Routes section: the new REST endpoints for brainstorm persistence — PUT/GET /api/v1/live/brainstorm/sessions/{id}/turns, PATCH /api/v1/live/brainstorm/sessions/{id}/title, PUT/GET /api/v1/live/brainstorm/sessions/{id}/artifacts, GET /api/v1/live/brainstorm/sessions/{id}/artifacts/{artifact_id}/download. These are owner-auth-protected endpoints for signed-in session persistence.",
+      "evidence": "Both reviewers noted that AGENTS.md Backend Routes section only lists WS endpoints and /health, /api/v1/hello. The new REST endpoints at src/app/api/v1/endpoints/brainstorm.py (lines 374-531) are undocumented.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Document the convention that brainstorm REST endpoints use `body: dict` instead of Pydantic models for request body validation. This is consistent across all brainstorm persistence endpoints (sessions, turns, artifacts) and is intentional hackathon-posture tech debt. Workers should follow this pattern for consistency unless the convention is explicitly changed.",
+      "evidence": "Feature brainstorm-signed-in-turn-persistence reviewer noted `body: dict` at brainstorm.py lines 374, 419, 446. Feature brainstorm-artifact-persistence reviewer noted the same pattern. Both flagged it as convention debt, not a bug.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Note that brainstorm persistence services share private helpers (_now_timestamp, _raise_session_dependency_error) imported across module boundaries from brainstorm_session_library. If this pattern grows, consider extracting to a shared brainstorm_persistence_utils module.",
+      "evidence": "Both brainstorm_turn_persistence.py and brainstorm_artifact_persistence.py import underscore-prefixed helpers from brainstorm_session_library. Two consumers of the same private API.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Firestore subcollection pattern for turns (turns/latest) should be documented in library.",
+      "reason": "Already covered in the applied library update to voidpilot-knowledge.md which now describes both the artifacts subcollection and turns subcollection structure."
+    }
+  ],
+  "previousRound": null
+}

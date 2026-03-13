@@ -1,0 +1,50 @@
+{
+  "featureId": "brainstorm-artifact-persistence-and-session-isolation",
+  "reviewedAt": "2026-03-13T06:50:00.000Z",
+  "commitId": "3a57716",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of artifact persistence with Cloud Storage blobs and Firestore metadata. The architecture correctly separates blob storage (Cloud Storage) from metadata (Firestore subcollections), enforces owner-auth on all three REST endpoints, and handles delayed tool completions via explicit session_id binding on the frontend. Session isolation is thoroughly tested. Code follows existing project conventions (same error handling patterns, dependency injection, `body: dict` endpoint signatures). Two non-blocking issues noted: (1) Content-Disposition header injection risk from unsanitized filenames, and (2) private helper imports across module boundaries.",
+    "issues": [
+      {
+        "file": "src/app/api/v1/endpoints/brainstorm.py",
+        "line": 529,
+        "severity": "non_blocking",
+        "description": "Content-Disposition header uses the filename from Firestore metadata without sanitizing quotes or newlines. A crafted filename like `foo\".html` or one with CRLF characters could cause header injection. The blob path uses `PurePosixPath.name` for sanitization, but the metadata `filename` field stored in Firestore (and returned in the Content-Disposition header) is the raw user-provided string. Consider stripping/escaping double quotes and control characters from the filename before embedding in the header, or using `urllib.parse.quote` for RFC 5987 encoding."
+      },
+      {
+        "file": "src/app/services/brainstorm_artifact_persistence.py",
+        "line": 32,
+        "severity": "non_blocking",
+        "description": "Imports private helpers `_now_timestamp` and `_raise_session_dependency_error` from `brainstorm_session_library`. These are underscore-prefixed internal functions being used across module boundaries. Consider extracting them to a shared utility module (e.g., `brainstorm_persistence_utils.py`) or removing the underscore prefix to signal they're part of the module's public API. This follows the same pattern already established by the turn persistence module, so it's a pre-existing convention debt, not a new regression."
+      },
+      {
+        "file": "frontend/src/hooks/useGeminiBrainstorm.ts",
+        "line": 329,
+        "severity": "non_blocking",
+        "description": "The `loadSavedArtifacts` function downloads every artifact's full content in parallel on session restore. For sessions with many large image artifacts this could cause significant memory pressure and network load on reopen. Not blocking since it works correctly and matches the feature spec (previews and downloads must work after reopen), but a future optimization could load metadata only and fetch content on-demand."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "The voidpilot-knowledge.md library file states 'All artifacts are held in React state (Map<string, BrainstormArtifact>) with no server-side storage. Client-side downloads via Blob URLs and JSZip.' This is now outdated — signed-in sessions persist artifacts to Cloud Storage blobs with Firestore metadata, and the frontend hydrates them from the backend on session reopen.",
+      "evidence": ".factory/library/voidpilot-knowledge.md line 42: '**State**: All artifacts are held in React state (`Map<string, BrainstormArtifact>`) with no server-side storage.' contradicts the new artifact persistence service at src/app/services/brainstorm_artifact_persistence.py"
+    },
+    {
+      "area": "conventions",
+      "observation": "The artifact persistence service imports private (underscore-prefixed) helpers `_now_timestamp` and `_raise_session_dependency_error` from `brainstorm_session_library`. The turn persistence service (`brainstorm_turn_persistence.py`) does the same. This cross-module private import pattern is now established across 2 consumers but isn't documented as an accepted convention.",
+      "evidence": "src/app/services/brainstorm_artifact_persistence.py:31-32 imports `_now_timestamp` and `_raise_session_dependency_error` from brainstorm_session_library; same pattern at src/app/services/brainstorm_turn_persistence.py:21-22"
+    },
+    {
+      "area": "knowledge",
+      "observation": "AGENTS.md doesn't mention the new REST endpoints for artifact persistence (PUT/GET/GET-download under /brainstorm/sessions/{id}/artifacts). The Backend Routes section should be updated to include these.",
+      "evidence": "AGENTS.md Backend Routes section lists only WS endpoints and /health, /api/v1/hello. New endpoints at src/app/api/v1/endpoints/brainstorm.py lines 443-531 are undocumented."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. The implementation correctly persists brainstorm artifacts as Cloud Storage blobs with Firestore metadata, enforces owner-auth on all endpoints, and handles delayed tool completions by binding saves to the originating session_id captured at artifact arrival time. Session isolation is well-tested with 15 new tests covering save/load/download, access control, cross-session isolation, and delayed completion scenarios. Frontend parallel loading of turns+artifacts on session restore is a nice UX touch. Three non-blocking issues identified: unsanitized filename in Content-Disposition header (minor security), cross-module private helper imports (convention debt), and eager full-content download on restore (future scalability). The knowledge base entry about artifacts having no server-side storage is now outdated and should be updated."
+}
