@@ -22,7 +22,7 @@ import time
 
 from google import genai
 
-API_KEY = "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
+API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_STORE = "fileSearchStores/voidpilotdocscontext-cs0t6mbqauxc"
 DEFAULT_DISPLAY_NAME = "voidpilot-docs-context"

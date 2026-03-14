@@ -50,7 +50,7 @@ async def walkthrough_ws(websocket: WebSocket):
     logger.info("New walkthrough WebSocket connection request")
     await websocket.accept()
 
-    api_key = settings.GOOGLE_API_KEY or "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
+    api_key = settings.GOOGLE_API_KEY
 
     manager = WebSocketManager(websocket, "Walkthrough")
 

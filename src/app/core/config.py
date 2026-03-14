@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     FIREBASE_STORAGE_BUCKET: str = Field(default="")
     FIREBASE_LOCATION: str = "us-east1"
     FIREBASE_CREDENTIALS_JSON: str | None = Field(default=None)
-    GOOGLE_API_KEY: str | None = Field(default=None)
+    GOOGLE_API_KEY: str = Field(default="")
     GEMINI_FILE_SEARCH_STORE_ID: str = (
         "fileSearchStores/voidpilotdocscontext-cs0t6mbqauxc"
     )

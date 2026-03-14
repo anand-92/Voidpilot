@@ -60,7 +60,7 @@ jobs:
             --platform managed \
             --region ${REGION} \
             --allow-unauthenticated \
-            --set-env-vars GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
+            --set-env-vars GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }},FIREBASE_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},FIREBASE_STORAGE_BUCKET=${{ secrets.GCP_PROJECT_ID }}.firebasestorage.app
 
       - name: Print service URL
         run: |

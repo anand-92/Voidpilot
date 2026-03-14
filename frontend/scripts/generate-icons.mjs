@@ -1,7 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
 import { writeFileSync } from 'fs';
 
-const GEMINI_API_KEY = 'AIzaSyC3p64gzqUTuzeFDz7vqSiL3MIPafYTotw';
+const GEMINI_API_KEY = process.env.GOOGLE_API_KEY;
+if (!GEMINI_API_KEY) {
+  console.error('GOOGLE_API_KEY environment variable is required');
+  process.exit(1);
+}
 
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 

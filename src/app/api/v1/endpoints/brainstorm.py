@@ -803,7 +803,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
     logger.info("New brainstorm WebSocket connection request")
     await websocket.accept()
 
-    api_key = settings.GOOGLE_API_KEY or "AIzaSyByiOc5mdAKygGhccMJTkix1Z4I68gLuM8"
+    api_key = settings.GOOGLE_API_KEY
 
     manager = WebSocketManager(websocket, "Brainstorm")
 
