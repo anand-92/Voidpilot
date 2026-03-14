@@ -126,10 +126,10 @@ CREATIVE_SPARK_CONVERSATION_STARTERS: dict[str, tuple[str, ...]] = {
         "Where did you go today?",
         "What were you just doing?",
     ),
-    "mood": (
-        "How are you feeling right now?",
-        "Are you tired or energized?",
-        "What's on your mind?",
+    "surroundings": (
+        "What's the closest thing to your left hand right now?",
+        "What color is the wall in front of you?",
+        "What's the weirdest object on your desk?",
     ),
 }
 
