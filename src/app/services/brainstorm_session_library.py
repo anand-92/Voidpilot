@@ -29,6 +29,7 @@ class BrainstormSessionRecord:
     title: str
     created_at: str
     updated_at: str
+    brainstorm_type: str = "open_studio"
 
     def to_response_dict(self) -> dict[str, str | None]:
         payload = asdict(self)
@@ -41,6 +42,7 @@ class BrainstormSessionRecord:
             "title": payload["title"],
             "createdAt": payload["created_at"],
             "updatedAt": payload["updated_at"],
+            "brainstormType": payload["brainstorm_type"],
         }
 
 
@@ -92,6 +94,7 @@ def _session_record_from_snapshot(document_snapshot) -> BrainstormSessionRecord:
         title=payload.get("title") or DEFAULT_BRAINSTORM_SESSION_TITLE,
         created_at=payload["created_at"],
         updated_at=payload["updated_at"],
+        brainstorm_type=payload.get("brainstorm_type", "open_studio"),
     )
 
 
@@ -121,6 +124,7 @@ def create_brainstorm_session(
     services: BrainstormPersistenceServices,
     *,
     user: BrainstormFirebaseUser,
+    brainstorm_type: str = "open_studio",
 ) -> BrainstormSessionRecord:
     session_id = uuid4().hex
     now = now_timestamp()
@@ -133,6 +137,7 @@ def create_brainstorm_session(
         title=DEFAULT_BRAINSTORM_SESSION_TITLE,
         created_at=now,
         updated_at=now,
+        brainstorm_type=brainstorm_type,
     )
     try:
         _sessions_collection(services).document(session_id).set(
@@ -144,6 +149,7 @@ def create_brainstorm_session(
                 "title": session_record.title,
                 "created_at": session_record.created_at,
                 "updated_at": session_record.updated_at,
+                "brainstorm_type": session_record.brainstorm_type,
             }
         )
     except (

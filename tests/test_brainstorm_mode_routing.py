@@ -684,3 +684,172 @@ class TestWebSocketBrainstormTypeRouting:
         }
 
         assert mock_gemini_instance.system_prompt == BRAINSTORM_SYSTEM_PROMPT
+
+
+# ── Auto-start (model speaks first) ─────────────────────────────
+
+
+class TestAutoStart:
+    """VAL-SPARK-007, VAL-SPARK-010: auto-start behavior by mode."""
+
+    @pytest.mark.asyncio
+    async def test_creative_spark_enables_auto_start(self):
+        """When brainstorm_type='creative_spark', auto_start is set
+        to True on the GeminiLive instance."""
+        mock_settings = MagicMock()
+        mock_settings.GOOGLE_API_KEY = "test_key"
+
+        with (
+            patch(
+                "src.app.api.v1.endpoints.brainstorm.settings",
+                mock_settings,
+            ),
+            patch(
+                "src.app.api.v1.endpoints.brainstorm.GeminiLive",
+            ) as MockGeminiLive,
+        ):
+            mock_gemini_instance = AsyncMock()
+            MockGeminiLive.return_value = mock_gemini_instance
+
+            async def mock_start_session(*args, **kwargs):
+                yield {"type": "turn_complete"}
+
+            mock_gemini_instance.start_session = mock_start_session
+
+            client = TestClient(app)
+            with client.websocket_connect(
+                "/api/v1/live/brainstorm"
+            ) as websocket:
+                websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "session_config",
+                            "brainstorm_type": "creative_spark",
+                        }
+                    )
+                )
+                time.sleep(0.5)
+
+        assert mock_gemini_instance.auto_start is True
+
+    @pytest.mark.asyncio
+    async def test_open_studio_does_not_auto_start(self):
+        """When brainstorm_type='open_studio', auto_start is False."""
+        mock_settings = MagicMock()
+        mock_settings.GOOGLE_API_KEY = "test_key"
+
+        with (
+            patch(
+                "src.app.api.v1.endpoints.brainstorm.settings",
+                mock_settings,
+            ),
+            patch(
+                "src.app.api.v1.endpoints.brainstorm.GeminiLive",
+            ) as MockGeminiLive,
+        ):
+            mock_gemini_instance = AsyncMock()
+            MockGeminiLive.return_value = mock_gemini_instance
+
+            async def mock_start_session(*args, **kwargs):
+                yield {"type": "turn_complete"}
+
+            mock_gemini_instance.start_session = mock_start_session
+
+            client = TestClient(app)
+            with client.websocket_connect(
+                "/api/v1/live/brainstorm"
+            ) as websocket:
+                websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "session_config",
+                            "brainstorm_type": "open_studio",
+                        }
+                    )
+                )
+                time.sleep(0.5)
+
+        assert mock_gemini_instance.auto_start is False
+
+    @pytest.mark.asyncio
+    async def test_missing_brainstorm_type_does_not_auto_start(self):
+        """When brainstorm_type is missing, auto_start is False."""
+        mock_settings = MagicMock()
+        mock_settings.GOOGLE_API_KEY = "test_key"
+
+        with (
+            patch(
+                "src.app.api.v1.endpoints.brainstorm.settings",
+                mock_settings,
+            ),
+            patch(
+                "src.app.api.v1.endpoints.brainstorm.GeminiLive",
+            ) as MockGeminiLive,
+        ):
+            mock_gemini_instance = AsyncMock()
+            MockGeminiLive.return_value = mock_gemini_instance
+
+            async def mock_start_session(*args, **kwargs):
+                yield {"type": "turn_complete"}
+
+            mock_gemini_instance.start_session = mock_start_session
+
+            client = TestClient(app)
+            with client.websocket_connect(
+                "/api/v1/live/brainstorm"
+            ) as websocket:
+                websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "session_config",
+                            "flash_model": "gemini-2-flash-lite",
+                        }
+                    )
+                )
+                time.sleep(0.5)
+
+        assert mock_gemini_instance.auto_start is False
+
+
+class TestAutoStartGeminiLiveConfig:
+    """Unit tests for GeminiLive auto_start parameter."""
+
+    def test_auto_start_defaults_to_false(self):
+        """GeminiLive defaults auto_start to False."""
+        from src.app.services.gemini_audio import GeminiLive
+
+        with patch("src.app.services.gemini_audio.genai"):
+            gl = GeminiLive(
+                api_key="key",
+                model="model",
+                input_sample_rate=16000,
+            )
+        assert gl.auto_start is False
+
+    def test_auto_start_can_be_set_true(self):
+        """GeminiLive auto_start can be set to True."""
+        from src.app.services.gemini_audio import GeminiLive
+
+        with patch("src.app.services.gemini_audio.genai"):
+            gl = GeminiLive(
+                api_key="key",
+                model="model",
+                input_sample_rate=16000,
+                auto_start=True,
+            )
+        assert gl.auto_start is True
+
+    def test_auto_start_can_be_toggled_after_init(self):
+        """auto_start can be changed after init (used by session_config
+        handler)."""
+        from src.app.services.gemini_audio import GeminiLive
+
+        with patch("src.app.services.gemini_audio.genai"):
+            gl = GeminiLive(
+                api_key="key",
+                model="model",
+                input_sample_rate=16000,
+            )
+        assert gl.auto_start is False
+        gl.auto_start = True
+        assert gl.auto_start is True

@@ -202,6 +202,10 @@ class UpdateBrainstormSessionTitleRequest(BaseModel):
     title: str
 
 
+class CreateBrainstormSessionRequest(BaseModel):
+    brainstorm_type: str = "open_studio"
+
+
 class SaveBrainstormArtifactRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -463,9 +467,13 @@ async def create_brainstorm_session_record(
         BrainstormPersistenceServices,
         Depends(get_brainstorm_persistence_services),
     ],
+    body: CreateBrainstormSessionRequest | None = None,
 ) -> dict[str, dict | list | str | None]:
+    brainstorm_type = body.brainstorm_type if body else "open_studio"
     try:
-        session = create_brainstorm_session(services, user=user)
+        session = create_brainstorm_session(
+            services, user=user, brainstorm_type=brainstorm_type
+        )
     except BrainstormSessionError as exc:
         raise exc.to_http_exception() from exc
 
@@ -827,14 +835,16 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
             # Determine brainstorm_type: 'creative_spark' or default
             brainstorm_type = payload.get("brainstorm_type")
 
-            # Route system prompt based on brainstorm_type
+            # Route system prompt and auto-start based on brainstorm_type
             if brainstorm_type == "creative_spark":
                 gemini_client.system_prompt = (
                     build_creative_spark_system_prompt()
                 )
-                logger.info("Brainstorm mode: creative_spark")
+                gemini_client.auto_start = True
+                logger.info("Brainstorm mode: creative_spark (auto-start)")
             else:
                 gemini_client.system_prompt = BRAINSTORM_SYSTEM_PROMPT
+                gemini_client.auto_start = False
                 logger.info("Brainstorm mode: open_studio (default)")
 
             # Handle tool selection (open_studio only; creative_spark

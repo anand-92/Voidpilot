@@ -1,12 +1,31 @@
 import asyncio
 import inspect
 import logging
+import re
 import traceback
+import unicodedata
 
 from google import genai
 from google.genai import types
 
 logger = logging.getLogger(__name__)
+
+CTRL_TOKEN_PATTERN = re.compile(r"<ctrl\d+>", re.IGNORECASE)
+
+
+def _is_safe_live_text_char(char: str) -> bool:
+    if char in "\n\r\t":
+        return True
+    codepoint = ord(char)
+    if 0xD800 <= codepoint <= 0xDFFF:
+        return False
+    return not unicodedata.category(char).startswith("C")
+
+
+def _sanitize_live_text(text: str) -> str:
+    cleaned = CTRL_TOKEN_PATTERN.sub("", text)
+    cleaned = "".join(char for char in cleaned if _is_safe_live_text_char(char))
+    return cleaned.strip()
 
 
 async def _call_maybe_async(func, *args, **kwargs):
@@ -30,6 +49,7 @@ class GeminiLive:
         system_prompt=None,
         voice_name: str = "Puck",
         session_resumption_handle: str | None = None,
+        auto_start: bool = False,
     ):
         self.api_key = api_key
         self.model = model
@@ -37,6 +57,7 @@ class GeminiLive:
         self.system_prompt = system_prompt or "You are a helpful desktop assistant."
         self.voice_name = voice_name
         self.session_resumption_handle = session_resumption_handle
+        self.auto_start = auto_start
         self.client = genai.Client(
             api_key=api_key, http_options={"api_version": "v1beta"}
         )
@@ -71,6 +92,28 @@ class GeminiLive:
         except Exception as e:
             logger.error("Error in %s send: %s", label, e)
 
+    async def _enqueue_model_text(self, event_queue: asyncio.Queue, text: str) -> None:
+        clean_text = _sanitize_live_text(text)
+        if not clean_text:
+            return
+        await event_queue.put(
+            {
+                "type": "text",
+                "content": clean_text,
+            }
+        )
+
+    async def _enqueue_transcription(
+        self,
+        event_queue: asyncio.Queue,
+        role: str,
+        text: str,
+    ) -> None:
+        clean_text = _sanitize_live_text(text)
+        if not clean_text:
+            return
+        await event_queue.put({"type": role, "text": clean_text})
+
     async def _handle_server_content(
         self,
         server_content,
@@ -86,24 +129,22 @@ class GeminiLive:
                         part.inline_data.data,
                     )
                 if part.text and not part.text.startswith("**"):
-                    await event_queue.put(
-                        {
-                            "type": "text",
-                            "content": part.text,
-                        }
-                    )
+                    await self._enqueue_model_text(event_queue, part.text)
 
         transcription = server_content.input_transcription
         if transcription and transcription.text:
-            await event_queue.put({"type": "user", "text": transcription.text})
+            await self._enqueue_transcription(
+                event_queue,
+                "user",
+                transcription.text,
+            )
 
         transcription = server_content.output_transcription
         if transcription and transcription.text:
-            await event_queue.put(
-                {
-                    "type": "gemini",
-                    "text": transcription.text,
-                }
+            await self._enqueue_transcription(
+                event_queue,
+                "gemini",
+                transcription.text,
             )
 
         if server_content.turn_complete:
@@ -323,6 +364,18 @@ class GeminiLive:
                         )
                     ),
                 ]
+
+                # Auto-start: send an initial user turn to trigger
+                # the model to speak first (used by Creative Spark)
+                if self.auto_start:
+                    logger.info("Auto-start enabled, triggering model")
+                    await session.send_client_content(
+                        turns=types.Content(
+                            role="user",
+                            parts=[types.Part(text="Begin!")],
+                        ),
+                        turn_complete=True,
+                    )
 
                 try:
                     while session_active:
