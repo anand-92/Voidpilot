@@ -1,0 +1,46 @@
+{
+  "featureId": "creative-spark-integration-flows",
+  "reviewedAt": "2026-03-14T04:55:00.000Z",
+  "commitId": "cac9fe2",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The implementation covers all required expectedBehavior items. SharePage.tsx renders a masonry gallery layout for Creative Spark sessions with responsive column distribution, collapsible conversation panel, image/video tiles with download. The share API already included brainstormType (confirmed via to_response_dict in brainstorm_session_library.py) and the frontend PublicShareSession type was updated to include it. Error recovery UI overlays are added to both desktop and mobile Creative Spark layouts with retry and go-back options. The hook wires autoStartError/clearAutoStartError through BrainstormLayoutProps. Three well-structured backend tests verify brainstormType inclusion for both modes and private field stripping. All validators passed (186 tests, ruff, mypy, lint, build).",
+    "issues": [
+      {
+        "file": "frontend/src/hooks/useGeminiBrainstorm.ts",
+        "line": 670,
+        "severity": "non_blocking",
+        "description": "setAutoStartError is triggered for ALL WebSocket error messages when brainstormType is 'creative_spark', not just auto-start errors. If an error occurs mid-session (e.g., session connection lost), the overlay text says 'Couldn't Start Creative Spark' which is semantically incorrect for mid-session failures. Consider gating on connection state (e.g., only set autoStartError when !isConnected or during initial connection phase)."
+      },
+      {
+        "file": "frontend/src/hooks/useGeminiBrainstorm.ts",
+        "line": 670,
+        "severity": "non_blocking",
+        "description": "The frontend reads `data.content` for error messages, but gemini_audio.py yields errors with key `error` (not `content`). When forwarded through ws_manager.forward_gemini_event, these inner Gemini errors will show as 'Unknown error' since data.content is undefined. Only the top-level exception handler in brainstorm.py sends 'content'. This means auto-start failure messages from Gemini itself may lack descriptive text."
+      },
+      {
+        "file": "frontend/src/pages/SharePage.tsx",
+        "line": null,
+        "severity": "non_blocking",
+        "description": "PublicImageTile and PublicVideoTile convert binary blobs to base64 using a byte-by-byte String.fromCharCode loop. For large images/videos, this is memory-intensive and slow. Consider using URL.createObjectURL(blob) for rendering instead, which avoids the base64 overhead entirely. The download path already uses createObjectURL correctly."
+      },
+      {
+        "file": "frontend/src/pages/SharePage.tsx",
+        "line": null,
+        "severity": "non_blocking",
+        "description": "The conversation panel toggle button has fixed positioning that assumes the panel is 400px wide (right-[416px]). On smaller screens where the panel may overlay content, the toggle could be positioned off-screen. The mobile breakpoint handling for the share layout isn't explicitly addressed — it relies on column count reducing to 1-2 columns but the conversation panel width is fixed at 400px."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The backend gemini_audio.py sends error events with key 'error' while the brainstorm endpoint exception handler sends errors with key 'content'. There's no documented convention for WebSocket error message format, leading to inconsistency. AGENTS.md says to update both backend and frontend when changing message formats, but doesn't specify the canonical error message schema.",
+      "evidence": "src/app/services/gemini_audio.py:247 yields {type: 'error', error: ...}; src/app/api/v1/endpoints/brainstorm.py:898 sends {type: 'error', content: ...}; frontend/src/hooks/useGeminiBrainstorm.ts:670 reads data.content"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. The feature delivers all required behaviors: Creative Spark share page with masonry gallery, brainstormType in share API and frontend types, error recovery overlay for auto-start failures, and go-back-to-mode-selection flow. Three new backend tests provide solid coverage. The main observation is that the autoStartError flag triggers for all WS errors in Creative Spark mode (not just auto-start), and there's a minor inconsistency in the error message key between gemini_audio.py and the endpoint handler. Neither issue is blocking — the core UX works correctly for the auto-start failure case, which is the primary use case."
+}
