@@ -130,6 +130,8 @@ CREATIVE_SPARK_CONVERSATION_STARTERS: dict[str, tuple[str, ...]] = {
         "What's the closest thing to your left hand right now?",
         "What color is the wall in front of you?",
         "What's the weirdest object on your desk?",
+        "What can you hear right now?",
+        "Describe an object you can see without moving your head.",
     ),
 }
 
