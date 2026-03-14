@@ -74,7 +74,7 @@ export function CreativeSparkDesktopLayout({
         />
       </div>
 
-      {/* Conversation panel toggle button */}
+      {/* Conversation panel toggle button — positioned below the gallery top bar to avoid overlap with Download All */}
       <button
         type="button"
         onClick={() => setIsPanelOpen((v) => !v)}
@@ -85,7 +85,7 @@ export function CreativeSparkDesktopLayout({
           'hover:scale-105 hover:border-orange-500/30 hover:shadow-orange-500/10',
           isPanelOpen
             ? 'right-[416px] top-5 size-10 bg-white/[0.06]'
-            : 'right-5 top-5 gap-2 bg-orange-500/10 px-4 py-2.5',
+            : 'right-5 top-16 gap-2 bg-orange-500/10 px-4 py-2.5',
         )}
       >
         {isPanelOpen ? (
