@@ -81,6 +81,12 @@ DEFAULT_ENABLED_TOOLS = [
     "generate_brainstorm_video",
 ]
 
+# Tools available in Creative Spark mode (image + video only)
+CREATIVE_SPARK_TOOLS = [
+    "generate_brainstorm_image",
+    "generate_brainstorm_video",
+]
+
 BRAINSTORM_SYSTEM_PROMPT = """\
 You are Voidpilot in Brainstorm Mode — a creative thinking partner.
 Your job is to help the user develop and refine their ideas.
@@ -214,6 +220,7 @@ def _make_tool_handlers(  # noqa: C901
     api_key: str,
     text_model_key: str = DEFAULT_FLASH_TEXT_MODEL_KEY,
     enabled_tools: list[str] | None = None,
+    brainstorm_type: str | None = None,
 ):
     """Create brainstorm tool handler functions bound to a
     specific WebSocket and API key.
@@ -223,12 +230,22 @@ def _make_tool_handlers(  # noqa: C901
         api_key: Google API key
         text_model_key: Flash text model to use
         enabled_tools: List of tool names to enable. If None, all tools are enabled.
-                      Note: delegate_to_flash is always included as it's internal.
+                      Note: delegate_to_flash is always included as it's internal
+                      (except in creative_spark mode).
+        brainstorm_type: The brainstorm mode. 'creative_spark' restricts to
+                        image+video only. 'open_studio' or None uses defaults.
     """
     flash = FlashWorker(api_key=api_key, text_model_key=text_model_key)
-    enabled = (
-        enabled_tools if enabled_tools is not None else DEFAULT_ENABLED_TOOLS.copy()
-    )
+
+    # Creative Spark overrides enabled_tools — restrictions cannot be bypassed
+    if brainstorm_type == "creative_spark":
+        enabled = CREATIVE_SPARK_TOOLS.copy()
+    else:
+        enabled = (
+            enabled_tools
+            if enabled_tools is not None
+            else DEFAULT_ENABLED_TOOLS.copy()
+        )
 
     async def handle_save_artifact(title: str, raw_ideas: str, filename: str) -> dict:
         """Generate markdown via FlashWorker and push to client."""
@@ -353,10 +370,15 @@ def _make_tool_handlers(  # noqa: C901
             logger.error("delegate_to_flash failed: %s", e)
             return {"result": f"Error delegating task: {e}", "scheduling": "WHEN_IDLE"}
 
-    # Build tool mapping - delegate_to_flash is always included
-    mapping: dict = {"delegate_to_flash": handle_delegate}
+    # Build tool mapping based on brainstorm_type
+    mapping: dict = {}
 
-    # Add handlers for enabled tools using a loop instead of repeated if statements
+    # delegate_to_flash is included for open_studio (default), excluded for
+    # creative_spark
+    if brainstorm_type != "creative_spark":
+        mapping["delegate_to_flash"] = handle_delegate
+
+    # Add handlers for enabled tools
     tool_handlers = {
         "save_brainstorm_artifact": handle_save_artifact,
         "generate_brainstorm_image": handle_generate_image,
@@ -369,19 +391,39 @@ def _make_tool_handlers(  # noqa: C901
     return mapping
 
 
-def _build_tool_defs(enabled_tools: list[str] | None = None) -> list[dict]:
-    """Build tool definitions based on enabled tools.
+def _build_tool_defs(
+    enabled_tools: list[str] | None = None,
+    brainstorm_type: str | None = None,
+) -> list[dict]:
+    """Build tool definitions based on enabled tools and brainstorm mode.
 
     Args:
-        enabled_tools: List of tool names to enable. If None, all tools are enabled.
+        enabled_tools: List of tool names to enable. If None, all tools
+                      are enabled. Ignored when brainstorm_type is
+                      'creative_spark'.
+        brainstorm_type: The brainstorm mode. 'creative_spark' restricts
+                        to image+video only (no delegate_to_flash, no
+                        save_brainstorm_artifact). 'open_studio' or None
+                        uses defaults.
 
     Returns:
         List of tool definitions in Gemini format.
     """
-    enabled = enabled_tools if enabled_tools is not None else DEFAULT_ENABLED_TOOLS
+    # Creative Spark overrides enabled_tools — only image + video
+    if brainstorm_type == "creative_spark":
+        enabled = CREATIVE_SPARK_TOOLS
+    else:
+        enabled = (
+            enabled_tools if enabled_tools is not None else DEFAULT_ENABLED_TOOLS
+        )
 
-    # Always include delegate_to_flash, then add enabled tools
-    tool_defs = [DELEGATE_TOOL_DEF]
+    tool_defs: list[dict] = []
+
+    # delegate_to_flash is included for open_studio (default), excluded for
+    # creative_spark
+    if brainstorm_type != "creative_spark":
+        tool_defs.append(DELEGATE_TOOL_DEF)
+
     tool_defs.extend(
         tool_def
         for tool_def in AVAILABLE_TOOL_DEFS
@@ -782,15 +824,33 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 else DEFAULT_FLASH_TEXT_MODEL_KEY
             )
 
-            # Handle tool selection
+            # Determine brainstorm_type: 'creative_spark' or default
+            brainstorm_type = payload.get("brainstorm_type")
+
+            # Route system prompt based on brainstorm_type
+            if brainstorm_type == "creative_spark":
+                gemini_client.system_prompt = (
+                    build_creative_spark_system_prompt()
+                )
+                logger.info("Brainstorm mode: creative_spark")
+            else:
+                gemini_client.system_prompt = BRAINSTORM_SYSTEM_PROMPT
+                logger.info("Brainstorm mode: open_studio (default)")
+
+            # Handle tool selection (open_studio only; creative_spark
+            # overrides via brainstorm_type parameter)
             requested_tools = payload.get("enabled_tools")
-            if requested_tools is not None:
+            if brainstorm_type != "creative_spark" and (
+                requested_tools is not None
+            ):
                 enabled_tools.clear()
                 enabled_tools.extend(requested_tools)
                 logger.info("Brainstorm enabled tools: %s", enabled_tools)
 
-            # Update tool definitions and handlers
-            new_tool_defs = _build_tool_defs(enabled_tools)
+            # Update tool definitions and handlers with mode routing
+            new_tool_defs = _build_tool_defs(
+                enabled_tools, brainstorm_type=brainstorm_type
+            )
             gemini_client.tools = new_tool_defs
 
             gemini_client.tool_mapping = _make_tool_handlers(
@@ -798,6 +858,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 api_key,
                 text_model_key=selected_text_model_key,
                 enabled_tools=enabled_tools,
+                brainstorm_type=brainstorm_type,
             )
             logger.info(
                 "Brainstorm selected flash worker model: %s",
