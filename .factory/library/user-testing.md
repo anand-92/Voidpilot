@@ -20,11 +20,19 @@
 - Email/password sign in
 - Google sign-in
 - Continue as guest
-- Signed-in session library
-- New session creation
-- Reopen session
+- Mode selection screen (after auth, before workspace)
+- Open Studio mode selection and workspace rendering
+- Creative Spark mode selection and workspace rendering
+- Signed-in session library with mode badges
+- New session creation (shows mode selection)
+- Reopen session (skips mode selection, restores correct mode)
 - Delete session
+- Creative Spark masonry gallery with images/videos
+- Creative Spark conversation panel toggle
+- Creative Spark persistent controls (mic, connect)
+- Open Studio layout unchanged (agent visualizer, tool toggles, model selector)
 - Public share page open as signed-out user
+- Public share page with Creative Spark layout for Creative Spark sessions
 - Public artifact downloads
 - Share invalidation after delete
 

@@ -15,6 +15,7 @@ Use this skill for backend-focused features such as:
 - Firestore / Cloud Storage persistence services
 - Brainstorm websocket-side persistence hooks
 - Python typing, tests, and service-layer refactors that do not require substantial frontend UI work
+- Creative Spark backend: system prompt, conversation starters, mode routing, tool filtering, auto-start, session metadata
 
 ## Work Procedure
 
@@ -28,6 +29,7 @@ Use this skill for backend-focused features such as:
 4. Prefer narrow, explicit backend abstractions over hidden fallback behavior. Access control must fail clearly for missing, expired, invalid, or wrong-user auth.
 5. Preserve the current hardcoded Gemini API key behavior for this mission; do not remove it.
 6. Keep auth/persistence scoped to brainstorm only unless the feature explicitly says otherwise.
+7. IMPORTANT: The existing `mode` field on BrainstormSessionRecord is for session lifecycle (guest/persisted). Do NOT repurpose it. Use a NEW `brainstorm_type` field for the brainstorm mode (open_studio/creative_spark).
 7. Run and fix all backend validators before handoff:
    - `uv run ruff check src/`
    - `uv run mypy src/`

@@ -35,5 +35,29 @@ Use this file for worker-facing architectural guidance for the brainstorm auth/p
 
 - `/#/brainstorm` should open into an animated auth-entry modal.
 - Signed-in users see the session library inside that modal.
+- After auth/guest entry, a mode selection screen appears for NEW sessions (not resumed).
+- Two modes: "Open Studio" (existing behavior) and "Creative Spark" (guided inspiration).
 - Guests can continue into brainstorm but receive no persistence.
 - Public share pages should use the brainstorm visual language without reusing interactive workspace controls.
+- Share pages should render in the mode-appropriate layout (masonry gallery for Creative Spark).
+
+## Brainstorm Modes
+
+### Open Studio (formerly "Brainstorm Mode")
+- User-driven, open-ended creative workspace
+- All 4 tools: save_brainstorm_artifact, generate_brainstorm_image, generate_brainstorm_video, delegate_to_flash
+- Model waits for user to initiate
+- Layout: AgentVisualizer + WorkspacePanel + ConversationPanel + BrainstormControls
+
+### Creative Spark
+- Model-driven guided inspiration mode
+- Only 2 tools: generate_brainstorm_image, generate_brainstorm_video
+- Model auto-starts speaking with a warmup question
+- Layout: Full-screen masonry gallery + collapsible conversation panel + persistent controls
+- No agent visualizer, no tool toggles, no model selector
+
+## brainstorm_type vs mode
+
+- `mode` field on BrainstormSessionRecord = session lifecycle ("guest" | "persisted"). DO NOT repurpose.
+- `brainstorm_type` field = brainstorm mode ("open_studio" | "creative_spark"). NEW field.
+- brainstorm_type defaults to "open_studio" for backward compatibility with legacy sessions.
