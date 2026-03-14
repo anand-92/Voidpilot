@@ -34,3 +34,5 @@ export type BrainstormLayoutProps = {
 
 export { BrainstormDesktopLayout } from './BrainstormDesktopLayout'
 export { BrainstormMobileLayout } from './BrainstormMobileLayout'
+export { CreativeSparkDesktopLayout } from './CreativeSparkDesktopLayout'
+export { CreativeSparkMobileLayout } from './CreativeSparkMobileLayout'

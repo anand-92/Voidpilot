@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { BrainstormEntryModal } from '../components/brainstorm/BrainstormEntryModal'
-import { BrainstormDesktopLayout, BrainstormMobileLayout, type BrainstormLayoutProps } from '../components/brainstorm/BrainstormLayouts'
+import { BrainstormDesktopLayout, BrainstormMobileLayout, CreativeSparkDesktopLayout, CreativeSparkMobileLayout, type BrainstormLayoutProps } from '../components/brainstorm/BrainstormLayouts'
 import { ModeSelectionScreen, type BrainstormType } from '../components/brainstorm/ModeSelectionScreen'
 import { getArtifactSize } from '../components/brainstorm/utils'
 import { useBrainstormEntryAuth } from '../hooks/useBrainstormEntryAuth'
@@ -266,10 +266,18 @@ export default function BrainstormPage() {
         inert={isOverlayActive}
         className={isOverlayActive ? 'pointer-events-none select-none blur-[2px] saturate-75' : ''}
       >
-        {isMobileLayout ? (
-          <BrainstormMobileLayout {...sharedProps} />
+        {brainstormType === 'creative_spark' ? (
+          isMobileLayout ? (
+            <CreativeSparkMobileLayout {...sharedProps} />
+          ) : (
+            <CreativeSparkDesktopLayout {...sharedProps} />
+          )
         ) : (
-          <BrainstormDesktopLayout {...sharedProps} />
+          isMobileLayout ? (
+            <BrainstormMobileLayout {...sharedProps} />
+          ) : (
+            <BrainstormDesktopLayout {...sharedProps} />
+          )
         )}
       </div>
 
