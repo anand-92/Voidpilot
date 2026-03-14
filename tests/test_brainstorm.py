@@ -417,6 +417,10 @@ async def test_brainstorm_websocket_accepts_connection():
         with client.websocket_connect(
             "/api/v1/live/brainstorm"
         ) as websocket:
+            # Send session_config first so run_session() proceeds
+            websocket.send_text(
+                json.dumps({"type": "session_config"})
+            )
             websocket.send_text(
                 json.dumps(
                     {

@@ -822,6 +822,8 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
         system_prompt=BRAINSTORM_SYSTEM_PROMPT,
     )
 
+    session_config_received = asyncio.Event()
+
     async def handle_client_message(payload: dict) -> bool:
         msg_type = payload.get("type")
 
@@ -888,12 +890,22 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 "Brainstorm selected flash worker model: %s",
                 resolved_model.api_model,
             )
+            session_config_received.set()
             return True
 
         return False
 
     async def run_session() -> None:
         try:
+            try:
+                await asyncio.wait_for(
+                    session_config_received.wait(), timeout=10.0
+                )
+            except TimeoutError:
+                logger.warning(
+                    "No session_config received within 10s, "
+                    "using defaults"
+                )
             logger.info("Starting brainstorm Gemini session...")
             async for event in gemini_client.start_session(
                 audio_input_queue=manager.audio_input_queue,
