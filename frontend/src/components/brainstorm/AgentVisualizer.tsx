@@ -420,17 +420,25 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
 
       const s = TILE_SIZE * ZOOM
       const roomW = COLS * s
-      const roomH = (ROWS + 1.5) * s
+      const roomH = (ROWS + 0.5) * s
 
-      // Center the room
-      const ox = Math.round((rect.width - roomW) / 2)
-      const oy = Math.round((rect.height - roomH) / 2)
+      // Scale down if the room doesn't fit the container
+      const fitScale = Math.min(1, rect.width / roomW, rect.height / roomH)
+      const scaledW = roomW * fitScale
+      const scaledH = roomH * fitScale
+
+      // Center the scaled room
+      const ox = Math.round((rect.width - scaledW) / 2)
+      const oy = Math.round((rect.height - scaledH) / 2)
+
+      ctx.translate(ox, oy)
+      ctx.scale(fitScale, fitScale)
 
       // Floor tiles
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           ctx.fillStyle = (r + c) % 2 === 0 ? '#3a3524' : '#342f20'
-          ctx.fillRect(ox + c * s, oy + r * s, s, s)
+          ctx.fillRect(c * s, r * s, s, s)
         }
       }
 
@@ -440,13 +448,13 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       const sortedFurn = [...furniture].sort((a, b) => a.zY - b.zY)
       for (const f of sortedFurn) {
         const cached = getCachedSprite(f.sprite, ZOOM)
-        ctx.drawImage(cached, ox + f.x * ZOOM, oy + f.y * ZOOM)
+        ctx.drawImage(cached, f.x * ZOOM, f.y * ZOOM)
       }
 
       // Draw agents (sorted by Y)
       const agents = [gemini, flash].sort((a, b) => a.y - b.y)
       for (const a of agents) {
-        drawAgent(a, ox, oy)
+        drawAgent(a, 0, 0)
       }
 
       ctx.restore()
@@ -459,7 +467,7 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
 
   return (
     <div className={className || "relative w-full rounded-2xl border border-white/[0.06] bg-black/40 backdrop-blur-sm overflow-hidden"}
-      style={style || { height: `${(ROWS + 2) * TILE_SIZE * ZOOM + 40}px` }}>
+      style={style || { height: `${(ROWS + 1) * TILE_SIZE * ZOOM}px` }}>
       <canvas
         ref={canvasRef}
         className="w-full h-full"

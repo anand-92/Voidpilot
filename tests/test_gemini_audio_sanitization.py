@@ -43,3 +43,34 @@ async def test_handle_server_content_sanitizes_transcriptions():
     assert {"type": "text", "content": "Hi"} in events
     assert {"type": "gemini", "text": "Done"} in events
     assert not any(event.get("type") == "user" for event in events)
+
+
+@pytest.mark.asyncio
+async def test_handle_server_content_emits_generation_complete():
+    gemini = GeminiLive(api_key="test-key", model="test-model", input_sample_rate=16000)
+    event_queue: asyncio.Queue = asyncio.Queue()
+
+    server_content = SimpleNamespace(
+        model_turn=None,
+        input_transcription=None,
+        output_transcription=None,
+        generation_complete=True,
+        turn_complete=False,
+        interrupted=False,
+    )
+
+    async def _audio_output_callback(_data: bytes) -> None:
+        return None
+
+    await gemini._handle_server_content(
+        server_content,
+        event_queue,
+        _audio_output_callback,
+        None,
+    )
+
+    events: list[dict] = []
+    while not event_queue.empty():
+        events.append(await event_queue.get())
+
+    assert events == [{"type": "generation_complete"}]

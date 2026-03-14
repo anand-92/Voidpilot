@@ -28,6 +28,14 @@ def _sanitize_live_text(text: str) -> str:
     return cleaned.strip()
 
 
+def _build_error_event(message: str) -> dict[str, str]:
+    return {
+        "type": "error",
+        "content": message,
+        "error": message,
+    }
+
+
 async def _call_maybe_async(func, *args, **kwargs):
     """Call a function, awaiting it if it's a coroutine function."""
     if inspect.iscoroutinefunction(func):
@@ -114,6 +122,19 @@ class GeminiLive:
             return
         await event_queue.put({"type": role, "text": clean_text})
 
+    async def _handle_transcriptions(
+        self,
+        server_content,
+        event_queue: asyncio.Queue,
+    ) -> None:
+        for role, attr in (
+            ("user", "input_transcription"),
+            ("gemini", "output_transcription"),
+        ):
+            transcription = getattr(server_content, attr, None)
+            if transcription and transcription.text:
+                await self._enqueue_transcription(event_queue, role, transcription.text)
+
     async def _handle_server_content(
         self,
         server_content,
@@ -131,21 +152,11 @@ class GeminiLive:
                 if part.text and not part.text.startswith("**"):
                     await self._enqueue_model_text(event_queue, part.text)
 
-        transcription = server_content.input_transcription
-        if transcription and transcription.text:
-            await self._enqueue_transcription(
-                event_queue,
-                "user",
-                transcription.text,
-            )
+        await self._handle_transcriptions(server_content, event_queue)
 
-        transcription = server_content.output_transcription
-        if transcription and transcription.text:
-            await self._enqueue_transcription(
-                event_queue,
-                "gemini",
-                transcription.text,
-            )
+        if getattr(server_content, "generation_complete", False):
+            logger.info("Generation complete")
+            await event_queue.put({"type": "generation_complete"})
 
         if server_content.turn_complete:
             logger.info("Turn complete, session continues")
@@ -228,6 +239,7 @@ class GeminiLive:
         error_str = str(error)
         fatal_markers = (
             "1007",
+            "1008",
             "1011",
             "invalid frame",
             "ConnectionClosed",
@@ -238,13 +250,14 @@ class GeminiLive:
             await event_queue.put(
                 {
                     "type": "session_dead",
+                    "content": error_str,
                     "error": error_str,
                 }
             )
         else:
             logger.error("Error in receive loop: %s", error)
             logger.error(traceback.format_exc())
-            await event_queue.put({"type": "error", "error": error_str})
+            await event_queue.put(_build_error_event(error_str))
 
     async def _receive_loop(
         self,
@@ -266,6 +279,17 @@ class GeminiLive:
                 if response.tool_call:
                     await self._handle_tool_call(
                         session, response.tool_call, event_queue
+                    )
+                if response.go_away is not None:
+                    time_left = getattr(
+                        response.go_away, "time_left", None
+                    )
+                    logger.warning(
+                        "GoAway received, connection ending in: %s",
+                        time_left,
+                    )
+                    await event_queue.put(
+                        {"type": "go_away", "time_left": str(time_left)}
                     )
                 if response.session_resumption_update:
                     update = response.session_resumption_update
@@ -413,10 +437,7 @@ class GeminiLive:
                             if event_type == "session_dead":
                                 logger.warning("Session died: %s", event.get("error"))
                                 session_active = False
-                                yield {
-                                    "type": "error",
-                                    "error": "Session connection lost",
-                                }
+                                yield _build_error_event("Session connection lost")
                                 break
 
                             yield event
@@ -442,5 +463,5 @@ class GeminiLive:
         except Exception as e:
             logger.error("Failed to connect or session error: %s", e)
             logger.error(traceback.format_exc())
-            yield {"type": "error", "error": str(e)}
+            yield _build_error_event(str(e))
             await asyncio.sleep(1)

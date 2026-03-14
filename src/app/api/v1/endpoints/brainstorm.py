@@ -448,6 +448,14 @@ def _build_tool_defs(
         if tool_def["name"] in enabled
     )
 
+    # Creative Spark uses blocking tool calls so the model waits for
+    # generation results before continuing the conversation.
+    if brainstorm_type == "creative_spark":
+        tool_defs = [
+            {k: v for k, v in td.items() if k != "behavior"}
+            for td in tool_defs
+        ]
+
     return [{"function_declarations": tool_defs}]
 
 

@@ -5,7 +5,7 @@ import type { BrainstormLayoutProps } from './BrainstormLayouts'
 import { BrainstormControls } from './BrainstormControls'
 import { ConversationPanel } from './ConversationPanel'
 import { WorkspacePanel } from './WorkspacePanel'
-import { AgentVisualizer } from './AgentVisualizer'
+import { FloatingAgentWindow } from './FloatingAgentWindow'
 
 export function BrainstormDesktopLayout({
   intensityRef,
@@ -39,21 +39,17 @@ export function BrainstormDesktopLayout({
       <Particles className="absolute inset-0 z-0 opacity-40" quantity={120} ease={80} color="#fbbf24" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-50" width={32} height={32} cx={16} cy={16} cr={1} />
 
+      {/* Floating agent visualizer window */}
+      <FloatingAgentWindow
+        intensityRef={intensityRef}
+        isGenerating={isGenerating}
+        isConnected={isConnected}
+      />
+
       {/* Left Pane (70%) */}
       <div className="flex-1 flex flex-col gap-6 w-[70%] z-40 h-full min-w-0">
 
-        {/* Top: Agent Visualizer Window */}
-        <div className="h-[55%] min-h-[300px] shrink-0 overflow-hidden relative">
-          <AgentVisualizer
-            intensityRef={intensityRef}
-            isGenerating={isGenerating}
-            isConnected={isConnected}
-            className="absolute inset-0 w-full h-full"
-            style={{ width: '100%', height: '100%' }}
-          />
-        </div>
-
-        {/* Bottom: Workspace Panel */}
+        {/* Workspace Panel */}
         <div className="flex-1 min-h-0 flex flex-col z-40 transition-all duration-500 relative">
           <WorkspacePanel
             artifactList={artifactList}

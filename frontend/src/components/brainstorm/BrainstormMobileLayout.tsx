@@ -13,7 +13,7 @@ import type { BrainstormLayoutProps } from './BrainstormLayouts'
 import { BrainstormControls } from './BrainstormControls'
 import { ConversationPanel } from './ConversationPanel'
 import { WorkspacePanel } from './WorkspacePanel'
-import { AgentVisualizer } from './AgentVisualizer'
+import { FloatingAgentWindow } from './FloatingAgentWindow'
 
 export function BrainstormMobileLayout({
   intensityRef,
@@ -54,7 +54,13 @@ export function BrainstormMobileLayout({
     <main className="relative flex min-h-dvh flex-col bg-[#0a0a0a] text-stone-100 font-sans">
       <Particles className="absolute inset-0 z-0 opacity-40" quantity={60} ease={80} color="#fbbf24" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-30" width={32} height={32} cx={16} cy={16} cr={1} />
-      
+
+      <FloatingAgentWindow
+        intensityRef={intensityRef}
+        isGenerating={isGenerating}
+        isConnected={isConnected}
+      />
+
       <header className="sticky top-0 z-20 shrink-0 border-b border-white/[0.04] bg-stone-950/80 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-2xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -123,9 +129,6 @@ export function BrainstormMobileLayout({
       <div className="flex flex-1 flex-col overflow-hidden px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4">
         {activeTab === 'chat' ? (
           <>
-            <div className="mb-4">
-              <AgentVisualizer intensityRef={intensityRef} isGenerating={isGenerating} isConnected={isConnected} />
-            </div>
             <section className="shrink-0 rounded-3xl border border-white/[0.05] bg-stone-900/40 p-4 shadow-[0_20px_60px_rgba(12,10,9,0.4)]">
               <BrainstormControls
                 isConnected={isConnected}
