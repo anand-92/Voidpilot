@@ -33,6 +33,9 @@ def test_creative_spark_prompt_has_expected_guidance_without_disabled_tools() ->
     assert "mundane" in prompt
     assert "dramatic, cinematic" in prompt
     assert "generate an image or video right away" in prompt
+    assert "explicitly asks for it or clearly agrees" in prompt
+    assert "generate at most one asset per assistant turn" in prompt
+    assert "if they ask for a video, call only" in prompt
     assert "never ask broad or abstract questions" in prompt
     assert "you do all the creative heavy lifting" in prompt
     assert "save_brainstorm_artifact" not in prompt

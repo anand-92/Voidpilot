@@ -25,7 +25,12 @@ def _require_firebase_setting(name: str, value: str) -> str:
 
 
 def _find_gcloud_legacy_adc_path() -> Path | None:
-    legacy_credentials_dir = Path.home() / ".config" / "gcloud" / "legacy_credentials"
+    try:
+        home_dir = Path.home()
+    except RuntimeError:
+        return None
+
+    legacy_credentials_dir = home_dir / ".config" / "gcloud" / "legacy_credentials"
     if not legacy_credentials_dir.exists():
         return None
 
@@ -58,11 +63,19 @@ def _build_firebase_credentials():
         google_application_credentials = os.environ.get(
             "GOOGLE_APPLICATION_CREDENTIALS"
         )
-        standard_adc_path = (
-            Path.home() / ".config" / "gcloud" / "application_default_credentials.json"
-        )
+        try:
+            standard_adc_path = (
+                Path.home()
+                / ".config"
+                / "gcloud"
+                / "application_default_credentials.json"
+            )
+        except RuntimeError:
+            standard_adc_path = None
 
-        if google_application_credentials or standard_adc_path.exists():
+        if google_application_credentials or (
+            standard_adc_path is not None and standard_adc_path.exists()
+        ):
             return credentials.ApplicationDefault()
 
         legacy_adc_path = _find_gcloud_legacy_adc_path()
