@@ -13,6 +13,7 @@ export type BrainstormLibrarySession = {
   ownerEmail: string | null
   ownerName: string | null
   mode: string
+  brainstormType?: string
   title: string
   createdAt: string
   updatedAt: string
@@ -199,15 +200,24 @@ export function useBrainstormSessionLibrary({
     }
   }, [status, user])
 
-  const createSession = useCallback(async () => {
+  const createSession = useCallback(async (brainstormType?: string) => {
     setActiveAction('create')
     setActiveSessionId(null)
     setErrorMessage(null)
 
     try {
+      const body: Record<string, string> = {}
+      if (brainstormType) {
+        body.brainstorm_type = brainstormType
+      }
+
       const response = await requestLibrary<BrainstormSessionResponse>(
         BRAINSTORM_SESSION_LIBRARY_ENDPOINT,
-        { method: 'POST' },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
       )
       const session = response?.session
       if (!session) {

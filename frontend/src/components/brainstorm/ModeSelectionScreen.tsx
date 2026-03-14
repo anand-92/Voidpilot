@@ -11,7 +11,7 @@ import { GeminiLiveLogo } from '../icons/CustomIcons'
 export type BrainstormType = 'open_studio' | 'creative_spark'
 
 type ModeSelectionScreenProps = {
-  onSelectMode: (mode: BrainstormType) => void
+  onSelectMode: (mode: BrainstormType) => void | Promise<void>
 }
 
 const MODE_OPTIONS = [

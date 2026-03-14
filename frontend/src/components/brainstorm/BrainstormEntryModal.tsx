@@ -6,7 +6,9 @@ import {
   Loader2,
   LogOut,
   Mail,
+  Palette,
   Plus,
+  Sparkles,
   Trash2,
   UserRound,
   Clock,
@@ -292,9 +294,22 @@ function LibraryState({
                       </div>
                       <div className="mt-8">
                         <h3 className="mb-2 text-lg font-bold text-white truncate pr-6">{session.title}</h3>
-                        <div className="flex items-center gap-1.5 text-xs text-stone-500">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>{formatSessionTimestamp(session.updatedAt)}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5 text-xs text-stone-500">
+                            <Clock className="h-3.5 w-3.5" />
+                            <span>{formatSessionTimestamp(session.updatedAt)}</span>
+                          </div>
+                          {session.brainstormType === 'creative_spark' ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium text-orange-400">
+                              <Sparkles className="h-2.5 w-2.5" />
+                              Creative Spark
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+                              <Palette className="h-2.5 w-2.5" />
+                              Open Studio
+                            </span>
+                          )}
                         </div>
                       </div>
                       <ArrowRight className="absolute right-6 bottom-6 h-6 w-6 text-stone-400 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />

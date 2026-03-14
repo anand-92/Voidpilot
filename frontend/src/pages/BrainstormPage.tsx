@@ -32,8 +32,10 @@ export default function BrainstormPage() {
     activeSessionId,
     sessionMode,
     sessionTitle,
+    brainstormType,
     prepareGuestWorkspace,
     preparePersistedWorkspace,
+    updateBrainstormType,
     ensureArtifactContent,
     downloadArtifact,
     downloadAllArtifacts,
@@ -63,8 +65,9 @@ export default function BrainstormPage() {
   const [isMobileLayout, setIsMobileLayout] = useState(false)
   const [hasGuestAccess, setHasGuestAccess] = useState(false)
   const [grantedSignedInAuthChangeKey, setGrantedSignedInAuthChangeKey] = useState<number | null>(null)
-  const [brainstormType, setBrainstormType] = useState<BrainstormType | null>(null)
   const [showModeSelection, setShowModeSelection] = useState(false)
+  // Track whether mode selection is for a new signed-in session (deferred creation)
+  const [pendingNewSession, setPendingNewSession] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const hasSignedInWorkspaceAccess =
@@ -132,27 +135,23 @@ export default function BrainstormPage() {
     setInputText('')
     setSelectedArtifact(null)
     setHasGuestAccess(true)
-    setBrainstormType(null)
+    updateBrainstormType(null)
+    setPendingNewSession(false)
     setShowModeSelection(true)
-  }, [clearEntryError, prepareGuestWorkspace])
+  }, [clearEntryError, prepareGuestWorkspace, updateBrainstormType])
 
   const handleCreateSession = useCallback(async () => {
     clearEntryError()
-    const session = await createSession()
-    if (!session) {
-      return
-    }
-    await preparePersistedWorkspace(session.id, {
-      title: session.title,
-      restoreTurns: false,
-    })
+    // Defer actual session creation until after mode selection.
+    // Grant workspace access now so the mode selection screen appears.
     setInputText('')
     setSelectedArtifact(null)
     setHasGuestAccess(false)
     setGrantedSignedInAuthChangeKey(authChangeKey)
-    setBrainstormType(null)
+    updateBrainstormType(null)
+    setPendingNewSession(true)
     setShowModeSelection(true)
-  }, [authChangeKey, clearEntryError, createSession, preparePersistedWorkspace])
+  }, [authChangeKey, clearEntryError, updateBrainstormType])
 
   const handleReopenSession = useCallback(async (sessionId: string) => {
     clearEntryError()
@@ -160,29 +159,49 @@ export default function BrainstormPage() {
     if (!session) {
       return
     }
+    // Read brainstorm_type from session record; default to open_studio for legacy sessions
+    const sessionBrainstormType = (session.brainstormType === 'creative_spark' ? 'creative_spark' : 'open_studio') as BrainstormType
     await preparePersistedWorkspace(session.id, {
       title: session.title,
       restoreTurns: true,
+      brainstormType: sessionBrainstormType,
     })
     setInputText('')
     setSelectedArtifact(null)
     setHasGuestAccess(false)
     setGrantedSignedInAuthChangeKey(authChangeKey)
-    // Resuming an existing session — skip mode selection, default to open_studio.
-    // Future work (mode-session-integration) will read brainstorm_type from session record.
-    setBrainstormType('open_studio')
+    // Resuming an existing session — skip mode selection, use stored brainstorm_type
+    updateBrainstormType(sessionBrainstormType)
+    setPendingNewSession(false)
     setShowModeSelection(false)
-  }, [authChangeKey, clearEntryError, preparePersistedWorkspace, reopenSession])
+  }, [authChangeKey, clearEntryError, preparePersistedWorkspace, reopenSession, updateBrainstormType])
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     clearEntryError()
     await deleteSession(sessionId)
   }, [clearEntryError, deleteSession])
 
-  const handleSelectMode = useCallback((mode: BrainstormType) => {
-    setBrainstormType(mode)
+  const handleSelectMode = useCallback(async (mode: BrainstormType) => {
+    updateBrainstormType(mode)
+
+    // For signed-in users with a pending new session, create it now with the chosen mode
+    if (pendingNewSession) {
+      setPendingNewSession(false)
+      const session = await createSession(mode)
+      if (!session) {
+        // Session creation failed — stay on mode selection so user can retry
+        updateBrainstormType(null)
+        return
+      }
+      await preparePersistedWorkspace(session.id, {
+        title: session.title,
+        restoreTurns: false,
+        brainstormType: mode,
+      })
+    }
+
     setShowModeSelection(false)
-  }, [])
+  }, [pendingNewSession, createSession, preparePersistedWorkspace, updateBrainstormType])
 
   const handleCreateShare = useCallback(async (): Promise<string | null> => {
     if (sessionMode !== 'persisted' || !activeSessionId) return null

@@ -13,6 +13,7 @@ import {
   resampleAudio,
   scheduleAudioPlayback,
 } from '../utils/audio.ts'
+import type { BrainstormType } from '@/components/brainstorm/ModeSelectionScreen'
 import type { Message, MessageRole } from '@/types/messages'
 import {
   artifactToBlob,
@@ -138,6 +139,7 @@ export function useGeminiBrainstorm() {
   const [selectedTools, setSelectedTools] = useState<BrainstormToolId[]>(
     DEFAULT_ENABLED_TOOLS,
   )
+  const [brainstormType, setBrainstormType] = useState<BrainstormType | null>(null)
   const intensityRef = useRef(0)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -148,6 +150,7 @@ export function useGeminiBrainstorm() {
   const sessionHandleRef = useRef<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const sessionModeRef = useRef<BrainstormSessionMode>('guest')
+  const brainstormTypeRef = useRef<BrainstormType | null>(null)
   const turnBoundaryRef = useRef(false)
   const toolCallPendingRef = useRef(false)
   const toolResponseTurnRef = useRef(false)
@@ -276,8 +279,10 @@ export function useGeminiBrainstorm() {
     setArtifactLoadStates({})
     setIsGenerating(false)
     setSessionTitle(null)
+    setBrainstormType(null)
     messagesRef.current = []
     sessionHandleRef.current = null
+    brainstormTypeRef.current = null
     turnBoundaryRef.current = false
     toolCallPendingRef.current = false
     toolResponseTurnRef.current = false
@@ -510,6 +515,11 @@ export function useGeminiBrainstorm() {
     nextPlayTimeRef.current = 0
   }, [])
 
+  const updateBrainstormType = useCallback((type: BrainstormType | null) => {
+    brainstormTypeRef.current = type
+    setBrainstormType(type)
+  }, [])
+
   const prepareGuestWorkspace = useCallback(() => {
     stop()
     resetWorkspaceState()
@@ -522,7 +532,7 @@ export function useGeminiBrainstorm() {
   const preparePersistedWorkspace = useCallback(
     async (
       sessionId: string,
-      options?: { title?: string; restoreTurns?: boolean },
+      options?: { title?: string; restoreTurns?: boolean; brainstormType?: BrainstormType },
     ) => {
       stop()
       resetWorkspaceState()
@@ -530,6 +540,12 @@ export function useGeminiBrainstorm() {
       sessionModeRef.current = 'persisted'
       setActiveSessionId(sessionId)
       setSessionMode('persisted')
+
+      // Restore brainstorm type if provided (from session record)
+      if (options?.brainstormType) {
+        brainstormTypeRef.current = options.brainstormType
+        setBrainstormType(options.brainstormType)
+      }
 
       // Restore session title if provided
       if (options?.title && options.title !== 'Untitled session') {
@@ -590,7 +606,8 @@ export function useGeminiBrainstorm() {
       ws.onopen = () => {
         console.log('Connected to brainstorm endpoint')
         setIsConnected(true)
-        addMessage('Connected to Brainstorm Mode', 'system')
+        const modeName = brainstormTypeRef.current === 'creative_spark' ? 'Creative Spark' : 'Open Studio'
+        addMessage(`Connected to ${modeName}`, 'system')
 
         ws.send(
           JSON.stringify({
@@ -600,6 +617,7 @@ export function useGeminiBrainstorm() {
             session_mode: sessionModeRef.current,
             flash_model: selectedFlashModel,
             enabled_tools: selectedTools,
+            brainstorm_type: brainstormTypeRef.current,
           }),
         )
       }
@@ -709,11 +727,13 @@ export function useGeminiBrainstorm() {
     activeSessionId,
     sessionMode,
     sessionTitle,
+    brainstormType,
     intensityRef,
     selectedFlashModel,
     setSelectedFlashModel,
     selectedTools,
     setSelectedTools,
+    updateBrainstormType,
     prepareGuestWorkspace,
     preparePersistedWorkspace,
     ensureArtifactContent,
