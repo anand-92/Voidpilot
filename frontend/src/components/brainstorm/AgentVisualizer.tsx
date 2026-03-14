@@ -60,7 +60,7 @@ function createAgent(name: string, label: string, color: string, homeX: number, 
     facingRight: true,
     homeX, homeY,
     isActive: false,
-    wanderTimer: 2 + Math.random() * 3,
+    wanderTimer: 0.5 + Math.random() * 1.5,
     bubbleText: null,
     bubbleTimer: Math.random() * 5,
   }
@@ -136,7 +136,7 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       agent.isActive = false
       agent.anim = 'idle'
       agent.frame = 0
-      agent.wanderTimer = 2 + Math.random() * 4
+      agent.wanderTimer = 0.5 + Math.random() * 1.5
     }
 
     const animDef = ANIMS[agent.anim]
@@ -211,15 +211,15 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
         agent.wanderTimer -= dt
         if (agent.wanderTimer <= 0) {
           for (let attempt = 0; attempt < 20; attempt++) {
-            const tx = agent.x + (Math.random() * 600 - 300)
-            const ty = agent.y + (Math.random() * 400 - 200)
+            const tx = agent.x + (Math.random() * 1600 - 800)
+            const ty = agent.y + (Math.random() * 800 - 400)
             if (isWalkable(mask, tx, ty)) {
               agent.targetX = tx
               agent.targetY = ty
               break
             }
           }
-          agent.wanderTimer = 3 + Math.random() * 5
+          agent.wanderTimer = 0.5 + Math.random() * 2
         }
       }
     }
