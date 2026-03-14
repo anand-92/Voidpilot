@@ -1,0 +1,34 @@
+{
+  "featureId": "creative-spark-prompt-and-starters",
+  "reviewedAt": "2026-03-14T03:45:00.000Z",
+  "commitId": "4ef687fe01be02c3061e9c5eb4025a1198786183",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Clean, well-structured implementation that fully satisfies all feature requirements. CREATIVE_SPARK_SYSTEM_PROMPT is defined as a format template with {starter_category} and {conversation_starter} placeholders. Three categorized starter pools (food, recent_activity, mood) each contain 3 questions. The select_creative_spark_conversation_starter() function uses a SupportsChoice Protocol for injectable RNG, making it cleanly testable. build_creative_spark_system_prompt() composes the final prompt by selecting a random starter and formatting it into the template. The prompt correctly references inspiration engine behavior, warmup questions, mundane-to-cinematic transformation, image/video generation offers, and creative momentum — and correctly excludes save_brainstorm_artifact and delegate_to_flash. Tests cover all 8 required areas with a well-designed SequenceRandom helper for deterministic assertions.",
+    "issues": [
+      {
+        "file": "src/app/api/v1/endpoints/brainstorm.py",
+        "line": 153,
+        "severity": "non_blocking",
+        "description": "select_creative_spark_conversation_starter() creates a new random.Random() instance on every call when rng is None. This works correctly since Random() auto-seeds from OS entropy, but using the module-level random.choice() directly would be more idiomatic Python and avoid unnecessary object creation. Minor style point — no functional impact."
+      },
+      {
+        "file": "src/app/api/v1/endpoints/brainstorm.py",
+        "line": 131,
+        "severity": "non_blocking",
+        "description": "CREATIVE_SPARK_SYSTEM_PROMPT is named as a constant (ALL_CAPS) but is actually a format template with {starter_category} and {conversation_starter} placeholders. Using it directly without calling build_creative_spark_system_prompt() would raise a KeyError or produce malformed output. Consider naming it CREATIVE_SPARK_SYSTEM_PROMPT_TEMPLATE to signal it requires formatting. Not a bug since the builder function exists, but could prevent confusion for future contributors."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The new CREATIVE_SPARK_SYSTEM_PROMPT introduces a format-template-as-constant pattern (ALL_CAPS name with {placeholders} requiring .format() call) that differs from the existing BRAINSTORM_SYSTEM_PROMPT which is a plain string constant. This pattern distinction isn't documented in AGENTS.md or the library. Future workers adding prompts may not realize some prompt constants require builder functions while others don't.",
+      "evidence": "src/app/api/v1/endpoints/brainstorm.py:131 — CREATIVE_SPARK_SYSTEM_PROMPT uses {starter_category} and {conversation_starter} placeholders, while BRAINSTORM_SYSTEM_PROMPT at line 85 is a plain string with no placeholders."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature passes review. The implementation is clean, complete, and well-tested with 8 focused pytest cases. All expected behaviors from the feature description are covered: the Creative Spark system prompt establishes the model as an inspiration engine with warmup questions, cinematic idea generation, and image/video offers; it excludes forbidden tool references; categorized starter pools have the required structure; and the builder function correctly injects random starters. Two non-blocking style observations noted (new Random() per call, template naming). One shared state observation about the new format-template-as-constant pattern not being documented."
+}

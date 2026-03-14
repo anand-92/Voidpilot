@@ -1,0 +1,39 @@
+{
+  "featureId": "backend-mode-routing-and-tools",
+  "reviewedAt": "2026-03-14T04:02:00.000Z",
+  "commitId": "97c0fda",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Implementation correctly adds brainstorm_type routing to the brainstorm WebSocket endpoint. _build_tool_defs and _make_tool_handlers both accept a brainstorm_type parameter and correctly restrict tools to image+video for creative_spark while preserving all 4 tools (including delegate_to_flash) for open_studio/missing/unknown modes. The handle_client_message function reads brainstorm_type from session_config, routes system prompts appropriately, and enforces that enabled_tools from the client cannot override creative_spark restrictions. 23 well-structured tests cover all specified scenarios: creative_spark tool filtering (defs and mapping), open_studio full tools, missing/unknown defaults, enabled_tools override protection, system prompt selection, audio config, and WebSocket integration routing. The worker also correctly merged the precondition branch (creative-spark-prompt-and-starters) before implementing.",
+    "issues": [
+      {
+        "file": "src/app/api/v1/endpoints/brainstorm.py",
+        "line": 416,
+        "severity": "non_blocking",
+        "description": "In _build_tool_defs, when brainstorm_type is 'creative_spark', the `enabled` variable is set to `CREATIVE_SPARK_TOOLS` directly (not a copy). While currently safe because `enabled` is only read via `in` checks, this creates a subtle mutation risk if the code evolves. In _make_tool_handlers (line 247), .copy() is correctly used. Minor inconsistency but not a bug."
+      },
+      {
+        "file": "src/app/api/v1/endpoints/brainstorm.py",
+        "line": 797,
+        "severity": "non_blocking",
+        "description": "The mutable `enabled_tools` list persists across multiple session_config messages in the same WebSocket connection. If a client were to send creative_spark first (which skips updating enabled_tools), then send open_studio with no requested_tools, the stale enabled_tools from initialization would be used. This is correct current behavior but could become surprising in future multi-config-per-session scenarios."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker merged the precondition branch (worker/creative-spark-prompt-and-starters) into main before starting implementation. This is the correct approach for handling feature dependencies, but there's no documented convention in AGENTS.md about how workers should handle precondition branches that exist on separate worktree branches.",
+      "evidence": "Transcript shows: 'git merge worker/creative-spark-prompt-and-starters --no-edit' was run early in the session. The feature's preconditions field lists 'creative-spark-prompt-and-starters' as a dependency."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker followed the backend-worker skill procedure correctly: read feature description and context first, traced existing code, wrote failing tests first (TDD), ran all validators before handoff. skillFeedback.followedProcedure is true with no deviations.",
+      "evidence": "Transcript skeleton shows: Read feature/AGENTS.md → Read brainstorm.py → Created test file → Verified tests fail → Implemented changes → All 163 tests pass → ruff/mypy clean → committed."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The implementation correctly fulfills all requirements: brainstorm_type routing in the WebSocket endpoint, creative_spark tool restriction to image+video only (both defs and mapping, with delegate_to_flash excluded), open_studio/missing/unknown defaults preserving existing behavior with all 4 tools, enabled_tools override protection for creative_spark, proper system prompt routing, and unchanged audio config. 23 comprehensive tests cover all specified scenarios including unit tests for both _build_tool_defs and _make_tool_handlers, plus WebSocket integration tests. Two non-blocking observations noted: minor copy inconsistency in _build_tool_defs and mutable enabled_tools list across session_config messages. Overall a clean, well-tested implementation that passes review."
+}

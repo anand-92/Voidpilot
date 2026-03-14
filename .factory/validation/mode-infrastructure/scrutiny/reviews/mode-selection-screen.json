@@ -1,0 +1,34 @@
+{
+  "featureId": "mode-selection-screen",
+  "reviewedAt": "2026-03-14T04:15:00.000Z",
+  "commitId": "36b4d87",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Clean implementation that fully covers all feature requirements. ModeSelectionScreen component is well-structured with a data-driven approach (MODE_OPTIONS array), proper framer-motion animations, responsive grid layout, and correct integration into BrainstormPage flow. The entry/exit flow logic is sound: new sessions (guest + create) show mode selection, resumed sessions skip it. The workspace is correctly made inert while mode selection is active. The BrainstormType is properly stored in state and threaded through BrainstormLayoutProps for downstream consumption. No bugs or missing edge cases found.",
+    "issues": [
+      {
+        "file": "frontend/src/components/brainstorm/ModeSelectionScreen.tsx",
+        "line": 1,
+        "severity": "non_blocking",
+        "description": "Uses `motion.div` from framer-motion instead of the `motion[as]` pattern documented in AGENTS.md and frontend-knowledge.md. However, this matches the actual codebase convention — every existing brainstorm component uses `motion.div`. The documentation is out of sync with the codebase, not the implementation."
+      },
+      {
+        "file": "frontend/src/components/brainstorm/ModeSelectionScreen.tsx",
+        "line": 14,
+        "severity": "non_blocking",
+        "description": "The onSelectMode prop type is `(mode: BrainstormType) => void | Promise<void>`. While functionally correct (the handler in BrainstormPage is async), the Promise return value from the button onClick is not awaited, meaning errors in the async path (e.g., session creation failure in handleSelectMode) would not propagate. The current implementation handles this gracefully — handleSelectMode catches the failure and stays on mode selection — but the fire-and-forget pattern could silently swallow unexpected errors."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The frontend-knowledge.md library doc and mission AGENTS.md both specify using `motion[as]` pattern for framer-motion, but every component in the brainstorm directory (BrainstormEntryModal, ActivitySpinner, CreativeSparkDesktopLayout, ModeSelectionScreen, etc.) uses `motion.div` directly. The documented convention doesn't match the actual codebase pattern. The library doc should be updated to reflect what the code actually does, or all components should be migrated to `motion[as]`.",
+      "evidence": "frontend-knowledge.md line 2: 'use motion[as]... rather than motion.create()'. Actual usage: BrainstormEntryModal.tsx:87 uses motion.div, ModeSelectionScreen.tsx:46 uses motion.div, CreativeSparkDesktopLayout.tsx:38 uses motion.div — all use motion.div, none use motion[as]."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The mode-selection-screen feature is a clean, well-implemented pass. The ModeSelectionScreen component correctly renders a full-screen overlay with two mode cards (Open Studio / Creative Spark) using the brainstorm dark/glassy theme with amber accents. Integration into BrainstormPage correctly shows mode selection after auth/guest entry for new sessions and skips it when resuming. The screen cannot be dismissed without selecting a mode. Cards are responsive (stacking on mobile via grid-cols-1/md:grid-cols-2). Framer-motion animations are smooth with staggered delays. The brainstormType state is properly stored and threaded through BrainstormLayoutProps. All validation assertions (VAL-MODE-001 through VAL-MODE-005 and VAL-MODE-010) are covered. Only non-blocking observation: the codebase uses motion.div everywhere despite the documented convention saying to use motion[as]."
+}

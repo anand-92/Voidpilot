@@ -1,0 +1,39 @@
+{
+  "featureId": "mode-session-integration",
+  "reviewedAt": "2026-03-14T04:30:00.000Z",
+  "commitId": "656a459393ed021d7421207d7170c9a7036e28f9",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Clean, well-structured implementation that wires brainstorm_type through the full session lifecycle across 5 frontend files. The deferred session creation pattern (creating the backend session only after mode selection) is a sound architectural choice that ensures brainstorm_type is always included in the POST. All expectedBehavior items are addressed: session_config sends brainstorm_type on every connection, library badges display correctly, session reopen reads stored type and skips mode selection, new sessions show mode selection, and the system message uses mode-specific names. Backward compatibility for legacy sessions (defaulting to open_studio) is properly handled both on frontend and backend.",
+    "issues": [
+      {
+        "file": "frontend/src/hooks/useBrainstormSessionLibrary.ts",
+        "line": 203,
+        "severity": "non_blocking",
+        "description": "createSession parameter is typed as `brainstormType?: string` but should ideally be `BrainstormType` from ModeSelectionScreen for type safety. Currently the wider string type allows passing arbitrary values to the backend."
+      },
+      {
+        "file": "frontend/src/pages/BrainstormPage.tsx",
+        "line": 163,
+        "severity": "non_blocking",
+        "description": "Redundant `as BrainstormType` cast — the ternary expression `session.brainstormType === 'creative_spark' ? 'creative_spark' : 'open_studio'` already produces a value assignable to BrainstormType. The cast is harmless but unnecessary."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The deferred session creation pattern (handleCreateSession sets pendingNewSession=true, actual POST happens in handleSelectMode after mode choice) is a significant frontend flow change that could trip up future workers editing BrainstormPage.tsx. The pattern is not documented in mission AGENTS.md or library files.",
+      "evidence": "BrainstormPage.tsx lines 147-161 (handleCreateSession defers) and lines 184-205 (handleSelectMode conditionally creates session). The old flow created the session immediately on button click."
+    },
+    {
+      "area": "conventions",
+      "observation": "Landing page IndexView.tsx still references 'Brainstorm Mode' (line 51). The feature description scopes the rename to 'mode-specific contexts' so this is likely intentional, but could cause confusion about which labels should use the new names vs the old generic name.",
+      "evidence": "frontend/src/components/landing/IndexView.tsx:51 — label: 'Brainstorm Mode'"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The mode-session-integration feature is well implemented. brainstorm_type flows correctly through websocket session_config (including reconnections via refs), session creation POST, library badges, and session resumption. The deferred creation pattern elegantly ensures the backend always receives brainstorm_type. Two non-blocking type-safety nits noted. No bugs or missed edge cases found. All verification commands passed per handoff."
+}

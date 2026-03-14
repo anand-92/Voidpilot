@@ -1,0 +1,68 @@
+{
+  "milestone": "mode-infrastructure",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "uv run pytest tests/ -v", "exitCode": 0 },
+    "typecheck": { "passed": true, "command": "uv run mypy src/ && cd frontend && npm exec tsc -b", "exitCode": 0 },
+    "lint": { "passed": true, "command": "uv run ruff check src/ && cd frontend && npm run lint", "exitCode": 0 },
+    "build": { "passed": true, "command": "cd frontend && npm run build", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Fixed frontend-knowledge.md: corrected Framer Motion convention from 'motion[as]' to 'motion.div' etc., matching actual codebase usage across 21+ files. The motion[as] pattern was never used.",
+      "sourceFeature": "mode-selection-screen"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Document the deferred session creation pattern in BrainstormPage.tsx: when a new signed-in session is created, the backend POST is deferred until after mode selection completes (handleSelectMode), not on the initial 'New Session' click. This ensures brainstorm_type is always included. Workers editing BrainstormPage should understand this flow.",
+      "evidence": "Feature mode-session-integration introduced this pattern (BrainstormPage.tsx lines 147-205). The old flow created sessions immediately on button click. This is a significant flow change that affects the entry -> mode-selection -> workspace pipeline.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: brainstorm_type uses plain string type ('open_studio' | 'creative_spark') with fallback routing (anything != 'creative_spark' defaults to Open Studio behavior). This is intentional — no Literal/Enum validation is enforced at the API layer. Workers should not add strict validation without updating both frontend and backend.",
+      "evidence": "Feature backend-autostart-and-session-metadata uses str type for brainstorm_type on CreateBrainstormSessionRequest and BrainstormSessionRecord. Multiple reviewers noted this as a potential gap but the fallback-to-open-studio approach is consistent across the codebase.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Note that the landing page IndexView.tsx still references 'Brainstorm Mode' (not 'Open Studio'). The rename was intentionally scoped to mode-specific contexts only (mode selection screen, session library badges). The landing page uses the generic product name, not a mode name. Workers should not rename it.",
+      "evidence": "Feature mode-session-integration scoped the rename to 'mode-specific contexts'. IndexView.tsx:51 still says 'Brainstorm Mode'. This is correct but could confuse workers who see the rename requirement and try to change it everywhere.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Worker correctly merged precondition branch before implementation — should we document merge convention in AGENTS.md?",
+      "reason": "Already handled by the orchestrator's feature dependency system. Workers receive preconditions in their feature spec, and the merge approach is self-evident. Not worth adding guidance for."
+    },
+    {
+      "observation": "Worker bundled unrelated pre-existing changes (gemini_audio.py sanitization) into feature commit.",
+      "reason": "Already documented in mission AGENTS.md as expected: 'There are uncommitted changes in src/app/services/gemini_audio.py and tests/test_gemini_audio_sanitization.py — leave them as-is'. The bundling was the pragmatic choice to avoid leaving them uncommitted indefinitely."
+    },
+    {
+      "observation": "Format-template-as-constant pattern (CREATIVE_SPARK_SYSTEM_PROMPT with {placeholders}) not documented.",
+      "reason": "Too narrow to warrant documentation. Only one prompt uses this pattern, and the corresponding build_creative_spark_system_prompt() function makes the usage clear. If more prompts adopt this pattern, it would be worth documenting then."
+    },
+    {
+      "observation": "Architecture.md describes 'collapsible conversation panel' for Creative Spark but placeholder has fixed panel.",
+      "reason": "Expected for milestone 1 placeholder. The collapsible behavior is explicitly scoped to milestone 2 (creative-spark-controls-and-panels feature). No documentation update needed — the architecture doc describes the end state, not the placeholder."
+    },
+    {
+      "observation": "Worker followed backend-worker skill procedure correctly (positive observation).",
+      "reason": "Positive confirmation, no action needed."
+    }
+  ],
+  "previousRound": null
+}
