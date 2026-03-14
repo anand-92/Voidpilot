@@ -1,24 +1,23 @@
-import { motion } from 'framer-motion'
-import { Sparkles } from 'lucide-react'
 import { DotPattern } from '@/components/ui/dot-pattern'
 import { Particles } from '@/components/ui/particles'
 import type { BrainstormLayoutProps } from './BrainstormLayouts'
 import { ConversationPanel } from './ConversationPanel'
 import { CreativeSparkControls } from './CreativeSparkControls'
+import { MasonryGallery } from './MasonryGallery'
 
 /**
  * Desktop layout for Creative Spark mode.
  *
- * This is the placeholder layout that will be expanded in milestone 2
- * with a full masonry gallery. For now it renders a distinct Creative
- * Spark workspace with conversation panel and voice controls — but
- * explicitly excludes all Open Studio elements (AgentVisualizer,
- * WorkspacePanel, tool toggles, model selector).
+ * Full-screen masonry gallery with a right sidebar for conversation
+ * and voice controls. Explicitly excludes all Open Studio elements
+ * (AgentVisualizer, WorkspacePanel, tool toggles, model selector).
  */
 export function CreativeSparkDesktopLayout({
   isConnected,
   isStarting,
   messages,
+  artifactList,
+  isGenerating,
   inputText,
   messagesEndRef,
   sessionTitle,
@@ -26,6 +25,8 @@ export function CreativeSparkDesktopLayout({
   handleSend,
   handleConnect,
   stop,
+  downloadArtifact,
+  downloadAllArtifacts,
   onCreateShare,
 }: BrainstormLayoutProps) {
   return (
@@ -33,24 +34,14 @@ export function CreativeSparkDesktopLayout({
       <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={100} color="#f97316" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-40" width={24} height={24} cx={12} cy={12} cr={0.8} />
 
-      {/* Gallery area — placeholder for milestone 2 masonry gallery */}
-      <div className="flex-1 z-10 flex flex-col items-center justify-center p-8" data-testid="creative-spark-gallery-area">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="flex flex-col items-center gap-6 text-center"
-        >
-          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-500/10">
-            <Sparkles className="h-10 w-10 text-orange-400" />
-          </div>
-          <div className="max-w-md space-y-3">
-            <h2 className="text-2xl font-bold text-white">Creative Spark</h2>
-            <p className="text-sm leading-relaxed text-stone-400">
-              Start talking — the AI will lead with questions, spin your answers into wild ideas, and generate images &amp; video right here.
-            </p>
-          </div>
-        </motion.div>
+      {/* Full-screen masonry gallery */}
+      <div className="relative z-10 flex-1 overflow-hidden" data-testid="creative-spark-gallery-area">
+        <MasonryGallery
+          artifactList={artifactList}
+          isGenerating={isGenerating}
+          downloadArtifact={downloadArtifact}
+          downloadAllArtifacts={downloadAllArtifacts}
+        />
       </div>
 
       {/* Right sidebar: conversation + voice controls */}
