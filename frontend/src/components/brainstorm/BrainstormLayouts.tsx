@@ -1,8 +1,10 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import type { BrainstormArtifact, BrainstormFlashModel, BrainstormToolId } from '../../hooks/useGeminiBrainstorm'
+import type { BrainstormType } from './ModeSelectionScreen'
 import type { Message } from '@/types/messages'
 
 export type BrainstormLayoutProps = {
+  brainstormType: BrainstormType | null
   intensityRef: React.MutableRefObject<number>
   isConnected: boolean
   isStarting: boolean

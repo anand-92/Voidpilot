@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { BrainstormEntryModal } from '../components/brainstorm/BrainstormEntryModal'
 import { BrainstormDesktopLayout, BrainstormMobileLayout, type BrainstormLayoutProps } from '../components/brainstorm/BrainstormLayouts'
+import { ModeSelectionScreen, type BrainstormType } from '../components/brainstorm/ModeSelectionScreen'
 import { getArtifactSize } from '../components/brainstorm/utils'
 import { useBrainstormEntryAuth } from '../hooks/useBrainstormEntryAuth'
 import { useGeminiBrainstorm } from '../hooks/useGeminiBrainstorm'
@@ -61,6 +63,8 @@ export default function BrainstormPage() {
   const [isMobileLayout, setIsMobileLayout] = useState(false)
   const [hasGuestAccess, setHasGuestAccess] = useState(false)
   const [grantedSignedInAuthChangeKey, setGrantedSignedInAuthChangeKey] = useState<number | null>(null)
+  const [brainstormType, setBrainstormType] = useState<BrainstormType | null>(null)
+  const [showModeSelection, setShowModeSelection] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const hasSignedInWorkspaceAccess =
@@ -128,6 +132,8 @@ export default function BrainstormPage() {
     setInputText('')
     setSelectedArtifact(null)
     setHasGuestAccess(true)
+    setBrainstormType(null)
+    setShowModeSelection(true)
   }, [clearEntryError, prepareGuestWorkspace])
 
   const handleCreateSession = useCallback(async () => {
@@ -144,6 +150,8 @@ export default function BrainstormPage() {
     setSelectedArtifact(null)
     setHasGuestAccess(false)
     setGrantedSignedInAuthChangeKey(authChangeKey)
+    setBrainstormType(null)
+    setShowModeSelection(true)
   }, [authChangeKey, clearEntryError, createSession, preparePersistedWorkspace])
 
   const handleReopenSession = useCallback(async (sessionId: string) => {
@@ -160,12 +168,21 @@ export default function BrainstormPage() {
     setSelectedArtifact(null)
     setHasGuestAccess(false)
     setGrantedSignedInAuthChangeKey(authChangeKey)
+    // Resuming an existing session — skip mode selection, default to open_studio.
+    // Future work (mode-session-integration) will read brainstorm_type from session record.
+    setBrainstormType('open_studio')
+    setShowModeSelection(false)
   }, [authChangeKey, clearEntryError, preparePersistedWorkspace, reopenSession])
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     clearEntryError()
     await deleteSession(sessionId)
   }, [clearEntryError, deleteSession])
+
+  const handleSelectMode = useCallback((mode: BrainstormType) => {
+    setBrainstormType(mode)
+    setShowModeSelection(false)
+  }, [])
 
   const handleCreateShare = useCallback(async (): Promise<string | null> => {
     if (sessionMode !== 'persisted' || !activeSessionId) return null
@@ -193,6 +210,7 @@ export default function BrainstormPage() {
   const onCreateShare = sessionMode === 'persisted' ? handleCreateShare : undefined
 
   const sharedProps: BrainstormLayoutProps = {
+    brainstormType,
     intensityRef,
     isConnected,
     isStarting,
@@ -220,12 +238,14 @@ export default function BrainstormPage() {
     onCreateShare,
   }
 
+  const isOverlayActive = isEntryModalOpen || showModeSelection
+
   return (
     <>
       <div
-        aria-hidden={isEntryModalOpen}
-        inert={isEntryModalOpen}
-        className={isEntryModalOpen ? 'pointer-events-none select-none blur-[2px] saturate-75' : ''}
+        aria-hidden={isOverlayActive}
+        inert={isOverlayActive}
+        className={isOverlayActive ? 'pointer-events-none select-none blur-[2px] saturate-75' : ''}
       >
         {isMobileLayout ? (
           <BrainstormMobileLayout {...sharedProps} />
@@ -233,6 +253,15 @@ export default function BrainstormPage() {
           <BrainstormDesktopLayout {...sharedProps} />
         )}
       </div>
+
+      <AnimatePresence mode="wait">
+        {showModeSelection && !isEntryModalOpen && (
+          <ModeSelectionScreen
+            key="mode-selection"
+            onSelectMode={handleSelectMode}
+          />
+        )}
+      </AnimatePresence>
 
       {isEntryModalOpen && (
         <BrainstormEntryModal
