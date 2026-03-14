@@ -193,7 +193,7 @@ export function useGeminiBrainstorm() {
     toolResponseTurnRef.current = true
   }, [])
 
-  const addMessage = useCallback((content: string, role: MessageRole) => {
+  const addMessage = useCallback((content: string, role: MessageRole, isTranscription = false) => {
     setMessages((previous) => {
       const last = previous[previous.length - 1]
       const isNewTurn = turnBoundaryRef.current && role === 'gemini'
@@ -215,7 +215,12 @@ export function useGeminiBrainstorm() {
       let next: Message[]
       if (canAppend) {
         next = [...previous]
+        // Transcription chunks already include their own whitespace at
+        // word boundaries, so concatenate them directly. Non-transcription
+        // model text chunks (from model_turn.parts) need an explicit space
+        // separator when neither side provides one.
         const needsSpace =
+          !isTranscription &&
           last.content.length > 0 &&
           !last.content.endsWith(' ') &&
           !last.content.endsWith('\n') &&
@@ -267,9 +272,10 @@ export function useGeminiBrainstorm() {
     }
   }, [upsertArtifact])
 
-  const handleTextMessage = useCallback((data: { content: string; role: string }) => {
+  const handleTextMessage = useCallback((data: { content: string; role?: string }) => {
+    const isTranscription = data.role != null
     const role: MessageRole = data.role === 'user' ? 'user' : 'gemini'
-    addMessage(data.content, role)
+    addMessage(data.content, role, isTranscription)
   }, [addMessage])
 
   const handleAudioMessage = useCallback((data: { content: string }) => {

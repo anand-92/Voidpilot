@@ -350,16 +350,16 @@ def _make_tool_handlers(  # noqa: C901
 
             return {
                 "result": f"Image '{label}' generated.",
-                "scheduling": "WHEN_IDLE",
+                "scheduling": "SILENT",
             }
         except Exception as e:
             logger.error("generate_image failed: %s", e)
-            return {"result": f"Error generating image: {e}", "scheduling": "WHEN_IDLE"}
+            return {"result": f"Error generating image: {e}", "scheduling": "SILENT"}
 
     async def handle_generate_video(prompt: str, label: str) -> dict:
         """Generate video via FlashWorker and push to client."""
         return await handle_generate_media(
-            "generate_video", prompt, label, "brainstorm_video", "mp4", "WHEN_IDLE"
+            "generate_video", prompt, label, "brainstorm_video", "mp4", "SILENT"
         )
 
     async def handle_delegate(
@@ -383,10 +383,10 @@ def _make_tool_handlers(  # noqa: C901
                         "content": result_text,
                     }
                 )
-            return {"result": result_text[:200], "scheduling": "WHEN_IDLE"}
+            return {"result": result_text[:200], "scheduling": "SILENT"}
         except Exception as e:
             logger.error("delegate_to_flash failed: %s", e)
-            return {"result": f"Error delegating task: {e}", "scheduling": "WHEN_IDLE"}
+            return {"result": f"Error delegating task: {e}", "scheduling": "SILENT"}
 
     # Build tool mapping based on brainstorm_type
     mapping: dict = {}

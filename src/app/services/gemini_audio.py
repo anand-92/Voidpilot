@@ -192,10 +192,10 @@ class GeminiLive:
             logger.error(traceback.format_exc())
             result = f"Error: {e}"
 
-        scheduling = "WHEN_IDLE"
+        scheduling = "SILENT"
         result_str = result
         if isinstance(result, dict):
-            scheduling = result.get("scheduling", "WHEN_IDLE")
+            scheduling = result.get("scheduling", "SILENT")
             result_str = result.get("result", str(result))
 
         logger.info(

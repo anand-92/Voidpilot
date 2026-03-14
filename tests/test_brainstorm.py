@@ -173,9 +173,9 @@ async def test_save_handler_returns_silent():
 
 
 @pytest.mark.asyncio
-async def test_image_handler_returns_when_idle():
+async def test_image_handler_returns_silent():
     """BE-TH-05: generate_brainstorm_image handler returns
-    scheduling='WHEN_IDLE'."""
+    scheduling='SILENT'."""
     from src.app.api.v1.endpoints.brainstorm import (
         _make_tool_handlers,
     )
@@ -197,14 +197,14 @@ async def test_image_handler_returns_when_idle():
             label="Cat Sketch",
         )
 
-    assert result["scheduling"] == "WHEN_IDLE"
+    assert result["scheduling"] == "SILENT"
     assert "result" in result
 
 
 @pytest.mark.asyncio
-async def test_delegate_handler_returns_when_idle():
+async def test_delegate_handler_returns_silent():
     """BE-TH-06: delegate_to_flash handler returns
-    scheduling='WHEN_IDLE'."""
+    scheduling='SILENT'."""
     from src.app.api.v1.endpoints.brainstorm import (
         _make_tool_handlers,
     )
@@ -226,7 +226,7 @@ async def test_delegate_handler_returns_when_idle():
             context="SaaS product",
         )
 
-    assert result["scheduling"] == "WHEN_IDLE"
+    assert result["scheduling"] == "SILENT"
     assert "result" in result
 
 
