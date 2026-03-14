@@ -214,7 +214,14 @@ export function useGeminiBrainstorm() {
       let next: Message[]
       if (canAppend) {
         next = [...previous]
-        next[next.length - 1] = { ...last, content: last.content + content }
+        const needsSpace =
+          last.content.length > 0 &&
+          !last.content.endsWith(' ') &&
+          !last.content.endsWith('\n') &&
+          !content.startsWith(' ') &&
+          !content.startsWith('\n')
+        const separator = needsSpace ? ' ' : ''
+        next[next.length - 1] = { ...last, content: last.content + separator + content }
       } else {
         next = [...previous, { role, content, isToolResponse: shouldAppend ?? undefined }]
       }
