@@ -405,7 +405,7 @@ class TestSystemPromptSelection:
 
         prompt = mock_gemini_instance.system_prompt
         assert "Creative Spark Mode" in prompt
-        assert "inspiration engine" in prompt
+        assert "creative engine" in prompt
         # Should NOT be the brainstorm prompt
         assert "creative thinking partner" not in prompt
 
