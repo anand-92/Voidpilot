@@ -6,9 +6,9 @@ import { DotPattern } from '@/components/ui/dot-pattern'
 import { Particles } from '@/components/ui/particles'
 import { cn } from '@/lib/utils'
 import type { BrainstormLayoutProps } from './BrainstormLayouts'
-import { AgentVisualizer } from './AgentVisualizer'
 import { ConversationPanel } from './ConversationPanel'
 import { CreativeSparkControls } from './CreativeSparkControls'
+import { FloatingAgentWindow } from './FloatingAgentWindow'
 import { MasonryGallery } from './MasonryGallery'
 
 const PANEL_WIDTH = 400
@@ -23,7 +23,7 @@ const PANEL_WIDTH = 400
  * Persistent controls (mic, connect/disconnect, text input) are fixed
  * at the bottom of the screen and never scroll with the gallery.
  *
- * Includes AgentVisualizer above the gallery. Excludes Open Studio
+ * AgentVisualizer renders as a floating draggable window. Excludes Open Studio
  * elements (WorkspacePanel, tool toggles, model selector).
  */
 export function CreativeSparkDesktopLayout({
@@ -54,19 +54,18 @@ export function CreativeSparkDesktopLayout({
       <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={100} color="#f97316" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-40" width={24} height={24} cx={12} cy={12} cr={0.8} />
 
-      {/* Full-screen masonry gallery + agent visualizer */}
+      {/* Floating agent visualizer window */}
+      <FloatingAgentWindow
+        intensityRef={intensityRef}
+        isGenerating={isGenerating}
+        isConnected={isConnected}
+      />
+
+      {/* Full-screen masonry gallery */}
       <div
-        className="relative z-10 flex flex-1 flex-col overflow-hidden pb-[140px]"
+        className="relative z-10 flex flex-1 flex-col overflow-hidden pb-20"
         data-testid="creative-spark-gallery-area"
       >
-        <div className="shrink-0 px-6 pt-4">
-          <AgentVisualizer
-            intensityRef={intensityRef}
-            isGenerating={isGenerating}
-            isConnected={isConnected}
-            className="relative w-full rounded-2xl border border-white/[0.06] bg-[#0a0a0a] overflow-hidden"
-          />
-        </div>
         <MasonryGallery
           artifactList={artifactList}
           isGenerating={isGenerating}
@@ -75,7 +74,7 @@ export function CreativeSparkDesktopLayout({
         />
       </div>
 
-      {/* Conversation panel toggle button */}
+      {/* Conversation panel toggle button — positioned below the gallery top bar to avoid overlap with Download All */}
       <button
         type="button"
         onClick={() => setIsPanelOpen((v) => !v)}
@@ -86,7 +85,7 @@ export function CreativeSparkDesktopLayout({
           'hover:scale-105 hover:border-orange-500/30 hover:shadow-orange-500/10',
           isPanelOpen
             ? 'right-[416px] top-5 size-10 bg-white/[0.06]'
-            : 'right-5 top-5 gap-2 bg-orange-500/10 px-4 py-2.5',
+            : 'right-5 top-16 gap-2 bg-orange-500/10 px-4 py-2.5',
         )}
       >
         {isPanelOpen ? (
@@ -126,12 +125,12 @@ export function CreativeSparkDesktopLayout({
         )}
       </AnimatePresence>
 
-      {/* Persistent controls — fixed at bottom, always visible */}
+      {/* Floating controls — fixed at bottom center */}
       <div
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.06] bg-[#0a0a0a]/80 backdrop-blur-2xl"
+        className="fixed inset-x-0 bottom-4 z-50 flex justify-center pointer-events-none"
         data-testid="persistent-controls"
       >
-        <div className="mx-auto max-w-2xl px-6 py-4">
+        <div className="pointer-events-auto w-full max-w-lg px-4">
           <CreativeSparkControls
             isConnected={isConnected}
             isStarting={isStarting}

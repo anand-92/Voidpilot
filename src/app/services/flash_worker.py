@@ -202,7 +202,7 @@ class FlashWorker:
 
         config = types.GenerateVideosConfig(
             aspect_ratio="16:9",
-            duration_seconds=4,
+            duration_seconds=8,
         )
 
         # Run sync video generation in thread pool since the SDK

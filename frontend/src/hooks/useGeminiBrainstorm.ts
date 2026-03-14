@@ -155,6 +155,7 @@ export function useGeminiBrainstorm() {
   const turnBoundaryRef = useRef(false)
   const toolCallPendingRef = useRef(false)
   const toolResponseTurnRef = useRef(false)
+  const modelHasSpokenRef = useRef(false)
   const titleSavedRef = useRef(false)
   const savePendingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -192,7 +193,7 @@ export function useGeminiBrainstorm() {
     toolResponseTurnRef.current = true
   }, [])
 
-  const addMessage = useCallback((content: string, role: MessageRole) => {
+  const addMessage = useCallback((content: string, role: MessageRole, isTranscription = false) => {
     setMessages((previous) => {
       const last = previous[previous.length - 1]
       const isNewTurn = turnBoundaryRef.current && role === 'gemini'
@@ -214,7 +215,12 @@ export function useGeminiBrainstorm() {
       let next: Message[]
       if (canAppend) {
         next = [...previous]
+        // Transcription chunks already include their own whitespace at
+        // word boundaries, so concatenate them directly. Non-transcription
+        // model text chunks (from model_turn.parts) need an explicit space
+        // separator when neither side provides one.
         const needsSpace =
+          !isTranscription &&
           last.content.length > 0 &&
           !last.content.endsWith(' ') &&
           !last.content.endsWith('\n') &&
@@ -266,9 +272,10 @@ export function useGeminiBrainstorm() {
     }
   }, [upsertArtifact])
 
-  const handleTextMessage = useCallback((data: { content: string; role: string }) => {
+  const handleTextMessage = useCallback((data: { content: string; role?: string }) => {
+    const isTranscription = data.role != null
     const role: MessageRole = data.role === 'user' ? 'user' : 'gemini'
-    addMessage(data.content, role)
+    addMessage(data.content, role, isTranscription)
   }, [addMessage])
 
   const handleAudioMessage = useCallback((data: { content: string }) => {
@@ -294,6 +301,7 @@ export function useGeminiBrainstorm() {
     turnBoundaryRef.current = false
     toolCallPendingRef.current = false
     toolResponseTurnRef.current = false
+    modelHasSpokenRef.current = false
     titleSavedRef.current = false
     savePendingRef.current = false
     artifactLoadPromisesRef.current.clear()
@@ -519,6 +527,7 @@ export function useGeminiBrainstorm() {
     turnBoundaryRef.current = false
     toolCallPendingRef.current = false
     toolResponseTurnRef.current = false
+    modelHasSpokenRef.current = false
     intensityRef.current = 0
     nextPlayTimeRef.current = 0
   }, [])
@@ -605,113 +614,145 @@ export function useGeminiBrainstorm() {
   const start = useCallback(async () => {
     setIsStarting(true)
     setAutoStartError(null)
+    modelHasSpokenRef.current = false
     try {
       if (wsRef.current || streamRef.current) {
         stop()
       }
 
       const ws = new WebSocket(`${API_BASE_URL}/api/v1/live/brainstorm`)
+      let startupSettled = false
 
-      ws.onopen = () => {
-        console.log('Connected to brainstorm endpoint')
-        setIsConnected(true)
-        const modeName = brainstormTypeRef.current === 'creative_spark' ? 'Creative Spark' : 'Open Studio'
-        addMessage(`Connected to ${modeName}`, 'system')
-
-        ws.send(
-          JSON.stringify({
-            type: 'session_config',
-            handle: sessionHandleRef.current,
-            session_id: activeSessionIdRef.current,
-            session_mode: sessionModeRef.current,
-            flash_model: selectedFlashModel,
-            enabled_tools: selectedTools,
-            brainstorm_type: brainstormTypeRef.current,
-          }),
-        )
-      }
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data)
-        const dataType = data.type
-
-        // Handle artifact types uniformly
-        if (dataType === 'brainstorm_artifact' || dataType === 'brainstorm_image' || dataType === 'brainstorm_video') {
-          handleArtifactMessage(data as Record<string, string>)
-          return
+      const startupPromise = new Promise<void>((resolve, reject) => {
+        const resolveStartup = () => {
+          if (startupSettled) {
+            return
+          }
+          startupSettled = true
+          resolve()
         }
 
-        switch (dataType) {
-          case 'text':
-            handleTextMessage(data)
-            break
-          case 'audio':
-            handleAudioMessage(data)
-            break
-          case 'session_resumption_update':
-            if (data.handle) {
-              sessionHandleRef.current = data.handle
+        const rejectStartup = (message: string) => {
+          if (startupSettled) {
+            return
+          }
+          startupSettled = true
+          reject(new Error(message))
+        }
+
+        ws.onopen = () => {
+          console.log('Connected to brainstorm endpoint')
+          setIsConnected(true)
+          const modeName = brainstormTypeRef.current === 'creative_spark' ? 'Creative Spark' : 'Open Studio'
+          addMessage(`Connected to ${modeName}`, 'system')
+
+          ws.send(
+            JSON.stringify({
+              type: 'session_config',
+              handle: sessionHandleRef.current,
+              session_id: activeSessionIdRef.current,
+              session_mode: sessionModeRef.current,
+              flash_model: selectedFlashModel,
+              enabled_tools: selectedTools,
+              brainstorm_type: brainstormTypeRef.current,
+            }),
+          )
+
+          resolveStartup()
+        }
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data)
+          const dataType = data.type
+
+          // Handle artifact types uniformly
+          if (dataType === 'brainstorm_artifact' || dataType === 'brainstorm_image' || dataType === 'brainstorm_video') {
+            handleArtifactMessage(data as Record<string, string>)
+            return
+          }
+
+          switch (dataType) {
+            case 'text':
+              if (data.role !== 'user') {
+                modelHasSpokenRef.current = true
+                setAutoStartError(null)
+              }
+              handleTextMessage(data)
+              break
+            case 'audio':
+              modelHasSpokenRef.current = true
+              setAutoStartError(null)
+              handleAudioMessage(data)
+              break
+            case 'session_resumption_update':
+              if (data.handle) {
+                sessionHandleRef.current = data.handle
+              }
+              break
+            case 'interrupted':
+              nextPlayTimeRef.current = 0
+              break
+            case 'tool_call_start':
+              setIsGenerating(true)
+              startToolCallTurn()
+              break
+            case 'tool_call':
+              setIsGenerating(false)
+              toolCallPendingRef.current = true
+              break
+
+            case 'turn_complete':
+              turnBoundaryRef.current = true
+              toolResponseTurnRef.current = false
+              // Persist transcript state after each completed turn (signed-in only)
+              persistCurrentTurns(messagesRef.current)
+              break
+            case 'error': {
+              const errorContent = data.content ?? data.error ?? 'Unknown error'
+              addMessage(`Error: ${errorContent}`, 'system')
+              // Flag auto-start errors for Creative Spark recovery UI
+              // Only show the error overlay if the model never spoke
+              if (brainstormTypeRef.current === 'creative_spark' && !modelHasSpokenRef.current) {
+                setAutoStartError(errorContent)
+              }
+              break
             }
-            break
-          case 'interrupted':
-            nextPlayTimeRef.current = 0
-            break
-          case 'tool_call_start':
-            setIsGenerating(true)
-            startToolCallTurn()
-            break
-          case 'tool_call':
-            setIsGenerating(false)
-            toolCallPendingRef.current = true
-            break
-          case 'turn_complete':
-            turnBoundaryRef.current = true
-            toolResponseTurnRef.current = false
-            // Persist transcript state after each completed turn (signed-in only)
-            persistCurrentTurns(messagesRef.current)
-            break
-          case 'error': {
-            const errorContent = data.content ?? 'Unknown error'
-            addMessage(`Error: ${errorContent}`, 'system')
-            // Flag auto-start errors for Creative Spark recovery UI
-            if (brainstormTypeRef.current === 'creative_spark') {
-              setAutoStartError(errorContent)
-            }
-            break
           }
         }
-      }
 
-      ws.onerror = (error) => {
-        console.error('Brainstorm WebSocket error:', error)
-        addMessage('Connection error', 'system')
-      }
+        ws.onerror = (error) => {
+          console.error('Brainstorm WebSocket error:', error)
+          if (!startupSettled) {
+            rejectStartup('Failed to connect to brainstorm endpoint')
+            return
+          }
+          addMessage('Connection error', 'system')
+        }
 
-      ws.onclose = () => {
-        console.log('Brainstorm WebSocket closed')
-        setIsConnected(false)
-      }
-
-      wsRef.current = ws
-
-      await new Promise<void>((resolve) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          resolve()
-        } else {
-          const originalOnOpen = ws.onopen
-          ws.onopen = (event) => {
-            if (originalOnOpen) originalOnOpen.call(ws, event)
-            resolve()
+        ws.onclose = (event) => {
+          console.log('Brainstorm WebSocket closed')
+          setIsConnected(false)
+          if (!startupSettled) {
+            const closeMessage = event.reason || 'Brainstorm connection closed before startup completed'
+            rejectStartup(closeMessage)
           }
         }
       })
+
+      wsRef.current = ws
+
+      await startupPromise
 
       audioContextRef.current = createAudioContext()
       streamRef.current = await requestMicrophone()
       setupAudioProcessing()
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('Brainstorm start error:', error)
-      addMessage('Error: ' + (error as Error).message, 'system')
+      addMessage('Error: ' + errorMessage, 'system')
+      if (brainstormTypeRef.current === 'creative_spark' && !modelHasSpokenRef.current) {
+        setAutoStartError(errorMessage)
+      }
       stop()
       throw error
     } finally {

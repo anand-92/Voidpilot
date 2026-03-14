@@ -12,7 +12,6 @@ from google.genai import types
 from src.app.main import app
 from src.app.services.gemini_audio import GeminiLive
 
-
 # ── BE-SR-01: GeminiLive accepts session_resumption_handle ───────
 
 
@@ -438,3 +437,140 @@ async def test_brainstorm_forwards_resumption_events():
     assert data["type"] == "session_resumption_update"
     assert data["handle"] == "new_handle_abc"
     assert data["resumable"] is True
+
+
+@pytest.mark.asyncio
+async def test_go_away_event_yielded():
+    """GoAway messages are yielded so callers can reconnect."""
+    gl = GeminiLive(
+        api_key="test",
+        model="test-model",
+        input_sample_rate=16000,
+    )
+
+    mock_session = AsyncMock()
+
+    mock_go_away = MagicMock()
+    mock_go_away.time_left = "60s"
+
+    call_count = 0
+
+    async def mock_receive():
+        nonlocal call_count
+        call_count += 1
+        if call_count > 1:
+            raise Exception("Session ended")
+        yield MagicMock(
+            server_content=None,
+            tool_call=None,
+            go_away=mock_go_away,
+            session_resumption_update=None,
+        )
+
+    mock_session.receive = mock_receive
+
+    class MockCtxManager:
+        async def __aenter__(self):
+            return mock_session
+
+        async def __aexit__(self, *args):
+            pass
+
+    mock_live = MagicMock()
+    mock_live.connect = lambda model, config: MockCtxManager()
+
+    mock_client = MagicMock()
+    mock_client.aio.live = mock_live
+    gl.client = mock_client
+
+    events = []
+    try:
+        async with asyncio.timeout(5):
+            async for event in gl.start_session(
+                audio_input_queue=asyncio.Queue(),
+                video_input_queue=asyncio.Queue(),
+                text_input_queue=asyncio.Queue(),
+                audio_output_callback=AsyncMock(),
+                audio_interrupt_callback=AsyncMock(),
+            ):
+                events.append(event)
+                if event.get("type") == "go_away":
+                    break
+    except (TimeoutError, Exception):
+        pass
+
+    assert {"type": "go_away", "time_left": "60s"} in events
+
+
+@pytest.mark.asyncio
+async def test_handle_receive_error_uses_content_field():
+    """Recoverable errors include content for websocket clients."""
+    gl = GeminiLive(
+        api_key="test",
+        model="test-model",
+        input_sample_rate=16000,
+    )
+    event_queue: asyncio.Queue = asyncio.Queue()
+
+    await gl._handle_receive_error(Exception("temporary failure"), event_queue)
+
+    event = await event_queue.get()
+    assert event == {
+        "type": "error",
+        "content": "temporary failure",
+        "error": "temporary failure",
+    }
+
+
+@pytest.mark.asyncio
+async def test_session_dead_yields_error_content():
+    """Fatal receive errors produce websocket-friendly error payloads."""
+    gl = GeminiLive(
+        api_key="test",
+        model="test-model",
+        input_sample_rate=16000,
+    )
+
+    mock_session = AsyncMock()
+
+    async def mock_receive():
+        raise Exception("1008 policy violation")
+        yield
+
+    mock_session.receive = mock_receive
+
+    class MockCtxManager:
+        async def __aenter__(self):
+            return mock_session
+
+        async def __aexit__(self, *args):
+            pass
+
+    mock_live = MagicMock()
+    mock_live.connect = lambda model, config: MockCtxManager()
+
+    mock_client = MagicMock()
+    mock_client.aio.live = mock_live
+    gl.client = mock_client
+
+    events = []
+    try:
+        async with asyncio.timeout(5):
+            async for event in gl.start_session(
+                audio_input_queue=asyncio.Queue(),
+                video_input_queue=asyncio.Queue(),
+                text_input_queue=asyncio.Queue(),
+                audio_output_callback=AsyncMock(),
+                audio_interrupt_callback=AsyncMock(),
+            ):
+                events.append(event)
+                if event.get("type") == "error":
+                    break
+    except (TimeoutError, Exception):
+        pass
+
+    assert events[0] == {
+        "type": "error",
+        "content": "Session connection lost",
+        "error": "Session connection lost",
+    }

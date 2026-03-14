@@ -43,7 +43,7 @@ def test_conversation_starter_pools_have_expected_categories() -> None:
     assert set(CREATIVE_SPARK_CONVERSATION_STARTERS) == {
         "food",
         "recent_activity",
-        "mood",
+        "surroundings",
     }
 
     for category, prompts in CREATIVE_SPARK_CONVERSATION_STARTERS.items():
@@ -52,12 +52,14 @@ def test_conversation_starter_pools_have_expected_categories() -> None:
 
 
 def test_select_random_conversation_starter_returns_category_and_question() -> None:
-    rng = SequenceRandom(["mood", "How are you feeling right now?"])
+    rng = SequenceRandom(
+        ["surroundings", "What's the closest thing to your left hand right now?"]
+    )
 
     category, question = select_creative_spark_conversation_starter(rng=rng)
 
-    assert category == "mood"
-    assert question == "How are you feeling right now?"
+    assert category == "surroundings"
+    assert question == "What's the closest thing to your left hand right now?"
 
 
 def test_build_creative_spark_system_prompt_injects_selected_starter() -> None:

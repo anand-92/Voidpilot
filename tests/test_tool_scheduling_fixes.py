@@ -2,7 +2,7 @@
 
 Covers:
 - Bug 2: Dict handler results with 'scheduling' key are respected
-- Bug 3: String handler results still default to WHEN_IDLE
+- Bug 3: String handler results still default to SILENT
 - Bug 3b: FlashWorker None guard for response.text
 """
 
@@ -115,9 +115,9 @@ async def test_dict_result_scheduling_respected():
 
 
 @pytest.mark.asyncio
-async def test_string_result_defaults_to_when_idle():
+async def test_string_result_defaults_to_silent():
     """When a tool handler returns a plain string,
-    scheduling defaults to WHEN_IDLE."""
+    scheduling defaults to SILENT."""
     gl = GeminiLive(
         api_key="test",
         model="test-model",
@@ -203,7 +203,7 @@ async def test_string_result_defaults_to_when_idle():
 
     assert len(captured_responses) == 1
     resp = captured_responses[0]
-    assert resp.response["scheduling"] == "WHEN_IDLE"
+    assert resp.response["scheduling"] == "SILENT"
     assert resp.response["result"] == "plain string result"
 
 

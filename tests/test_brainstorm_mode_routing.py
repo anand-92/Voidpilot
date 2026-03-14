@@ -5,7 +5,6 @@ missing/unknown brainstorm_type defaults, enabled_tools override
 protection, system prompt selection, and audio config.
 """
 
-import asyncio
 import json
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -15,13 +14,10 @@ from fastapi.testclient import TestClient
 
 from src.app.api.v1.endpoints.brainstorm import (
     BRAINSTORM_SYSTEM_PROMPT,
-    CREATIVE_SPARK_SYSTEM_PROMPT,
     _build_tool_defs,
     _make_tool_handlers,
-    build_creative_spark_system_prompt,
 )
 from src.app.main import app
-
 
 # ── Creative Spark tool filtering ────────────────────────────────
 
@@ -54,6 +50,13 @@ class TestCreativeSparkToolDefs:
         decls = tool_defs[0]["function_declarations"]
         names = {d["name"] for d in decls}
         assert "save_brainstorm_artifact" not in names
+
+    def test_creative_spark_tool_defs_are_blocking(self):
+        """Creative Spark omits behavior so tool calls block."""
+        tool_defs = _build_tool_defs(brainstorm_type="creative_spark")
+        decls = tool_defs[0]["function_declarations"]
+
+        assert all("behavior" not in decl for decl in decls)
 
 
 class TestCreativeSparkToolMapping:
@@ -142,6 +145,13 @@ class TestOpenStudioToolDefs:
         decls = tool_defs[0]["function_declarations"]
         names = {d["name"] for d in decls}
         assert "delegate_to_flash" in names
+
+    def test_open_studio_tool_defs_remain_non_blocking(self):
+        """Open Studio keeps NON_BLOCKING behavior on tool defs."""
+        tool_defs = _build_tool_defs(brainstorm_type="open_studio")
+        decls = tool_defs[0]["function_declarations"]
+
+        assert all(decl.get("behavior") == "NON_BLOCKING" for decl in decls)
 
 
 class TestOpenStudioToolMapping:
