@@ -1,5 +1,9 @@
 # --- Gemini Live Unified Dev Kill any existing processes Script (Windows) ---
 
+# Always run from the project root (parent of scripts/)
+$projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+Set-Location $projectRoot
+
 Write-Host "[System] Checking for existing processes on ports 8000 and 5173..." -ForegroundColor Cyan
 
 # Function to kill processes by port
@@ -19,10 +23,10 @@ Start-Sleep -Seconds 1
 Write-Host "[System] Launching Backend (8000) and Frontend (5173)..." -ForegroundColor Cyan
 
 # Start Backend using cmd.exe so uv can be correctly resolved
-$backend = Start-Process -NoNewWindow -PassThru -FilePath "cmd.exe" -ArgumentList "/c uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000"
+$backend = Start-Process -NoNewWindow -PassThru -FilePath "cmd.exe" -ArgumentList "/c cd /d `"$projectRoot`" && uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000"
 
 # Start Frontend using cmd.exe so npm can be correctly resolved
-$frontend = Start-Process -NoNewWindow -PassThru -FilePath "cmd.exe" -ArgumentList "/c cd frontend && npm run dev -- --host 127.0.0.1 --clearScreen false"
+$frontend = Start-Process -NoNewWindow -PassThru -FilePath "cmd.exe" -ArgumentList "/c cd /d `"$projectRoot\frontend`" && npm run dev -- --host 127.0.0.1 --clearScreen false"
 
 try {
     # Keep the script running until the user presses Ctrl+C
