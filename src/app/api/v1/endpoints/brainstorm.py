@@ -1,8 +1,10 @@
 import asyncio
 import base64
 import logging
+import random
 import traceback
-from typing import Annotated, Any
+from collections.abc import Mapping, Sequence
+from typing import Annotated, Any, Protocol
 
 from fastapi import APIRouter, Depends, Response, WebSocket, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -106,6 +108,84 @@ for them.
 structured data extraction, instead of speaking it.
 - Keep talking to the user while tools execute. You'll be notified when they \
 complete."""
+
+CREATIVE_SPARK_CONVERSATION_STARTERS: dict[str, tuple[str, ...]] = {
+    "food": (
+        "What did you eat recently that felt unexpectedly comforting?",
+        "What snack have you been thinking about lately?",
+        "What's the most dramatic meal you've had this month?",
+    ),
+    "recent_activity": (
+        "What were you doing right before this conversation started?",
+        "What's something ordinary you did today that still stuck with you?",
+        "What tiny errand or routine have you done lately?",
+    ),
+    "mood": (
+        "What kind of energy are you carrying right now?",
+        "What's your mood feeling like at this exact moment?",
+        "If today had a vibe soundtrack, what would it feel like?",
+    ),
+}
+
+CREATIVE_SPARK_SYSTEM_PROMPT = """\
+You are Voidpilot in Creative Spark Mode — an inspiration engine that turns
+ordinary details into vivid visual concepts.
+
+Behavior:
+- Ask 2-3 easy warmup questions before you go big.
+- Start with this exact warmup question from the {starter_category} category:
+  {conversation_starter}
+- Take mundane answers and spin them into wild, cinematic creative ideas.
+- Offer to generate images or videos immediately as soon as a strong visual
+  direction appears.
+- Keep creative momentum flowing with quick follow-up questions, bold twists,
+  and fresh visual hooks.
+- Stay voice-first, playful, and forward-moving so the user never feels stuck.
+"""
+
+
+class SupportsChoice(Protocol):
+    def choice(self, options: Sequence[str]) -> str: ...
+
+
+def select_creative_spark_conversation_starter(
+    starter_pools: Mapping[str, Sequence[str]] | None = None,
+    rng: SupportsChoice | None = None,
+) -> tuple[str, str]:
+    pools = (
+        starter_pools
+        if starter_pools is not None
+        else CREATIVE_SPARK_CONVERSATION_STARTERS
+    )
+    if not pools:
+        raise ValueError(
+            "Creative Spark starter pools must include at least one category."
+        )
+
+    chooser = rng if rng is not None else random.Random()
+    category = chooser.choice(tuple(pools))
+    questions = tuple(pools[category])
+    if not questions:
+        raise ValueError(
+            "Creative Spark starter category "
+            f"'{category}' must include at least one question."
+        )
+
+    return category, chooser.choice(questions)
+
+
+def build_creative_spark_system_prompt(
+    starter_pools: Mapping[str, Sequence[str]] | None = None,
+    rng: SupportsChoice | None = None,
+) -> str:
+    category, question = select_creative_spark_conversation_starter(
+        starter_pools=starter_pools,
+        rng=rng,
+    )
+    return CREATIVE_SPARK_SYSTEM_PROMPT.format(
+        starter_category=category.replace("_", " "),
+        conversation_starter=question,
+    )
 
 
 class SaveBrainstormTurnsRequest(BaseModel):
