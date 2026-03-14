@@ -88,8 +88,8 @@ function ImageTile({
         </div>
       )}
 
-      {/* Hover overlay with label + download */}
-      <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+      {/* Hover overlay with label + download — always visible on touch devices via active state */}
+      <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-active:opacity-100">
         <div className="flex items-end justify-between gap-2 p-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">
@@ -107,7 +107,7 @@ function ImageTile({
               onDownload()
             }}
             aria-label={`Download ${artifact.filename}`}
-            className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20"
+            className="flex shrink-0 items-center justify-center rounded-xl bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20 min-h-11 min-w-11 size-11 sm:min-h-9 sm:min-w-9 sm:size-9"
           >
             <Download className="size-4" />
           </Button>
@@ -173,11 +173,11 @@ function VideoTile({
         </div>
       )}
 
-      {/* Hover overlay with label + download */}
+      {/* Hover overlay with label + download — always visible on touch via active */}
       <div
         className={cn(
           'absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 to-transparent p-3 transition-opacity duration-300',
-          isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-0 group-hover:opacity-100',
+          isPlaying ? 'opacity-0 group-hover:opacity-100 group-active:opacity-100' : 'opacity-0 group-hover:opacity-100 group-active:opacity-100',
         )}
       >
         <div className="min-w-0 flex-1">
@@ -196,7 +196,7 @@ function VideoTile({
             onDownload()
           }}
           aria-label={`Download ${artifact.filename}`}
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20"
+          className="flex shrink-0 items-center justify-center rounded-xl bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20 min-h-11 min-w-11 size-11 sm:min-h-9 sm:min-w-9 sm:size-9"
         >
           <Download className="size-4" />
         </Button>
@@ -269,7 +269,7 @@ export function MasonryGallery({
             <Button
               variant="outline"
               onClick={() => void downloadAllArtifacts()}
-              className="flex cursor-pointer items-center gap-2 rounded-xl border-amber-500/20 bg-amber-500/[0.08] px-4 py-2 text-xs font-semibold text-amber-300 transition-all hover:bg-amber-500/15"
+              className="flex cursor-pointer items-center gap-2 rounded-xl border-amber-500/20 bg-amber-500/[0.08] px-4 py-2 text-xs font-semibold text-amber-300 transition-all hover:bg-amber-500/15 min-h-11 sm:min-h-0"
               data-testid="download-all-button"
             >
               <Download className="size-3.5" />

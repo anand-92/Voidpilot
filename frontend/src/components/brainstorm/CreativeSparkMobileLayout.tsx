@@ -1,8 +1,11 @@
-import { Sparkles } from 'lucide-react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { MessageSquareText, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
 import { Particles } from '@/components/ui/particles'
 import { DotPattern } from '@/components/ui/dot-pattern'
+import { Badge } from '@/components/ui/badge'
 import { StatusChip } from '../SharedUI'
 import type { BrainstormLayoutProps } from './BrainstormLayouts'
 import { ConversationPanel } from './ConversationPanel'
@@ -12,9 +15,15 @@ import { MasonryGallery } from './MasonryGallery'
 /**
  * Mobile layout for Creative Spark mode.
  *
- * Full-screen masonry gallery with a conversation panel and controls
- * at the bottom. Excludes all Open Studio elements (AgentVisualizer,
- * WorkspacePanel, tool toggles, model selector, workspace tab).
+ * Full-screen masonry gallery with persistent controls at the bottom.
+ * Conversation panel opens as a **full-screen overlay** (not a side panel
+ * which would make the gallery unusable on small screens).
+ *
+ * Touch-friendly: all interactive targets ≥ 44×44px.
+ * Respects safe-area-inset-bottom for devices with notches/home indicators.
+ *
+ * Excludes all Open Studio elements (AgentVisualizer, WorkspacePanel,
+ * tool toggles, model selector).
  */
 export function CreativeSparkMobileLayout({
   isConnected,
@@ -33,11 +42,14 @@ export function CreativeSparkMobileLayout({
   downloadAllArtifacts,
   onCreateShare,
 }: BrainstormLayoutProps) {
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+
   return (
     <main className="relative flex h-dvh flex-col bg-[#0a0a0a] text-stone-100 font-sans">
       <Particles className="absolute inset-0 z-0 opacity-30" quantity={40} ease={100} color="#f97316" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-20" width={24} height={24} cx={12} cy={12} cr={0.8} />
 
+      {/* Header */}
       <header className={cn(
         'sticky top-0 z-20 shrink-0 border-b border-white/[0.04]',
         'bg-stone-950/80 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-2xl',
@@ -54,12 +66,35 @@ export function CreativeSparkMobileLayout({
               <h1 className="truncate text-sm font-semibold text-white">Inspiration mode</h1>
             </div>
           </div>
-          <StatusChip isConnected={isConnected} isStarting={isStarting} />
+          <div className="flex items-center gap-2">
+            {/* Conversation toggle button — 44px touch target */}
+            <button
+              type="button"
+              onClick={() => setIsPanelOpen(true)}
+              aria-label="Show conversation"
+              data-testid="conversation-panel-toggle"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl border border-white/[0.08] bg-orange-500/10 px-3 backdrop-blur-xl transition-colors active:bg-orange-500/20"
+            >
+              <MessageSquareText className="size-4 text-orange-400" />
+              {messages.length > 0 && (
+                <Badge
+                  variant="outline"
+                  className="h-5 min-w-5 border-orange-500/30 bg-orange-500/15 px-1.5 text-[10px] font-bold text-orange-300"
+                >
+                  {messages.length}
+                </Badge>
+              )}
+            </button>
+            <StatusChip isConnected={isConnected} isStarting={isStarting} />
+          </div>
         </div>
       </header>
 
-      {/* Masonry gallery — takes remaining space */}
-      <div className="relative z-10 min-h-0 flex-1 overflow-hidden" data-testid="creative-spark-gallery-area">
+      {/* Masonry gallery — takes remaining space above controls */}
+      <div
+        className="relative z-10 min-h-0 flex-1 overflow-hidden"
+        data-testid="creative-spark-gallery-area"
+      >
         <MasonryGallery
           artifactList={artifactList}
           isGenerating={isGenerating}
@@ -68,31 +103,83 @@ export function CreativeSparkMobileLayout({
         />
       </div>
 
-      {/* Conversation + controls at the bottom */}
-      <div className="relative z-20 flex shrink-0 flex-col gap-3 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
-        <section className="flex min-h-0 flex-col rounded-3xl border border-white/[0.05] bg-stone-950/60 shadow-[0_20px_60px_rgba(12,10,9,0.4)] max-h-[30vh]">
-          <ConversationPanel
-            messages={messages}
-            messagesEndRef={messagesEndRef}
-            mobile
-            sessionTitle={sessionTitle}
-            onCreateShare={onCreateShare}
-          />
-        </section>
-
-        <section className="shrink-0 rounded-3xl border border-white/[0.05] bg-stone-900/40 p-4 shadow-[0_20px_60px_rgba(12,10,9,0.4)]">
-          <CreativeSparkControls
-            isConnected={isConnected}
-            isStarting={isStarting}
-            inputText={inputText}
-            setInputText={setInputText}
-            handleSend={handleSend}
-            handleConnect={handleConnect}
-            stop={stop}
-            layout="mobile"
-          />
-        </section>
+      {/* Persistent controls — fixed at bottom with safe-area-inset-bottom */}
+      <div
+        className="relative z-20 shrink-0 border-t border-white/[0.06] bg-[#0a0a0a]/90 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-2xl"
+        data-testid="persistent-controls"
+      >
+        <CreativeSparkControls
+          isConnected={isConnected}
+          isStarting={isStarting}
+          inputText={inputText}
+          setInputText={setInputText}
+          handleSend={handleSend}
+          handleConnect={handleConnect}
+          stop={stop}
+          layout="mobile"
+        />
       </div>
+
+      {/* Full-screen conversation overlay */}
+      <AnimatePresence>
+        {isPanelOpen && (
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0a]/95 backdrop-blur-3xl"
+            style={{
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+            }}
+            data-testid="conversation-panel-overlay"
+          >
+            {/* Overlay header with close button */}
+            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <MessageSquareText className="size-4 text-orange-400" />
+                <span className="text-sm font-semibold text-white">
+                  {sessionTitle ?? 'Conversation'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPanelOpen(false)}
+                aria-label="Close conversation"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] transition-colors active:bg-white/[0.08]"
+              >
+                <X className="size-5 text-stone-400" />
+              </button>
+            </div>
+
+            {/* Conversation content */}
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <ConversationPanel
+                messages={messages}
+                messagesEndRef={messagesEndRef}
+                mobile
+                sessionTitle={sessionTitle}
+                onCreateShare={onCreateShare}
+              />
+            </div>
+
+            {/* Inline controls at bottom of overlay */}
+            <div className="shrink-0 border-t border-white/[0.06] bg-stone-950/80 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
+              <CreativeSparkControls
+                isConnected={isConnected}
+                isStarting={isStarting}
+                inputText={inputText}
+                setInputText={setInputText}
+                handleSend={handleSend}
+                handleConnect={handleConnect}
+                stop={stop}
+                layout="mobile"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   )
 }
