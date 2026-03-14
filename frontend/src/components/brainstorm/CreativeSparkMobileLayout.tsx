@@ -9,6 +9,7 @@ import { DotPattern } from '@/components/ui/dot-pattern'
 import { Badge } from '@/components/ui/badge'
 import { StatusChip } from '../SharedUI'
 import type { BrainstormLayoutProps } from './BrainstormLayouts'
+import { AgentVisualizer } from './AgentVisualizer'
 import { ConversationPanel } from './ConversationPanel'
 import { CreativeSparkControls } from './CreativeSparkControls'
 import { MasonryGallery } from './MasonryGallery'
@@ -23,10 +24,11 @@ import { MasonryGallery } from './MasonryGallery'
  * Touch-friendly: all interactive targets ≥ 44×44px.
  * Respects safe-area-inset-bottom for devices with notches/home indicators.
  *
- * Excludes all Open Studio elements (AgentVisualizer, WorkspacePanel,
- * tool toggles, model selector).
+ * Includes AgentVisualizer above the gallery. Excludes Open Studio
+ * elements (WorkspacePanel, tool toggles, model selector).
  */
 export function CreativeSparkMobileLayout({
+  intensityRef,
   isConnected,
   isStarting,
   messages,
@@ -94,11 +96,19 @@ export function CreativeSparkMobileLayout({
         </div>
       </header>
 
-      {/* Masonry gallery — takes remaining space above controls */}
+      {/* Agent visualizer + Masonry gallery */}
       <div
-        className="relative z-10 min-h-0 flex-1 overflow-hidden"
+        className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
         data-testid="creative-spark-gallery-area"
       >
+        <div className="shrink-0 px-4 pt-3">
+          <AgentVisualizer
+            intensityRef={intensityRef}
+            isGenerating={isGenerating}
+            isConnected={isConnected}
+            className="relative w-full rounded-2xl border border-white/[0.06] bg-[#0a0a0a] overflow-hidden"
+          />
+        </div>
         <MasonryGallery
           artifactList={artifactList}
           isGenerating={isGenerating}

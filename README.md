@@ -17,18 +17,30 @@ Voidpilot is a web-based AI assistant that connects your microphone directly to 
 The default voice assistant mode. Connect via WebSocket and have natural voice conversations with Gemini Live. Includes weather tooling by default.
 
 ### Brainstorm Mode (`/api/v1/live/brainstorm`)
-A creative workspace for generating multimedia content:
+A creative workspace with two sub-modes, selected via a mode selection screen:
+
+**Open Studio** — full-featured brainstorm workspace:
 - **Artifact Generation**: Create structured markdown documents
 - **Image Generation**: Generate images using the `generate_brainstorm_image` tool
 - **Video Generation**: Create videos via the Veo integration
+- **Flash Model Delegation**: Delegate tasks to Flash models via `delegate_to_flash`
 - **Flash Model Selection**: Choose between different Flash models for faster generation
 - **Workspace Panel**: View, preview, and download generated artifacts (individual files or as ZIP)
 - **Pixel Office Visualization**: Animated pixel-art office with Gemini and Flash agent characters
+
+**Creative Spark** — guided visual inspiration mode:
+- **Visual-only tools**: Image and video generation only (no markdown artifacts, no Flash delegation)
+- **Auto-start**: Model speaks first with a randomized warmup question
+- **Masonry Gallery**: Full-screen responsive grid of generated images and videos
+- **Simplified Controls**: Mic and connect only (no tool toggles or model selector)
+- **Collapsible Conversation**: Slide-in panel (desktop) or full-screen overlay (mobile)
+
+**Shared features** (both modes):
 - **Firebase Auth**: Sign in with email/password or Google to unlock persistent sessions
 - **Session Library**: Create, reopen, and delete brainstorm sessions from a personal library
 - **Turn Persistence**: Auto-saves transcript state after each turn with AI-generated session titles
 - **Artifact Persistence**: Generated artifacts (markdown, images) stored in Cloud Storage with Firestore metadata
-- **Public Share Links**: Share read-only links to brainstorm sessions — anyone with the link can view transcripts and download artifacts
+- **Public Share Links**: Share read-only links to brainstorm sessions — anyone with the link can view transcripts and download artifacts (renders mode-appropriate layout)
 - **Guest Mode**: Use brainstorm without signing in (sessions are ephemeral)
 
 ### Walkthrough Mode (`/api/v1/live/walkthrough`)

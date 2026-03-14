@@ -6,6 +6,7 @@ import { DotPattern } from '@/components/ui/dot-pattern'
 import { Particles } from '@/components/ui/particles'
 import { cn } from '@/lib/utils'
 import type { BrainstormLayoutProps } from './BrainstormLayouts'
+import { AgentVisualizer } from './AgentVisualizer'
 import { ConversationPanel } from './ConversationPanel'
 import { CreativeSparkControls } from './CreativeSparkControls'
 import { MasonryGallery } from './MasonryGallery'
@@ -22,10 +23,11 @@ const PANEL_WIDTH = 400
  * Persistent controls (mic, connect/disconnect, text input) are fixed
  * at the bottom of the screen and never scroll with the gallery.
  *
- * Explicitly excludes all Open Studio elements (AgentVisualizer,
- * WorkspacePanel, tool toggles, model selector).
+ * Includes AgentVisualizer above the gallery. Excludes Open Studio
+ * elements (WorkspacePanel, tool toggles, model selector).
  */
 export function CreativeSparkDesktopLayout({
+  intensityRef,
   isConnected,
   isStarting,
   messages,
@@ -52,11 +54,19 @@ export function CreativeSparkDesktopLayout({
       <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={100} color="#f97316" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-40" width={24} height={24} cx={12} cy={12} cr={0.8} />
 
-      {/* Full-screen masonry gallery — takes full width, padded at bottom for controls */}
+      {/* Full-screen masonry gallery + agent visualizer */}
       <div
-        className="relative z-10 flex-1 overflow-hidden pb-[140px]"
+        className="relative z-10 flex flex-1 flex-col overflow-hidden pb-[140px]"
         data-testid="creative-spark-gallery-area"
       >
+        <div className="shrink-0 px-6 pt-4">
+          <AgentVisualizer
+            intensityRef={intensityRef}
+            isGenerating={isGenerating}
+            isConnected={isConnected}
+            className="relative w-full rounded-2xl border border-white/[0.06] bg-[#0a0a0a] overflow-hidden"
+          />
+        </div>
         <MasonryGallery
           artifactList={artifactList}
           isGenerating={isGenerating}

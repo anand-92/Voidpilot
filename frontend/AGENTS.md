@@ -15,19 +15,27 @@ This directory houses all React components. It's organized to prevent god-compon
 
     **Animation/Visual Effect Components:** animated-gradient-text, animated-list, blur-fade, border-beam, cool-mode, dock, dot-pattern, magic-card, marquee, meteors, number-ticker, orbiting-circles, particles, pulsating-button, retro-grid, scroll-area, shimmer-button, shine-border, sparkles-text, switch, typing-animation
 
-*   **`brainstorm/`**: Components exclusively used in the Brainstorm mode workspace.
-    *   `BrainstormControls.tsx`: Chat input and connection controls. Includes tool selection toggles (Artifact, Image, Video) and Flash model selector.
-    *   `BrainstormLayouts.tsx`: Defines `BrainstormLayoutProps` type for both desktop and mobile layouts.
-    *   `BrainstormDesktopLayout.tsx`: Desktop layout with AgentVisualizer (top 55%), WorkspacePanel (bottom), and ConversationPanel + Controls (right sidebar).
-    *   `BrainstormMobileLayout.tsx`: Mobile-responsive layout with tabbed Chat/Workspace views.
-    *   `AgentVisualizer.tsx`: Canvas-based pixel-art office renderer with animated "Gemini" and "Flash" agents, speech bubbles, collision detection, and wander behavior.
-    *   `WorkspacePanel.tsx`: Displays generated artifacts (images, videos, markdown) with preview, download individual/ZIP functionality.
+*   **`brainstorm/`**: Components exclusively used in the Brainstorm mode workspace. The brainstorm workspace supports two sub-modes: **Open Studio** (full-featured) and **Creative Spark** (guided visual inspiration).
+    *   `ModeSelectionScreen.tsx`: Full-screen mode picker shown after auth/guest entry. Exports `BrainstormType` (`'open_studio' | 'creative_spark'`). Users must select a mode before entering the workspace (cannot be dismissed).
+    *   `BrainstormEntryModal.tsx`: Auth/guest entry modal and session library. Handles Firebase sign-in (email/password, Google), guest mode, and session list (create, reopen, delete). Shows `brainstormType` badges on session cards.
+    *   `BrainstormLayouts.tsx`: Barrel export for all layout components. Defines `BrainstormLayoutProps` type shared by both Open Studio and Creative Spark layouts.
+    *   **Open Studio layouts** (full brainstorm workspace):
+        *   `BrainstormDesktopLayout.tsx`: Desktop layout with AgentVisualizer (top 55%), WorkspacePanel (bottom), and ConversationPanel + Controls (right sidebar).
+        *   `BrainstormMobileLayout.tsx`: Mobile-responsive layout with tabbed Chat/Workspace views.
+    *   **Creative Spark layouts** (visual-first masonry gallery):
+        *   `CreativeSparkDesktopLayout.tsx`: Full-screen masonry gallery with collapsible conversation panel (slides in from right, hidden by default) and persistent fixed-bottom controls. No AgentVisualizer, tool toggles, or model selector. Includes auto-start error recovery overlay.
+        *   `CreativeSparkMobileLayout.tsx`: Mobile layout with responsive masonry gallery (1-2 columns), full-screen conversation overlay (slides up from bottom), safe-area-inset support, and 44px minimum touch targets. Includes auto-start error recovery overlay.
+        *   `CreativeSparkControls.tsx`: Simplified controls for Creative Spark — mic toggle and connect button only (no tool toggles, no Flash model selector).
+        *   `MasonryGallery.tsx`: Responsive masonry grid for image/video artifacts. Responsive column count via ResizeObserver (1 col <480px, 2 cols 480-768px, 3 cols 768-1200px, 4 cols 1200px+). Image tiles with filename overlay and download. Video tiles with play overlay and inline playback. Empty state with instructional text. Download All button (JSZip). Loading indicator during generation.
+    *   `BrainstormControls.tsx`: Chat input and connection controls for Open Studio. Includes tool selection toggles (Artifact, Image, Video) and Flash model selector.
+    *   `AgentVisualizer.tsx`: Canvas-based pixel-art office renderer with animated "Gemini" and "Flash" agents, speech bubbles, collision detection, and wander behavior. (Open Studio only)
+    *   `WorkspacePanel.tsx`: Displays generated artifacts (images, videos, markdown) with preview, download individual/ZIP functionality. (Open Studio only)
     *   `ArtifactRow.tsx`: Individual artifact card with thumbnail, filename, size, and download button.
     *   `ArtifactPreview.tsx`: Preview component for selected artifacts with markdown rendering and shine borders.
     *   `ConversationPanel.tsx`: Chat message display area with scrollable history.
     *   `ActivitySpinner.tsx`: Animated loading indicator.
     *   `utils.ts`: Helper functions for file size formatting, blob conversion, and ZIP download.
-    *   **`pixelOffice/`**: Pixel-art office rendering system
+    *   **`pixelOffice/`**: Pixel-art office rendering system (Open Studio only)
         *   `types.ts`: Interfaces for Characters, FurnitureInstance, SpriteData, animation states
         *   `spriteData.ts`: Hardcoded pixel sprites for furniture (desk, chair, PC, plant) and character animations
         *   `spriteCache.ts`: Off-screen canvas caching for crisp pixel rendering
@@ -58,8 +66,9 @@ This directory houses all React components. It's organized to prevent god-compon
 
 ### `src/pages/` (Route Views)
 These are the top-level route components mounted by `main.tsx`.
-*   `BrainstormPage.tsx`: The main view for the `/brainstorm` route.
+*   `BrainstormPage.tsx`: The main view for the `/brainstorm` route. Handles the full flow: entry modal -> mode selection -> workspace (Open Studio or Creative Spark based on `brainstormType` state). Resumes existing sessions directly into the correct mode layout.
 *   `LandingPage.tsx`: The main view for the `/` route.
+*   `SharePage.tsx`: Public read-only view for `/share/:shareToken`. Renders shared brainstorm sessions with mode-appropriate layout (masonry gallery for Creative Spark, standard for Open Studio). Includes transcript, artifact download, and responsive design.
 
 ### `src/hooks/` (State & Logic)
 Custom React hooks that extract complex logic, especially websocket communication and device APIs, away from the UI components.
@@ -68,7 +77,7 @@ Custom React hooks that extract complex logic, especially websocket communicatio
     *   **Features:** WebSocket to `/api/v1/live/live`, mic/audio capture (16kHz/24kHz), loudness detection
 *   `useGeminiBrainstorm.ts`: Transport and state for the Brainstorm mode websocket.
     *   **Exports:** `BRAINSTORM_TOOL_OPTIONS`, `BRAINSTORM_FLASH_MODEL_OPTIONS`, `BrainstormToolId`, `BrainstormFlashModel`, `BrainstormArtifact`, `useGeminiBrainstorm()` hook
-    *   **Features:** WebSocket to `/api/v1/live/brainstorm`, artifact management (upsert by filename), Flash model selection, tool configuration, session resumption
+    *   **Features:** WebSocket to `/api/v1/live/brainstorm`, artifact management (upsert by filename), Flash model selection, tool configuration, session resumption, `brainstormType` in session_config, auto-start error handling for Creative Spark
 *   `useWalkthroughAgent.ts`: Voice-focused walkthrough mode.
     *   **Exports:** `useWalkthroughAgent()` hook
     *   **Features:** WebSocket to `/api/v1/live/walkthrough`, smoothed intensity visualization for VU meter
@@ -76,6 +85,14 @@ Custom React hooks that extract complex logic, especially websocket communicatio
 ### `src/lib/` & `src/utils/` (Helpers)
 *   **`src/lib/utils.ts`**: Contains the `cn()` utility used extensively for merging Tailwind classes (a shadcn/ui standard).
 *   **`src/utils/audio.ts`**: Audio processing utilities, specifically for handling the 24000Hz (playback) to 16000Hz (capture) resampling required by the Gemini backend.
+
+### `src/lib/` (API Clients & Firebase)
+*   **`brainstormPersistenceApi.ts`**: REST client for brainstorm session CRUD (create, list, get, delete). Sends `brainstorm_type` on session creation.
+*   **`brainstormShareApi.ts`**: REST client for share link creation, public session fetching, and artifact download URLs.
+*   **`brainstormArtifactFiles.ts`**: Artifact file helpers for blob conversion and ZIP packaging.
+*   **`firebase.ts`**: Firebase app initialization and auth instance.
+*   **`firebaseWebConfig.ts`**: Firebase web config constants.
+*   **`contentDisposition.ts`**: Content-Disposition header parser for artifact downloads.
 
 ### Build & Tooling
 *   **`scripts/`**: Contains utility scripts like `generate-icons.mjs` used during the build process or for asset management.
@@ -87,7 +104,10 @@ Custom React hooks that extract complex logic, especially websocket communicatio
 *   **Changing how the main assistant chat looks?** -> `src/components/ChatArea.tsx`.
 *   **Fixing a microphone or audio playback issue?** -> `src/utils/audio.ts` or the relevant hook in `src/hooks/`.
 *   **Adding a new capability to the Brainstorm canvas?** -> `src/components/brainstorm/`.
-*   **Adding pixel-art agents/office visualization?** -> `src/components/brainstorm/AgentVisualizer.tsx` and `src/components/brainstorm/pixelOffice/`.
+*   **Adding pixel-art agents/office visualization?** -> `src/components/brainstorm/AgentVisualizer.tsx` and `src/components/brainstorm/pixelOffice/`. (Open Studio only)
+*   **Modifying the Creative Spark gallery?** -> `src/components/brainstorm/MasonryGallery.tsx`, `CreativeSparkDesktopLayout.tsx`, `CreativeSparkMobileLayout.tsx`.
+*   **Changing mode selection behavior?** -> `src/components/brainstorm/ModeSelectionScreen.tsx` and `src/pages/BrainstormPage.tsx`.
+*   **Modifying the share page?** -> `src/pages/SharePage.tsx` and `src/lib/brainstormShareApi.ts`.
 *   **Modifying landing page animations or tilt cards?** -> `src/components/landing/EnhancedTiltCard.tsx` or `src/components/shadcn-space/`.
-*   **Adding or modifying brainstorm tools?** -> Update `BRAINSTORM_TOOL_OPTIONS` in `useGeminiBrainstorm.ts` and the backend tool definitions in `src/app/services/tool_defs.py`.
+*   **Adding or modifying brainstorm tools?** -> Update `BRAINSTORM_TOOL_OPTIONS` in `useGeminiBrainstorm.ts` and the backend tool definitions in `src/app/services/tool_defs.py`. Note: Creative Spark restricts tools to image+video only via `CREATIVE_SPARK_TOOLS` in `brainstorm.py`.
 *   **Modifying what Tailwind classes are merged?** -> `src/lib/utils.ts`.

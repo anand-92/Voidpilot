@@ -47,8 +47,15 @@ Voidpilot is a web-based Gemini Live assistant:
 - `src/app/services/flash_worker.py`: brainstorm helper for markdown/image generation
 - `frontend/src/main.tsx`: React app entry with HashRouter
 - `frontend/src/pages/LandingPage.tsx`: main landing page
-- `frontend/src/pages/BrainstormPage.tsx`: brainstorm workspace and ZIP export
+- `frontend/src/pages/BrainstormPage.tsx`: brainstorm workspace with mode selection (Open Studio / Creative Spark)
+- `frontend/src/pages/SharePage.tsx`: public share page for brainstorm sessions
 - `frontend/src/components/WalkthroughModal.tsx`: walkthrough voice modal
+- `frontend/src/components/brainstorm/ModeSelectionScreen.tsx`: mode picker (Open Studio vs Creative Spark), exports `BrainstormType`
+- `frontend/src/components/brainstorm/BrainstormEntryModal.tsx`: auth/guest entry and session library
+- `frontend/src/components/brainstorm/CreativeSparkDesktopLayout.tsx`: Creative Spark desktop layout with masonry gallery and collapsible conversation panel
+- `frontend/src/components/brainstorm/CreativeSparkMobileLayout.tsx`: Creative Spark mobile layout with full-screen conversation overlay
+- `frontend/src/components/brainstorm/CreativeSparkControls.tsx`: simplified controls for Creative Spark (mic + connect only)
+- `frontend/src/components/brainstorm/MasonryGallery.tsx`: responsive masonry grid for image/video artifacts
 - `frontend/src/hooks/useGeminiLive.ts`: primary live transport hook
 - `frontend/src/hooks/useGeminiBrainstorm.ts`: brainstorm transport and artifact management
 
@@ -64,7 +71,8 @@ Voidpilot is a web-based Gemini Live assistant:
 
 ### Frontend Routes
 - `/` -> `LandingPage`
-- `/brainstorm` -> `BrainstormPage`
+- `/brainstorm` -> `BrainstormPage` (includes mode selection screen, auth/guest entry)
+- `/share/:shareToken` -> `SharePage` (public read-only view of shared brainstorm sessions)
 
 ## Mode Details
 
@@ -72,10 +80,27 @@ Voidpilot is a web-based Gemini Live assistant:
 The default voice assistant mode. Connect via WebSocket and have natural voice conversations with Gemini Live. Includes default weather tooling.
 
 ### Brainstorm Mode (`/api/v1/live/brainstorm`)
-Creative workspace for generating multimedia content:
+Creative workspace with two sub-modes, selected via a mode selection screen after auth/guest entry:
+
+#### Open Studio (`brainstorm_type: "open_studio"`, default)
+Full-featured brainstorm workspace:
 - **Tools**: `save_brainstorm_artifact` (markdown), `generate_brainstorm_image` (Veo images), `delegate_to_flash` (Flash model delegation)
-- **Features**: Artifact management, session resumption, Flash model selection
+- **Features**: Artifact management, session resumption, Flash model selection, tool selection toggles
 - **Frontend**: Pixel-art office visualization with animated Gemini/Flash agents, workspace panel for viewing/downloading artifacts
+
+#### Creative Spark (`brainstorm_type: "creative_spark"`)
+Guided inspiration mode focused on visual generation:
+- **Tools**: `generate_brainstorm_image` and `generate_brainstorm_video` only (no `save_brainstorm_artifact`, no `delegate_to_flash`). Tool restrictions cannot be overridden by the client.
+- **Auto-start**: Session starts automatically — the model speaks first with a randomized warmup question from `CREATIVE_SPARK_CONVERSATION_STARTERS`
+- **System prompt**: `CREATIVE_SPARK_SYSTEM_PROMPT` (distinct from Open Studio)
+- **Frontend**: Full-screen masonry gallery layout, collapsible conversation panel, simplified controls (no tool toggles, no model selector, no AgentVisualizer)
+- **Error recovery**: Auto-start failure overlay with retry and back-to-mode-selection options
+
+#### Brainstorm session routing
+- `brainstorm_type` is sent via the `session_config` WebSocket message and persisted in Firestore session metadata
+- Backend routes system prompt, tool set, and auto-start behavior based on `brainstorm_type`
+- `CreateBrainstormSessionRequest` accepts `brainstorm_type` (defaults to `"open_studio"`)
+- Share pages render mode-appropriate layouts (masonry gallery for Creative Spark, standard for Open Studio)
 
 ### Walkthrough Mode (`/api/v1/live/walkthrough`)
 Voice-guided exploration mode:

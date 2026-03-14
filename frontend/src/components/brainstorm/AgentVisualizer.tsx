@@ -420,11 +420,11 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
 
       const s = TILE_SIZE * ZOOM
       const roomW = COLS * s
-      const roomH = (ROWS + 2.5) * s // +1 for the wall strip
+      const roomH = (ROWS + 1.5) * s
 
       // Center the room
       const ox = Math.round((rect.width - roomW) / 2)
-      const oy = Math.round((rect.height - roomH) / 2) + s // s is offset for the wall
+      const oy = Math.round((rect.height - roomH) / 2)
 
       // Floor tiles
       for (let r = 0; r < ROWS; r++) {
@@ -433,11 +433,7 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
           ctx.fillRect(ox + c * s, oy + r * s, s, s)
         }
       }
-      // Wall strip
-      for (let c = 0; c < COLS; c++) {
-        ctx.fillStyle = '#1a1a2e'
-        ctx.fillRect(ox + c * s, oy - s, s, s)
-      }
+
 
       // Draw furniture (z-sorted)
       const furniture = furnitureRef.current
