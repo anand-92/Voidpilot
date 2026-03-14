@@ -23,6 +23,7 @@ export type PublicShareSession = {
   title: string
   createdAt: string
   updatedAt: string
+  brainstormType?: string
 }
 
 export type PublicShareTurn = {

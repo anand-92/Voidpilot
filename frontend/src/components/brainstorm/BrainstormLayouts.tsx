@@ -30,6 +30,9 @@ export type BrainstormLayoutProps = {
   handleConnect: () => Promise<void>
   stop: () => void
   onCreateShare?: () => Promise<string | null>
+  autoStartError?: string | null
+  clearAutoStartError?: () => void
+  onGoBack?: () => void
 }
 
 export { BrainstormDesktopLayout } from './BrainstormDesktopLayout'

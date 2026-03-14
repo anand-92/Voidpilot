@@ -39,6 +39,8 @@ export default function BrainstormPage() {
     ensureArtifactContent,
     downloadArtifact,
     downloadAllArtifacts,
+    autoStartError,
+    clearAutoStartError,
     intensityRef,
     selectedFlashModel,
     setSelectedFlashModel,
@@ -203,6 +205,13 @@ export default function BrainstormPage() {
     setShowModeSelection(false)
   }, [pendingNewSession, createSession, preparePersistedWorkspace, updateBrainstormType])
 
+  const handleGoBackToModeSelection = useCallback(() => {
+    stop()
+    clearAutoStartError()
+    updateBrainstormType(null)
+    setShowModeSelection(true)
+  }, [stop, clearAutoStartError, updateBrainstormType])
+
   const handleCreateShare = useCallback(async (): Promise<string | null> => {
     if (sessionMode !== 'persisted' || !activeSessionId) return null
     try {
@@ -255,6 +264,9 @@ export default function BrainstormPage() {
     handleConnect,
     stop,
     onCreateShare,
+    autoStartError,
+    clearAutoStartError,
+    onGoBack: handleGoBackToModeSelection,
   }
 
   const isOverlayActive = isEntryModalOpen || showModeSelection

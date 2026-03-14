@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageSquareText, X } from 'lucide-react'
+import { AlertCircle, ArrowLeft, MessageSquareText, RefreshCw, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { DotPattern } from '@/components/ui/dot-pattern'
 import { Particles } from '@/components/ui/particles'
 import { cn } from '@/lib/utils'
@@ -40,6 +41,9 @@ export function CreativeSparkDesktopLayout({
   downloadArtifact,
   downloadAllArtifacts,
   onCreateShare,
+  autoStartError,
+  clearAutoStartError,
+  onGoBack,
 }: BrainstormLayoutProps) {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
 
@@ -130,6 +134,62 @@ export function CreativeSparkDesktopLayout({
           />
         </div>
       </div>
+
+      {/* Auto-start error recovery overlay */}
+      <AnimatePresence>
+        {autoStartError && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md"
+            data-testid="auto-start-error-overlay"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="mx-4 flex max-w-md flex-col items-center gap-6 rounded-3xl border border-white/[0.08] bg-stone-950/90 p-8 text-center shadow-2xl backdrop-blur-3xl"
+            >
+              <div className="flex size-16 items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/[0.08]">
+                <AlertCircle className="size-8 text-rose-400" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-white">
+                  Couldn't Start Creative Spark
+                </h3>
+                <p className="text-sm leading-relaxed text-stone-400">
+                  The model failed to start speaking. This could be a temporary issue — try again or go back to choose a different mode.
+                </p>
+              </div>
+              <div className="flex w-full gap-3">
+                {onGoBack && (
+                  <Button
+                    variant="outline"
+                    onClick={onGoBack}
+                    className="flex-1 gap-2 rounded-2xl border-white/[0.08] bg-white/[0.04] py-3 text-sm font-medium text-stone-300 hover:bg-white/[0.08]"
+                  >
+                    <ArrowLeft className="size-4" />
+                    Go Back
+                  </Button>
+                )}
+                <Button
+                  onClick={() => {
+                    clearAutoStartError?.()
+                    void handleConnect()
+                  }}
+                  className="flex-1 gap-2 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 py-3 text-sm font-bold text-stone-950 shadow-lg hover:from-orange-400 hover:to-red-500"
+                >
+                  <RefreshCw className="size-4" />
+                  Try Again
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   )
 }

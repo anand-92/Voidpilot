@@ -140,6 +140,7 @@ export function useGeminiBrainstorm() {
     DEFAULT_ENABLED_TOOLS,
   )
   const [brainstormType, setBrainstormType] = useState<BrainstormType | null>(null)
+  const [autoStartError, setAutoStartError] = useState<string | null>(null)
   const intensityRef = useRef(0)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -596,6 +597,7 @@ export function useGeminiBrainstorm() {
 
   const start = useCallback(async () => {
     setIsStarting(true)
+    setAutoStartError(null)
     try {
       if (wsRef.current || streamRef.current) {
         stop()
@@ -661,6 +663,15 @@ export function useGeminiBrainstorm() {
             // Persist transcript state after each completed turn (signed-in only)
             persistCurrentTurns(messagesRef.current)
             break
+          case 'error': {
+            const errorContent = data.content ?? 'Unknown error'
+            addMessage(`Error: ${errorContent}`, 'system')
+            // Flag auto-start errors for Creative Spark recovery UI
+            if (brainstormTypeRef.current === 'creative_spark') {
+              setAutoStartError(errorContent)
+            }
+            break
+          }
         }
       }
 
@@ -717,6 +728,10 @@ export function useGeminiBrainstorm() {
     }
   }, [stop])
 
+  const clearAutoStartError = useCallback(() => {
+    setAutoStartError(null)
+  }, [])
+
   return {
     isConnected,
     isStarting,
@@ -728,6 +743,8 @@ export function useGeminiBrainstorm() {
     sessionMode,
     sessionTitle,
     brainstormType,
+    autoStartError,
+    clearAutoStartError,
     intensityRef,
     selectedFlashModel,
     setSelectedFlashModel,

@@ -841,3 +841,101 @@ class TestShareReflectsLatestState:
 
         assert len(public_resp_2.json()["turns"]) == 2
         assert public_resp_2.json()["turns"][1]["content"] == "response"
+
+
+# ── Tests: brainstorm_type in share response ─────────────────────
+
+
+class TestShareIncludesBrainstormType:
+    """VAL-CROSS-010: share API response includes brainstorm_type."""
+
+    def test_public_share_includes_brainstorm_type_open_studio(self):
+        """Default sessions should have brainstormType 'open_studio'."""
+        fs = FakeFirestoreClient()
+        bucket = FakeStorageBucket()
+        user = make_user("user-1", "user-1@example.com")
+        _setup_overrides(user=user, firestore_client=fs, storage_bucket=bucket)
+        client = TestClient(app)
+
+        try:
+            session_resp = client.post("/api/v1/live/brainstorm/sessions")
+            session_id = session_resp.json()["session"]["id"]
+            share_resp = client.post(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/share"
+            )
+            share_token = share_resp.json()["share"]["shareToken"]
+
+            public_resp = client.get(
+                f"/api/v1/live/brainstorm/share/{share_token}"
+            )
+        finally:
+            _clear_overrides()
+
+        assert public_resp.status_code == 200
+        session_data = public_resp.json()["session"]
+        assert "brainstormType" in session_data
+        assert session_data["brainstormType"] == "open_studio"
+
+    def test_public_share_includes_brainstorm_type_creative_spark(self):
+        """Creative Spark sessions should have brainstormType 'creative_spark'."""
+        fs = FakeFirestoreClient()
+        bucket = FakeStorageBucket()
+        user = make_user("user-1", "user-1@example.com")
+        _setup_overrides(user=user, firestore_client=fs, storage_bucket=bucket)
+        client = TestClient(app)
+
+        try:
+            session_resp = client.post(
+                "/api/v1/live/brainstorm/sessions",
+                json={"brainstorm_type": "creative_spark"},
+            )
+            session_id = session_resp.json()["session"]["id"]
+            share_resp = client.post(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/share"
+            )
+            share_token = share_resp.json()["share"]["shareToken"]
+
+            public_resp = client.get(
+                f"/api/v1/live/brainstorm/share/{share_token}"
+            )
+        finally:
+            _clear_overrides()
+
+        assert public_resp.status_code == 200
+        session_data = public_resp.json()["session"]
+        assert "brainstormType" in session_data
+        assert session_data["brainstormType"] == "creative_spark"
+
+    def test_public_share_excludes_private_fields_but_keeps_brainstorm_type(
+        self,
+    ):
+        """Share response should not include ownerUid/ownerEmail but should include brainstormType."""
+        fs = FakeFirestoreClient()
+        bucket = FakeStorageBucket()
+        user = make_user("user-1", "user-1@example.com")
+        _setup_overrides(user=user, firestore_client=fs, storage_bucket=bucket)
+        client = TestClient(app)
+
+        try:
+            session_resp = client.post(
+                "/api/v1/live/brainstorm/sessions",
+                json={"brainstorm_type": "creative_spark"},
+            )
+            session_id = session_resp.json()["session"]["id"]
+            share_resp = client.post(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/share"
+            )
+            share_token = share_resp.json()["share"]["shareToken"]
+
+            public_resp = client.get(
+                f"/api/v1/live/brainstorm/share/{share_token}"
+            )
+        finally:
+            _clear_overrides()
+
+        session_data = public_resp.json()["session"]
+        # Private fields stripped
+        assert "ownerUid" not in session_data
+        assert "ownerEmail" not in session_data
+        # brainstormType preserved
+        assert session_data["brainstormType"] == "creative_spark"
