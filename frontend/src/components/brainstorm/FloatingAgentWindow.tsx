@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Minus, Maximize2, Minimize2, GripHorizontal } from 'lucide-react'
-import { AgentVisualizer } from './AgentVisualizer'
+import { AgentVisualizer, IMG_W, IMG_H } from './AgentVisualizer'
 
 interface FloatingAgentWindowProps {
   intensityRef: React.MutableRefObject<number>
@@ -9,8 +9,7 @@ interface FloatingAgentWindowProps {
   isConnected: boolean
 }
 
-// Room aspect ratio: COLS=10, ROWS=6, roomH = ROWS+0.5 = 6.5 tiles
-const ROOM_ASPECT = 10 / 6.5
+const ROOM_ASPECT = IMG_W / IMG_H
 const TITLE_BAR_H = 28
 const WIDTH_PRESETS = [300, 440, 600, 800] as const
 type SizeIndex = 0 | 1 | 2 | 3
