@@ -49,6 +49,24 @@ Voice-guided exploration mode with customizable system prompts. Focuses on voice
 - `/brainstorm` route: Full brainstorm workspace with AgentVisualizer, WorkspacePanel, ConversationPanel
 - Landing page: Hero section, capabilities showcase, and navigation
 
+## Deployment
+
+The app is deployed on **Google Cloud Run** and accessible at:
+
+- **https://hackathon.remembr-ai.com** (custom domain)
+- **https://voidpilot-bcz5ilsa6q-ue.a.run.app** (Cloud Run direct)
+
+**Service**: `voidpilot` | **Region**: `us-east1` | **DNS**: Porkbun (`remembr-ai.com`)
+
+Deploy with:
+```bash
+gcloud run deploy voidpilot \
+  --source . \
+  --region us-east1 \
+  --port 8080 \
+  --allow-unauthenticated
+```
+
 ## Setup
 
 1. **Install Python dependencies:**

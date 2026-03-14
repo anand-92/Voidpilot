@@ -90,6 +90,28 @@ Voice-guided exploration mode:
 - Renderer audio playback utilities use `24000` Hz, while mic capture is resampled to `16000` Hz before sending.
 - Brainstorm mode uses `save_brainstorm_artifact`, `generate_brainstorm_image`, and `delegate_to_flash`.
 
+## Deployment
+
+- **Platform**: Google Cloud Run (region: `us-east1`)
+- **Service name**: `voidpilot`
+- **Live URL**: https://hackathon.remembr-ai.com
+- **Cloud Run URL**: https://voidpilot-bcz5ilsa6q-ue.a.run.app
+- **Domain**: `hackathon.remembr-ai.com` (CNAME -> `ghs.googlehosted.com`)
+- **DNS provider**: Porkbun (parent domain: `remembr-ai.com`)
+- **Container**: Single Docker image (multi-stage build) — frontend built as static assets, served by FastAPI at `/`
+- **Port**: `8080` (Cloud Run default)
+
+### Deploying
+
+Build and deploy via Cloud Run:
+```bash
+gcloud run deploy voidpilot \
+  --source . \
+  --region us-east1 \
+  --port 8080 \
+  --allow-unauthenticated
+```
+
 ## Environment Setup
 
 Create a `.env` file in the repository root:
