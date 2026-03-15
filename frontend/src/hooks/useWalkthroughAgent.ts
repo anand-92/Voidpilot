@@ -384,11 +384,13 @@ export function useWalkthroughAgent() {
             clearScheduledAudioPlayback()
             turnBoundaryRef.current = true
             // Resolve any in-flight tool activity on interrupt
-            setToolActivity((prev) =>
-              prev.status === 'searching'
-                ? { status: 'idle', toolName: null }
-                : prev,
-            )
+            setToolActivity((prev) => {
+              if (prev.status === 'searching') {
+                updateLastToolActivityEntry('complete')
+                return { status: 'idle', toolName: null }
+              }
+              return prev
+            })
             break
 
           case 'error': {
