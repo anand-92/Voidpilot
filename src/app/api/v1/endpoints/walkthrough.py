@@ -17,6 +17,40 @@ router = APIRouter()
 
 MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 MAX_RETRIES = 3
+DEFAULT_VOICE = "Despina"
+ALLOWED_VOICES = frozenset({
+    "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
+    "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",
+    "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar",
+    "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+    "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
+})
+
+
+def _apply_requested_voice(gemini_client: GeminiLive, payload: dict) -> bool:
+    requested_voice = payload.get("voice_name")
+    if requested_voice and requested_voice in ALLOWED_VOICES:
+        gemini_client.voice_name = requested_voice
+        logger.info("Walkthrough voice: %s", requested_voice)
+        return True
+    return False
+
+
+async def _handle_client_message(
+    payload: dict,
+    manager: WebSocketManager,
+    gemini_client: GeminiLive,
+) -> bool:
+    msg_type = payload.get("type")
+    if msg_type == "session_config":
+        _apply_requested_voice(gemini_client, payload)
+        return True
+    if msg_type == "text":
+        content = payload.get("content", "")
+        logger.info("Walkthrough received text: %s", content)
+        await manager.text_input_queue.put(content)
+        return True
+    return False
 
 SYSTEM_PROMPT = """You are Voidpilot — a voice guide that exists solely to answer \
 questions about the Voidpilot project. You are NOT a general-purpose assistant. \
@@ -58,7 +92,7 @@ async def walkthrough_ws(websocket: WebSocket):
         api_key=api_key,
         model=MODEL,
         input_sample_rate=16000,
-        voice_name="Despina",
+        voice_name=DEFAULT_VOICE,
         tools=[SEARCH_PROJECT_CONTEXT_TOOL_DEF],
         tool_mapping={
             "search_project_context": partial(
@@ -69,15 +103,6 @@ async def walkthrough_ws(websocket: WebSocket):
         },
         system_prompt=SYSTEM_PROMPT,
     )
-
-    async def handle_client_message(payload: dict) -> bool:
-        msg_type = payload.get("type")
-        if msg_type == "text":
-            content = payload.get("content", "")
-            logger.info("Walkthrough received text: %s", content)
-            await manager.text_input_queue.put(content)
-            return True
-        return False
 
     async def run_session() -> None:
         try:
@@ -99,7 +124,13 @@ async def walkthrough_ws(websocket: WebSocket):
             await manager.send_to_client({"type": "error", "content": str(e)})
 
     receive_task = asyncio.create_task(
-        manager.receive_from_client(handle_client_message)
+        manager.receive_from_client(
+            partial(
+                _handle_client_message,
+                manager=manager,
+                gemini_client=gemini_client,
+            )
+        )
     )
     try:
         for attempt in range(MAX_RETRIES):

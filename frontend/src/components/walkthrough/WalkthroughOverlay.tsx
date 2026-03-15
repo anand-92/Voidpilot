@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { VoiceSelector } from '@/components/brainstorm/VoiceSelector'
 import { useWalkthroughAgent } from '@/hooks/useWalkthroughAgent'
 import { WalkthroughTranscript } from './WalkthroughTranscript'
 import { WalkthroughComposer } from './WalkthroughComposer'
@@ -211,6 +212,8 @@ export default function WalkthroughOverlay({
   const {
     connectionStatus,
     errorMessage,
+    selectedVoice,
+    setSelectedVoice,
     transcript,
     toolActivity,
     start,
@@ -339,6 +342,14 @@ export default function WalkthroughOverlay({
                         status={connectionStatus}
                         errorMessage={errorMessage}
                       />
+                      <div className="hidden sm:block">
+                        <VoiceSelector
+                          selectedVoice={selectedVoice}
+                          setSelectedVoice={setSelectedVoice}
+                          disabled={isSessionActive}
+                          compact
+                        />
+                      </div>
                       {hasMicIssue && (
                         <span className="flex items-center gap-1 text-[11px] text-yellow-400/80">
                           <MicOff className="size-3" />
@@ -408,6 +419,15 @@ export default function WalkthroughOverlay({
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  <div className="border-b border-white/[0.06] px-4 py-3 sm:hidden">
+                    <VoiceSelector
+                      selectedVoice={selectedVoice}
+                      setSelectedVoice={setSelectedVoice}
+                      disabled={isSessionActive}
+                      compact
+                    />
+                  </div>
 
                   {/* Transcript body */}
                   <WalkthroughTranscript

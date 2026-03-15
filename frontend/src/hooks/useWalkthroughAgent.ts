@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  type BrainstormVoice,
+  BRAINSTORM_VOICE_OPTIONS,
+} from '@/hooks/useGeminiBrainstorm'
+import {
   API_BASE_URL,
   AUDIO_BUFFER_SIZE,
   MIC_TARGET_RATE,
@@ -108,6 +112,8 @@ function classifyToolResult(result: unknown): WalkthroughToolStatus {
 // ---------------------------------------------------------------------------
 
 export function useWalkthroughAgent() {
+  const [selectedVoice, setSelectedVoice] = useState<BrainstormVoice>('Despina')
+
   // Connection state
   const [connectionStatus, setConnectionStatus] = useState<WalkthroughConnectionStatus>('disconnected')
 
@@ -321,6 +327,12 @@ export function useWalkthroughAgent() {
       ws.onopen = () => {
         console.log('Connected to walkthrough agent')
         setConnectionStatus('connected')
+        ws.send(
+          JSON.stringify({
+            type: 'session_config',
+            voice_name: selectedVoice,
+          }),
+        )
       }
 
       ws.onmessage = (event) => {
@@ -497,7 +509,7 @@ export function useWalkthroughAgent() {
       stop()
       throw error
     }
-  }, [stop, addTranscriptTurn, addToolActivityEntry, updateLastToolActivityEntry, clearScheduledAudioPlayback])
+  }, [stop, addTranscriptTurn, addToolActivityEntry, updateLastToolActivityEntry, clearScheduledAudioPlayback, selectedVoice])
 
   useEffect(() => {
     return () => {
@@ -511,6 +523,9 @@ export function useWalkthroughAgent() {
     isConnected,
     isStarting,
     errorMessage,
+    selectedVoice,
+    setSelectedVoice,
+    availableVoices: BRAINSTORM_VOICE_OPTIONS,
 
     // Transcript
     transcript,

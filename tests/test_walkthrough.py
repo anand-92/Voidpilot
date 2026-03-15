@@ -7,11 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.app.api.v1.endpoints.walkthrough import SYSTEM_PROMPT, router
+from src.app.api.v1.endpoints.walkthrough import SYSTEM_PROMPT
 from src.app.main import app
 from src.app.services.gemini_audio import GeminiLive
 from src.app.services.ws_manager import WebSocketManager
-
 
 # ---------------------------------------------------------------------------
 # Walkthrough system prompt and tool configuration
@@ -26,7 +25,10 @@ class TestWalkthroughSystemPrompt:
         assert "search_project_context" in SYSTEM_PROMPT
 
     def test_prompt_redirects_off_topic(self):
-        assert "unrelated" in SYSTEM_PROMPT.lower() or "redirect" in SYSTEM_PROMPT.lower()
+        assert (
+            "unrelated" in SYSTEM_PROMPT.lower()
+            or "redirect" in SYSTEM_PROMPT.lower()
+        )
 
 
 class TestWalkthroughToolConfiguration:
@@ -45,6 +47,40 @@ class TestWalkthroughToolConfiguration:
         assert "save_brainstorm_artifact" not in names
         assert "generate_brainstorm_image" not in names
         assert "delegate_to_flash" not in names
+
+    def test_walkthrough_default_voice_is_allowed(self):
+        from src.app.api.v1.endpoints.walkthrough import (
+            ALLOWED_VOICES,
+            DEFAULT_VOICE,
+        )
+
+        assert DEFAULT_VOICE in ALLOWED_VOICES
+
+    def test_apply_requested_voice_updates_allowed_voice(self):
+        from src.app.api.v1.endpoints.walkthrough import _apply_requested_voice
+
+        gemini_client = SimpleNamespace(voice_name="Despina")
+
+        updated = _apply_requested_voice(
+            gemini_client,
+            {"voice_name": "Aoede"},
+        )
+
+        assert updated is True
+        assert gemini_client.voice_name == "Aoede"
+
+    def test_apply_requested_voice_ignores_unknown_voice(self):
+        from src.app.api.v1.endpoints.walkthrough import _apply_requested_voice
+
+        gemini_client = SimpleNamespace(voice_name="Despina")
+
+        updated = _apply_requested_voice(
+            gemini_client,
+            {"voice_name": "NotARealVoice"},
+        )
+
+        assert updated is False
+        assert gemini_client.voice_name == "Despina"
 
 
 # ---------------------------------------------------------------------------
