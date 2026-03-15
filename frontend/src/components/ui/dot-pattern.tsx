@@ -102,9 +102,15 @@ export function DotPattern({
     }
   }, [])
 
-  // Render a canvas instead of an SVG, but keep it positioned the same
-  // Exclude SVG-specific props that were used by the old DotPattern
-  const { cx, cy, cr, width, height, glow, ...validProps } = props as any
+  // Render a canvas instead of an SVG, but keep it positioned the same.
+  // Exclude legacy SVG-only props that the canvas element does not use.
+  const validProps: Record<string, unknown> = { ...props }
+  Reflect.deleteProperty(validProps, "cx")
+  Reflect.deleteProperty(validProps, "cy")
+  Reflect.deleteProperty(validProps, "cr")
+  Reflect.deleteProperty(validProps, "width")
+  Reflect.deleteProperty(validProps, "height")
+  Reflect.deleteProperty(validProps, "glow")
 
   return (
     <canvas
@@ -113,7 +119,7 @@ export function DotPattern({
         "pointer-events-none absolute inset-0 z-0 h-full w-full",
         className
       )}
-      {...validProps}
+      {...(validProps as React.CanvasHTMLAttributes<HTMLCanvasElement>)}
     />
   )
 }
