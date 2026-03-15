@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import base64
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.app.main import app
@@ -24,7 +23,7 @@ from tests.test_brainstorm_session_library import (
 class FakeBlob:
     """Minimal fake for a Cloud Storage blob."""
 
-    def __init__(self, name: str, bucket: "FakeStorageBucket"):
+    def __init__(self, name: str, bucket: FakeStorageBucket):
         self.name = name
         self._bucket = bucket
 
@@ -176,9 +175,42 @@ class TestSaveArtifact:
             assert body["artifact"]["label"] == "Architecture Diagram"
 
             # Verify blob was stored in Cloud Storage
-            stored_blobs = [k for k in fake_storage._blobs.keys()]
+            stored_blobs = list(fake_storage._blobs)
             assert len(stored_blobs) == 1
             assert session_id in stored_blobs[0]
+        finally:
+            _clear_overrides()
+
+    def test_save_media_artifact_updates_session_thumbnail_metadata(self):
+        fake_firestore = FakeFirestoreClient()
+        fake_storage = FakeStorageBucket()
+        services = _make_services(fake_firestore, fake_storage)
+        client = TestClient(app)
+        _setup_overrides(services=services)
+
+        try:
+            session_id = _create_session(client)
+            image_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 50
+            b64_content = base64.b64encode(image_bytes).decode("utf-8")
+
+            resp = client.put(
+                f"/api/v1/live/brainstorm/sessions/{session_id}/artifacts",
+                json={
+                    "filename": "diagram.png",
+                    "content": b64_content,
+                    "mimeType": "image/png",
+                },
+            )
+            assert resp.status_code == 200
+
+            session_doc = fake_firestore._collections["brainstorm_sessions"][
+                session_id
+            ]
+            assert (
+                session_doc["thumbnail_artifact_id"]
+                == resp.json()["artifact"]["artifactId"]
+            )
+            assert session_doc["thumbnail_mime_type"] == "image/png"
         finally:
             _clear_overrides()
 
@@ -422,7 +454,10 @@ class TestDownloadArtifact:
                 f"/artifacts/{artifact_id}/download"
             )
             assert download_resp.status_code == 200
-            assert download_resp.headers["content-type"] == "text/markdown; charset=utf-8"
+            assert (
+                download_resp.headers["content-type"]
+                == "text/markdown; charset=utf-8"
+            )
             assert b"# My Notes" in download_resp.content
         finally:
             _clear_overrides()

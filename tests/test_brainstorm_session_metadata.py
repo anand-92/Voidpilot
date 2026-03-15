@@ -34,9 +34,11 @@ class FakeDocumentSnapshot:
 
 
 class FakeDocumentReference:
-    def __init__(self, store: dict[str, dict], document_id: str):
+    def __init__(self, store: dict[str, dict], document_id: str, *, parent_client=None):
         self._store = store
         self.id = document_id
+        self._parent_client = parent_client
+        self._subcollections: dict[str, dict[str, dict]] = {}
 
     def get(self) -> FakeDocumentSnapshot:
         return FakeDocumentSnapshot(self.id, self._store.get(self.id))
@@ -51,6 +53,10 @@ class FakeDocumentReference:
 
     def delete(self) -> None:
         self._store.pop(self.id, None)
+
+    def collection(self, name: str) -> "FakeCollectionReference":
+        store = self._subcollections.setdefault(name, {})
+        return FakeCollectionReference(store)
 
 
 class FakeQuery:
@@ -81,6 +87,12 @@ class FakeCollectionReference:
     ) -> FakeQuery:
         assert operator == "=="
         return FakeQuery(self._store, field_name, value)
+
+    def stream(self) -> list[FakeDocumentSnapshot]:
+        return [
+            FakeDocumentSnapshot(doc_id, data)
+            for doc_id, data in self._store.items()
+        ]
 
 
 class FakeFirestoreClient:

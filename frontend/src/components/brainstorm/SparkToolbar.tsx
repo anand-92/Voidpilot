@@ -1,10 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
+  Check,
   HelpCircle,
   LayoutTemplate,
+  Link as LinkIcon,
   Menu,
+  Share2,
   X,
   Sparkles,
   MessageSquare,
@@ -24,6 +27,7 @@ import {
 interface SparkToolbarProps {
   onGoBack?: () => void
   onResetLayout: () => void
+  onCreateShare?: () => Promise<string | null>
 }
 
 const helpTips = [
@@ -59,10 +63,28 @@ const helpTips = [
   },
 ]
 
-export function SparkToolbar({ onGoBack, onResetLayout }: SparkToolbarProps) {
+export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkToolbarProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
   const toolbarRef = useRef<HTMLDivElement>(null)
+
+  const handleShare = useCallback(async () => {
+    if (!onCreateShare || shareState === 'loading') return
+    setShareState('loading')
+    try {
+      const shareUrl = await onCreateShare()
+      if (shareUrl) {
+        await navigator.clipboard.writeText(shareUrl)
+        setShareState('copied')
+        setTimeout(() => setShareState('idle'), 2500)
+      } else {
+        setShareState('idle')
+      }
+    } catch {
+      setShareState('idle')
+    }
+  }, [onCreateShare, shareState])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -125,6 +147,26 @@ export function SparkToolbar({ onGoBack, onResetLayout }: SparkToolbarProps) {
                   <LayoutTemplate className="size-4" />
                   Reset
                 </Button>
+                {onCreateShare && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      void handleShare()
+                      setIsExpanded(false)
+                    }}
+                    disabled={shareState === 'loading'}
+                    className="gap-2 rounded-xl text-stone-300 hover:text-white hover:bg-white/[0.08] whitespace-nowrap text-sm h-10 px-3"
+                  >
+                    {shareState === 'copied' ? (
+                      <Check className="size-4 text-emerald-400" />
+                    ) : shareState === 'loading' ? (
+                      <LinkIcon className="size-4 animate-pulse" />
+                    ) : (
+                      <Share2 className="size-4" />
+                    )}
+                    {shareState === 'copied' ? 'Copied!' : 'Share'}
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   onClick={() => {

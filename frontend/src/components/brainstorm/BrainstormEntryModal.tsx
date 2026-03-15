@@ -13,7 +13,8 @@ import {
   UserRound,
   Clock,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { firebaseAuth } from '@/lib/firebase'
 import { useWebHaptics } from 'web-haptics/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -125,6 +126,75 @@ function formatSessionTimestamp(timestamp: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date)
+}
+
+function SessionThumbnail({
+  sessionId,
+  artifactId,
+  mimeType,
+}: {
+  sessionId: string
+  artifactId: string
+  mimeType?: string
+}) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const isVideo = (mimeType ?? '').startsWith('video/')
+
+  useEffect(() => {
+    let revoked = false
+    let url: string | null = null
+
+    async function fetchThumbnail() {
+      try {
+        const currentUser = firebaseAuth.currentUser
+        if (!currentUser) return
+        const token = await currentUser.getIdToken()
+        const response = await fetch(
+          `/api/v1/live/brainstorm/sessions/${sessionId}/artifacts/${artifactId}/download`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+        if (!response.ok || revoked) return
+        const blob = await response.blob()
+        if (revoked) return
+        url = URL.createObjectURL(blob)
+        setObjectUrl(url)
+      } catch {
+        // Silently fail -- card just shows without thumbnail
+      }
+    }
+
+    void fetchThumbnail()
+
+    return () => {
+      revoked = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [sessionId, artifactId])
+
+  if (!objectUrl) return null
+
+  return (
+    <div className="absolute inset-0 z-0 overflow-hidden rounded-[2rem]">
+      {isVideo ? (
+        <video
+          src={objectUrl}
+          className="h-full w-full object-cover opacity-30 transition-opacity duration-500"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+        />
+      ) : (
+        <img
+          src={objectUrl}
+          alt=""
+          className="h-full w-full object-cover opacity-30 transition-opacity duration-500"
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/30" />
+    </div>
+  )
 }
 
 function LibraryState({
@@ -275,8 +345,15 @@ function LibraryState({
                       disabled={activeAction !== null}
                       className="group relative flex h-full min-h-[220px] w-full flex-col justify-between rounded-[2rem] p-6 text-left transition-all hover:bg-white/[0.02] disabled:opacity-50"
                     >
-                      <div className="flex w-full items-start justify-between">
-                        <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-stone-500/10 text-stone-400">
+                      {session.thumbnailArtifactId && (
+                        <SessionThumbnail
+                          sessionId={session.id}
+                          artifactId={session.thumbnailArtifactId}
+                          mimeType={session.thumbnailMimeType}
+                        />
+                      )}
+                      <div className="relative z-10 flex w-full items-start justify-between">
+                        <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-stone-500/10 text-stone-400 backdrop-blur-sm">
                           {isOpening ? <Loader2 className="h-6 w-6 animate-spin" /> : <FolderOpen className="h-6 w-6" />}
                         </div>
                         <div
@@ -292,7 +369,7 @@ function LibraryState({
                           {isDeleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
                         </div>
                       </div>
-                      <div className="mt-8">
+                      <div className="relative z-10 mt-8">
                         <h3 className="mb-2 text-lg font-bold text-white truncate pr-6">{session.title}</h3>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1.5 text-xs text-stone-500">
@@ -312,7 +389,7 @@ function LibraryState({
                           )}
                         </div>
                       </div>
-                      <ArrowRight className="absolute right-6 bottom-6 h-6 w-6 text-stone-400 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />
+                      <ArrowRight className="absolute right-6 bottom-6 z-10 h-6 w-6 text-stone-400 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />
                     </button>
                   </MagicCard>
                 )

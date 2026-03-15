@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertCircle, ArrowLeft, MessageSquareText, RefreshCw, Sparkles, X } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Check, Link as LinkIcon, MessageSquareText, MoreVertical, RefreshCw, Share2, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
 import { Button } from '@/components/ui/button'
@@ -54,6 +54,25 @@ export function CreativeSparkMobileLayout({
 }: BrainstormLayoutProps) {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [showSign, setShowSign] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
+
+  const handleShare = useCallback(async () => {
+    if (!onCreateShare || shareState === 'loading') return
+    setShareState('loading')
+    try {
+      const shareUrl = await onCreateShare()
+      if (shareUrl) {
+        await navigator.clipboard.writeText(shareUrl)
+        setShareState('copied')
+        setTimeout(() => setShareState('idle'), 2500)
+      } else {
+        setShareState('idle')
+      }
+    } catch {
+      setShareState('idle')
+    }
+  }, [onCreateShare, shareState])
 
   return (
     <main className="relative flex h-dvh flex-col bg-[#0a0a0a] text-stone-100 font-sans">
@@ -80,7 +99,7 @@ export function CreativeSparkMobileLayout({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Conversation toggle button — 44px touch target */}
+            {/* Conversation toggle button -- 44px touch target */}
             <button
               type="button"
               onClick={() => setIsPanelOpen(true)}
@@ -98,9 +117,64 @@ export function CreativeSparkMobileLayout({
                 </Badge>
               )}
             </button>
-            <StatusChip isConnected={isConnected} isStarting={isStarting} />
+            {/* Sub-menu toggle */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(v => !v)}
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl transition-colors active:bg-white/[0.08]"
+            >
+              {mobileMenuOpen ? <X className="size-4 text-stone-300" /> : <MoreVertical className="size-4 text-stone-300" />}
+            </button>
           </div>
         </div>
+
+        {/* Expandable sub-menu */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="overflow-hidden"
+            >
+              <div className="flex items-center gap-2 pt-2">
+                {onGoBack && (
+                  <Button
+                    variant="ghost"
+                    onClick={onGoBack}
+                    className="gap-2 rounded-xl text-stone-300 hover:text-white hover:bg-white/[0.08] text-sm h-9 px-3"
+                  >
+                    <ArrowLeft className="size-4" />
+                    Back
+                  </Button>
+                )}
+                {onCreateShare && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      void handleShare()
+                      setMobileMenuOpen(false)
+                    }}
+                    disabled={shareState === 'loading'}
+                    className="gap-2 rounded-xl text-stone-300 hover:text-white hover:bg-white/[0.08] text-sm h-9 px-3"
+                  >
+                    {shareState === 'copied' ? (
+                      <Check className="size-4 text-emerald-400" />
+                    ) : shareState === 'loading' ? (
+                      <LinkIcon className="size-4 animate-pulse" />
+                    ) : (
+                      <Share2 className="size-4" />
+                    )}
+                    {shareState === 'copied' ? 'Copied!' : 'Share'}
+                  </Button>
+                )}
+                <StatusChip isConnected={isConnected} isStarting={isStarting} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* Floating agent visualizer window */}
@@ -186,7 +260,6 @@ export function CreativeSparkMobileLayout({
                 messagesEndRef={messagesEndRef}
                 mobile
                 sessionTitle={sessionTitle}
-                onCreateShare={onCreateShare}
                 isConnected={isConnected}
                 isStarting={isStarting}
                 handleConnect={handleConnect}

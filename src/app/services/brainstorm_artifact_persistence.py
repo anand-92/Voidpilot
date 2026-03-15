@@ -172,9 +172,13 @@ def save_brainstorm_artifact(
     try:
         artifacts_doc_ref.set(artifact_metadata)
 
-        # Touch the session's updated_at timestamp
+        session_updates: dict[str, str] = {"updated_at": now}
+        if any(mime_type.startswith(prefix) for prefix in _IMAGE_VIDEO_PREFIXES):
+            session_updates["thumbnail_artifact_id"] = artifact_id
+            session_updates["thumbnail_mime_type"] = mime_type
+
         _sessions_collection(services).document(session_id).set(
-            {"updated_at": now},
+            session_updates,
             merge=True,
         )
     except (
@@ -294,3 +298,57 @@ def download_brainstorm_artifact(
         raise_session_dependency_error(exc)
 
     return content_bytes, mime_type, filename
+
+
+_IMAGE_VIDEO_PREFIXES = ("image/", "video/")
+
+
+def get_thumbnail_artifacts(
+    services: BrainstormPersistenceServices,
+    *,
+    session_ids: list[str],
+) -> dict[str, dict[str, str]]:
+    """Return a mapping of session_id -> thumbnail artifact metadata.
+
+    Queries the artifacts subcollection for each session and picks the
+    most recently created image or video artifact. Sessions with no
+    image/video artifacts are omitted from the result.
+    """
+    result: dict[str, dict[str, str]] = {}
+
+    for sid in session_ids:
+        artifacts_collection = (
+            _sessions_collection(services)
+            .document(sid)
+            .collection(BRAINSTORM_ARTIFACTS_SUBCOLLECTION)
+        )
+        try:
+            snapshots = list(artifacts_collection.stream())
+        except (
+            BrainstormFirebaseConfigurationError,
+            DefaultCredentialsError,
+            google_api_exceptions.GoogleAPICallError,
+        ) as exc:
+            logger.warning("Failed to load artifacts for session %s: %s", sid, exc)
+            continue
+
+        candidates = []
+        for snap in snapshots:
+            data = snap.to_dict()
+            mime = data.get("mime_type", "")
+            if any(mime.startswith(prefix) for prefix in _IMAGE_VIDEO_PREFIXES):
+                candidates.append(data)
+
+        if candidates:
+            candidates.sort(key=lambda a: a.get("created_at") or "", reverse=True)
+            latest = candidates[0]
+            artifact_id = latest.get("artifact_id")
+            mime_type = latest.get("mime_type")
+
+            if isinstance(artifact_id, str) and isinstance(mime_type, str):
+                result[sid] = {
+                    "artifactId": artifact_id,
+                    "mimeType": mime_type,
+                }
+
+    return result

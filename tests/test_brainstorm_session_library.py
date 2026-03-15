@@ -52,7 +52,7 @@ class FakeDocumentReference:
     def delete(self) -> None:
         self._store.pop(self.id, None)
 
-    def collection(self, subcollection_name: str) -> "FakeCollectionReference":
+    def collection(self, subcollection_name: str) -> FakeCollectionReference:
         sub_key = f"{self.id}/{subcollection_name}"
         sub_store: dict[str, dict] = self._global_stores.setdefault(sub_key, {})
         return FakeCollectionReference(sub_store, global_stores=self._global_stores)
@@ -193,6 +193,122 @@ def test_brainstorm_session_library_returns_empty_list_for_new_user():
 
     assert response.status_code == 200
     assert response.json() == {'sessions': []}
+
+
+def test_brainstorm_session_library_returns_thumbnail_metadata_for_latest_media():
+    from src.app.api.v1.endpoints import brainstorm
+    from src.app.services import brainstorm_persistence
+    from src.app.services.brainstorm_artifact_persistence import (
+        BRAINSTORM_ARTIFACTS_SUBCOLLECTION,
+    )
+    from src.app.services.brainstorm_session_library import (
+        BRAINSTORM_SESSION_COLLECTION,
+    )
+
+    fake_firestore = FakeFirestoreClient()
+    client = TestClient(app)
+
+    app.dependency_overrides[brainstorm.require_brainstorm_user] = lambda: make_user(
+        'user-1', 'user-1@example.com'
+    )
+    app.dependency_overrides[
+        brainstorm_persistence.get_brainstorm_persistence_services
+    ] = lambda: brainstorm_persistence.BrainstormPersistenceServices(
+        firestore_client=fake_firestore,
+        storage_bucket=None,
+        project_id='project-id',
+        location='us-east1',
+    )
+
+    try:
+        create_response = client.post('/api/v1/live/brainstorm/sessions')
+        session_id = create_response.json()['session']['id']
+
+        artifacts = (
+            fake_firestore.collection(BRAINSTORM_SESSION_COLLECTION)
+            .document(session_id)
+            .collection(BRAINSTORM_ARTIFACTS_SUBCOLLECTION)
+        )
+        artifacts.document('art-image').set(
+            {
+                'artifact_id': 'art-image',
+                'filename': 'poster.png',
+                'mime_type': 'image/png',
+                'blob_path': 'brainstorm/sessions/s1/artifacts/art-image/poster.png',
+                'created_at': '2025-01-01T00:00:00Z',
+            }
+        )
+        artifacts.document('art-video').set(
+            {
+                'artifact_id': 'art-video',
+                'filename': 'clip.mp4',
+                'mime_type': 'video/mp4',
+                'blob_path': 'brainstorm/sessions/s1/artifacts/art-video/clip.mp4',
+                'created_at': '2025-01-02T00:00:00Z',
+            }
+        )
+
+        list_response = client.get('/api/v1/live/brainstorm/sessions')
+    finally:
+        app.dependency_overrides.clear()
+
+    assert list_response.status_code == 200
+    session = list_response.json()['sessions'][0]
+    assert session['thumbnailArtifactId'] == 'art-video'
+    assert session['thumbnailMimeType'] == 'video/mp4'
+
+
+
+def test_brainstorm_session_library_uses_stored_thumbnail_metadata(
+    monkeypatch,
+):
+    from src.app.api.v1.endpoints import brainstorm
+    from src.app.services import brainstorm_persistence
+    from src.app.services.brainstorm_session_library import (
+        BRAINSTORM_SESSION_COLLECTION,
+    )
+
+    fake_firestore = FakeFirestoreClient()
+    client = TestClient(app)
+
+    app.dependency_overrides[brainstorm.require_brainstorm_user] = lambda: make_user(
+        'user-1', 'user-1@example.com'
+    )
+    app.dependency_overrides[
+        brainstorm_persistence.get_brainstorm_persistence_services
+    ] = lambda: brainstorm_persistence.BrainstormPersistenceServices(
+        firestore_client=fake_firestore,
+        storage_bucket=None,
+        project_id='project-id',
+        location='us-east1',
+    )
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError('Fallback thumbnail lookup should not run')
+
+    monkeypatch.setattr(brainstorm, 'get_thumbnail_artifacts', fail_if_called)
+
+    try:
+        create_response = client.post('/api/v1/live/brainstorm/sessions')
+        session_id = create_response.json()['session']['id']
+        fake_firestore._collections[
+            BRAINSTORM_SESSION_COLLECTION
+        ][session_id].update(
+            {
+                'thumbnail_artifact_id': 'art-123',
+                'thumbnail_mime_type': 'video/mp4',
+            }
+        )
+
+        list_response = client.get('/api/v1/live/brainstorm/sessions')
+    finally:
+        app.dependency_overrides.clear()
+
+    assert list_response.status_code == 200
+    session = list_response.json()['sessions'][0]
+    assert session['thumbnailArtifactId'] == 'art-123'
+    assert session['thumbnailMimeType'] == 'video/mp4'
+
 
 
 def test_brainstorm_session_create_then_reopen_returns_same_session():

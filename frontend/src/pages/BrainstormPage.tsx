@@ -221,7 +221,7 @@ export default function BrainstormPage() {
     if (sessionMode !== 'persisted' || !activeSessionId) return null
     try {
       const share = await createBrainstormShare(activeSessionId)
-      const shareUrl = `${window.location.origin}${window.location.pathname}#/share/${share.shareToken}`
+      const shareUrl = `${window.location.origin}/share/${share.shareToken}`
       return shareUrl
     } catch (error) {
       console.error('Failed to create share link:', error)
