@@ -77,44 +77,9 @@ Embeddable voice overlay for guided experiences. Pass a custom system prompt via
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                         CLIENT (Browser)                         │
-│                                                                  │
-│  React 19 + Vite 7 + Tailwind v4 + shadcn/ui + Framer Motion   │
-│                                                                  │
-│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────────┐  │
-│  │ Microphone   │  │ useGeminiLive   │  │ useGeminiBrainstorm │  │
-│  │ 16kHz PCM    │──│ WebSocket Hook  │  │ Artifact + Session  │  │
-│  └─────────────┘  └────────┬────────┘  └──────────┬──────────┘  │
-│                             │ WebSocket             │ WebSocket   │
-└─────────────────────────────┼───────────────────────┼────────────┘
-                              │                       │
-┌─────────────────────────────┼───────────────────────┼────────────┐
-│                     BACKEND (FastAPI on Cloud Run)                │
-│                                                                  │
-│  ┌──────────────────────────┴───────────────────────┴─────────┐  │
-│  │                    WebSocket Endpoints                      │  │
-│  │  /api/v1/live/live  │  /brainstorm  │  /walkthrough        │  │
-│  └──────────────────────────┬─────────────────────────────────┘  │
-│                              │                                    │
-│  ┌───────────────────────────┴────────────────────────────────┐  │
-│  │              GeminiLive Session Wrapper                     │  │
-│  │  Audio streaming • Tool execution • Transcription          │  │
-│  │  Context compression • Session resumption                  │  │
-│  └───────────┬──────────────┬────────────────┬────────────────┘  │
-│              │              │                │                    │
-│  ┌───────────▼──┐ ┌────────▼────────┐ ┌─────▼──────────────┐    │
-│  │ Gemini Live  │ │  Flash Worker   │ │  Firebase Admin     │    │
-│  │ API (GenAI)  │ │  (Delegation)   │ │  Auth + Firestore   │    │
-│  │              │ │                 │ │  + Cloud Storage    │    │
-│  └──────────────┘ └─────────────────┘ └─────────────────────┘    │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-                              │
-                     Google Cloud Run
-                     (us-east1, Port 8080)
-```
+<div align="center">
+<img src="docs/assets/architecture.png" alt="Voidpilot Architecture Diagram" width="700" />
+</div>
 
 ---
 
@@ -209,6 +174,11 @@ gcloud run deploy voidpilot \
 
 **Live at:** [hackathon.remembr-ai.com](https://hackathon.remembr-ai.com)
 
+<div align="center">
+<img src="docs/assets/cloudrun-dashboard.png" alt="Google Cloud Run Dashboard — Voidpilot service metrics" width="700" />
+<br/><em>Live Cloud Run dashboard showing Voidpilot request metrics, latencies, and scaling in us-east1</em>
+</div>
+
 ---
 
 ## Project Structure
@@ -268,6 +238,7 @@ npm run build                    # TypeScript + Vite build
 | **Cloud Native** | Full Google Cloud stack — Cloud Run, Gemini Live API, Firebase Auth/Firestore/Storage |
 | **Robust** | Graceful error handling, auto-reconnection, session persistence across disconnects |
 | **Shareable** | Public share links for brainstorm sessions with mode-appropriate layouts |
+| **Automated Deployment** | CI/CD via GitHub Actions — every push to `main` builds, pushes, and deploys to Cloud Run automatically. See [`.github/workflows/deploy-gcloud.yml`](.github/workflows/deploy-gcloud.yml) |
 
 ---
 
