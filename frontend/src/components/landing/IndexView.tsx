@@ -92,11 +92,11 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
 
       <BlurFade delay={0.15}>
         <div className="pointer-events-auto">
-          <div className="rounded-[2rem] border border-white/10 bg-white/6 px-5 py-4 shadow-[0_0_60px_rgba(56,189,248,0.12)] backdrop-blur-xl md:px-8 md:py-6">
+          <div className="rounded-[2rem] border border-blue-500/20 bg-black/40 px-5 py-4 shadow-[0_0_60px_rgba(59,130,246,0.15)] backdrop-blur-xl md:px-8 md:py-6">
             <AnimatedTextRoller
               className="max-w-4xl text-center text-3xl font-extrabold tracking-tight leading-tight sm:text-5xl md:text-7xl"
-              prefixClassName="font-extrabold tracking-tight text-white"
-              itemClassName="font-extrabold"
+              prefixClassName="font-extrabold tracking-tight text-white drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+              itemClassName="font-extrabold drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]"
               items={voidpilotHeroItems}
             />
           </div>
@@ -133,10 +133,10 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
               className="h-full"
             >
               <MagicCard
-                className="h-full rounded-2xl"
-                gradientColor="#1c1917"
-                gradientFrom="#d97706"
-                gradientTo="#92400e"
+                className="h-full rounded-2xl bg-black/20 border-white/5"
+                gradientColor="rgba(30, 58, 138, 0.4)"
+                gradientFrom="#2563eb"
+                gradientTo="#1e3a8a"
                 gradientOpacity={0.6}
               >
                 <button

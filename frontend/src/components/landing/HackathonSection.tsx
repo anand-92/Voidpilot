@@ -53,10 +53,8 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
       animate="visible"
       exit="exit"
     >
-      <div className="max-w-7xl mx-auto w-full max-h-[80vh] overflow-y-auto pr-4 custom-scrollbar pointer-events-auto rounded-3xl border border-white/[0.06] bg-stone-950/70 backdrop-blur-3xl shadow-2xl relative">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[120px] pointer-events-none mix-blend-screen"></div>
-        <BorderBeam size={80} duration={8} colorFrom="#d97706" colorTo="#b45309" />
+      <div className="max-w-7xl mx-auto w-full max-h-[80vh] overflow-y-auto pr-4 custom-scrollbar pointer-events-auto rounded-3xl border border-white/[0.06] bg-stone-950/40 backdrop-blur-xl shadow-2xl relative">
+        <BorderBeam size={80} duration={8} colorFrom="#38bdf8" colorTo="#818cf8" />
 
         <div className="p-8 md:p-14 relative z-10 w-full">
           <BlurFade delay={0.1}>
@@ -99,10 +97,10 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
                 <BlurFade key={title} delay={0.2 + i * 0.1}>
                   <EnhancedTiltCard>
                     <MagicCard
-                      className="rounded-2xl h-full"
-                      gradientColor="#1c1917"
-                      gradientFrom="#d97706"
-                      gradientTo="#92400e"
+                      className="rounded-2xl h-full bg-black/20"
+                      gradientColor="rgba(56, 189, 248, 0.15)"
+                      gradientFrom="#38bdf8"
+                      gradientTo="#818cf8"
                       gradientOpacity={0.4}
                     >
                       <div onTouchStart={onCardTap} className={`group p-6 ${colors.hover} transition-all h-full`}>

@@ -19,7 +19,7 @@ export function HeroSection({ onLaunch }: { onLaunch: () => void }) {
       <BlurFade delay={0.1}>
         <Badge
           variant="outline"
-          className="group relative mb-4 md:mb-8 h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-3 md:px-5 py-1.5 md:py-2 text-[10px] md:text-xs font-medium tracking-widest text-amber-200 uppercase pointer-events-auto transition-all hover:bg-amber-500/20 hover:scale-105"
+          className="group relative mb-4 md:mb-8 h-auto gap-2 rounded-full border-blue-500/20 bg-blue-500/10 px-3 md:px-5 py-1.5 md:py-2 text-[10px] md:text-xs font-medium tracking-widest text-blue-200 uppercase pointer-events-auto transition-all hover:bg-blue-500/20 hover:scale-105"
         >
           <PulseDot />
           Voidpilot — Live AI Assistant
@@ -28,15 +28,15 @@ export function HeroSection({ onLaunch }: { onLaunch: () => void }) {
 
       <BlurFade delay={0.15}>
         <div className="pointer-events-auto flex max-w-5xl flex-col items-center gap-3 text-center md:gap-5">
-          <div className="rounded-[2rem] border border-white/10 bg-white/6 px-5 py-4 shadow-[0_0_60px_rgba(56,189,248,0.12)] backdrop-blur-xl md:px-8 md:py-6">
+          <div className="rounded-[2rem] border border-blue-500/20 bg-black/40 px-5 py-4 shadow-[0_0_60px_rgba(59,130,246,0.15)] backdrop-blur-xl md:px-8 md:py-6">
             <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl md:text-7xl drop-shadow-sm leading-tight">
               <span className="mb-2 block text-transparent bg-clip-text bg-gradient-to-br from-white via-stone-200 to-stone-500 md:mb-3">
                 Your copilot for
               </span>
               <AnimatedTextRoller
                 className="text-3xl sm:text-5xl md:text-7xl"
-                prefixClassName="font-extrabold tracking-tight text-white"
-                itemClassName="font-extrabold"
+                prefixClassName="font-extrabold tracking-tight text-white drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                itemClassName="font-extrabold drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]"
                 items={voidpilotHeroItems}
               />
             </h1>
@@ -53,7 +53,7 @@ export function HeroSection({ onLaunch }: { onLaunch: () => void }) {
       <BlurFade delay={0.35}>
         <motion.button
           onClick={onLaunch}
-          className="mt-6 md:mt-10 inline-flex items-center gap-2 rounded-full bg-amber-600 px-6 md:px-8 py-2.5 md:py-3 text-sm md:text-base font-semibold text-stone-950 hover:bg-amber-500 transition-all pointer-events-auto shadow-[0_8px_30px_rgba(217,119,6,0.25)]"
+          className="mt-6 md:mt-10 inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 md:px-8 py-2.5 md:py-3 text-sm md:text-base font-semibold text-white hover:bg-blue-500 transition-all pointer-events-auto shadow-[0_8px_30px_rgba(37,99,235,0.25)]"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.97 }}
         >

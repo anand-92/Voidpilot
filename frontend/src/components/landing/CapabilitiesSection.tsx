@@ -41,7 +41,7 @@ export function CapabilitiesSection({ onCardTap }: { onCardTap: () => void }) {
         <BlurFade delay={0.1}>
           <div className="mb-6 md:mb-12 md:text-center pointer-events-auto">
             <h2 className="text-2xl font-bold sm:text-3xl md:text-5xl text-white">
-              Experience True <AnimatedGradientText colorFrom="#d97706" colorTo="#fbbf24" className="text-2xl sm:text-3xl md:text-5xl font-bold">Synergy</AnimatedGradientText>
+              Experience True <AnimatedGradientText colorFrom="#38bdf8" colorTo="#818cf8" className="text-2xl sm:text-3xl md:text-5xl font-bold">Synergy</AnimatedGradientText>
             </h2>
             <p className="mt-2 md:mt-4 text-stone-500 max-w-2xl mx-auto text-sm md:text-lg">Harness the multimodal capabilities of the Gemini model. Blend audio, vision, and contextual understanding in one fluid interface.</p>
           </div>
@@ -52,10 +52,10 @@ export function CapabilitiesSection({ onCardTap }: { onCardTap: () => void }) {
             <BlurFade key={title} delay={0.2 + i * 0.1}>
               <EnhancedTiltCard className="pointer-events-auto">
                 <MagicCard
-                  className="rounded-2xl md:rounded-3xl h-full"
-                  gradientColor="#1c1917"
-                  gradientFrom="#d97706"
-                  gradientTo="#b45309"
+                  className="rounded-2xl md:rounded-3xl h-full bg-black/20"
+                  gradientColor="rgba(56, 189, 248, 0.15)"
+                  gradientFrom="#38bdf8"
+                  gradientTo="#818cf8"
                   gradientOpacity={0.5}
                 >
                   <article onTouchStart={onCardTap} className="group relative overflow-hidden p-4 md:p-8 transition-all duration-300 h-full flex items-start gap-3 md:block">
