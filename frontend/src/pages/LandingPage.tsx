@@ -5,7 +5,7 @@ import { GeminiArrowLeft } from '../components/icons/GeminiIcons';
 import { ThreeBackground } from '../components/ThreeBackground';
 import { CustomCursor } from '../components/CustomCursor';
 import { GeminiLiveLogo } from '../components/icons/CustomIcons';
-import WalkthroughModal from '../components/WalkthroughModal';
+import WalkthroughOverlay from '../components/walkthrough/WalkthroughOverlay';
 import { Button } from '@/components/ui/button';
 import { DotPattern } from '@/components/ui/dot-pattern';
 
@@ -113,7 +113,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      <WalkthroughModal isOpen={isWalkthroughOpen} onClose={closeWalkthrough} />
+      <WalkthroughOverlay isOpen={isWalkthroughOpen} onClose={closeWalkthrough} />
     </main>
   );
 }
