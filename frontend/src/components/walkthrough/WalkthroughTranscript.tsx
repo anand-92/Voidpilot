@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Search, Loader2, AlertCircle, SearchX } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type {
   WalkthroughTranscriptItem,
@@ -73,7 +74,31 @@ function TranscriptTurn({ turn }: { turn: WalkthroughTranscriptTurn }) {
             : 'bg-white/[0.04] text-stone-300'
         }`}
       >
-        {turn.content}
+        {isUser ? (
+          turn.content
+        ) : (
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+              ul: ({ children }) => <ul className="mb-2 list-disc pl-4 last:mb-0">{children}</ul>,
+              ol: ({ children }) => <ol className="mb-2 list-decimal pl-4 last:mb-0">{children}</ol>,
+              li: ({ children }) => <li className="mb-1">{children}</li>,
+              code: ({ className, children }) => {
+                const isInline = !className
+                return isInline ? (
+                  <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-xs">{children}</code>
+                ) : (
+                  <code className={className}>{children}</code>
+                )
+              },
+              a: ({ href, children }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">{children}</a>
+              ),
+            }}
+          >
+            {turn.content}
+          </ReactMarkdown>
+        )}
       </div>
     </motion.div>
   )
