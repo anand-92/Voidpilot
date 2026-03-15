@@ -10,6 +10,7 @@ import {
   ChevronUp,
   AlertCircle,
   RefreshCw,
+  Play,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -224,6 +225,7 @@ export default function WalkthroughOverlay({
   } = useWalkthroughAgent()
 
   const [explainerOpen, setExplainerOpen] = useState(true)
+  const [hasStarted, setHasStarted] = useState(false)
   const launcherRef = useRef<HTMLElement | null>(null)
 
   // Track the element that opened us so we can return focus
@@ -233,17 +235,19 @@ export default function WalkthroughOverlay({
     }
   }, [isOpen])
 
-  // Start session when overlay opens
   useEffect(() => {
-    if (isOpen) {
-      start().catch((err: unknown) => {
-        console.error('Failed to start walkthrough:', err)
-      })
-    }
     return () => {
+      setHasStarted(false)
       stop()
     }
-  }, [isOpen, start, stop])
+  }, [stop])
+
+  const handleBegin = useCallback(() => {
+    setHasStarted(true)
+    start().catch((err: unknown) => {
+      console.error('Failed to start walkthrough:', err)
+    })
+  }, [start])
 
   const handleClose = useCallback(() => {
     stop()
@@ -276,6 +280,7 @@ export default function WalkthroughOverlay({
   )
 
   const handleRetry = useCallback(() => {
+    setHasStarted(true)
     stop()
     start().catch((err: unknown) => {
       console.error('Retry failed:', err)
@@ -286,6 +291,8 @@ export default function WalkthroughOverlay({
     connectionStatus === 'connected' ||
     connectionStatus === 'connecting' ||
     connectionStatus === 'degraded'
+
+  const isReadyToBegin = !hasStarted && connectionStatus === 'disconnected'
 
   const canSend =
     connectionStatus === 'connected' || connectionStatus === 'degraded'
@@ -434,10 +441,31 @@ export default function WalkthroughOverlay({
                     turns={transcript}
                     toolActivity={toolActivity}
                     emptyState={
-                      <WalkthroughStarterPrompts
-                        onSelect={handleStarterSelect}
-                        disabled={!canSend}
-                      />
+                      isReadyToBegin ? (
+                        <div className="flex flex-col items-center gap-4 px-4 py-8 text-center">
+                          <div>
+                            <h3 className="text-sm font-semibold text-stone-200">
+                              Start the walkthrough when you're ready
+                            </h3>
+                            <p className="mt-1 max-w-sm text-xs leading-relaxed text-stone-500">
+                              Pick a voice first if you want, then begin the live
+                              conversation.
+                            </p>
+                          </div>
+                          <Button
+                            onClick={handleBegin}
+                            className="gap-2 rounded-full bg-amber-500 text-stone-950 hover:bg-amber-400"
+                          >
+                            <Play className="size-4 fill-current" />
+                            Begin conversation
+                          </Button>
+                        </div>
+                      ) : (
+                        <WalkthroughStarterPrompts
+                          onSelect={handleStarterSelect}
+                          disabled={!canSend}
+                        />
+                      )
                     }
                   />
 
@@ -483,9 +511,13 @@ export default function WalkthroughOverlay({
                   <div className="shrink-0 border-t border-white/[0.06] px-4 py-3">
                     <WalkthroughComposer
                       onSend={handleSend}
-                      disabled={!canSend}
+                      disabled={isReadyToBegin || !canSend}
                     />
-                    {isSessionActive && (
+                    {isReadyToBegin ? (
+                      <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-stone-600">
+                        <span>Choose a voice, then click Begin conversation</span>
+                      </div>
+                    ) : isSessionActive ? (
                       <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-stone-600">
                         {hasMicIssue ? (
                           <>
@@ -503,7 +535,7 @@ export default function WalkthroughOverlay({
                           <span>Starting session…</span>
                         ) : null}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
 

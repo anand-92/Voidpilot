@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Sparkles, Video, Loader2, Image as ImageIcon } from 'lucide-react'
+import { Download, Sparkles, Video, Loader2, Image as ImageIcon, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import type { BrainstormArtifact } from '../../hooks/useGeminiBrainstorm'
 
@@ -174,14 +174,24 @@ function GalleryStrip({
           }
         }}
       >
-        <DialogContent className="h-[98vh] w-[98vw] max-w-none border-none bg-black/95 p-2 shadow-2xl backdrop-blur-xl sm:h-[96vh] sm:w-[96vw]">
-          <DialogTitle className="sr-only">Artifact Preview</DialogTitle>
-          {previewArtifact !== null ? (
-            previewArtifact[1].content !== null ? (
+        <DialogTitle className="sr-only">Artifact Preview</DialogTitle>
+        {previewArtifact !== null ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 backdrop-blur-xl sm:p-6">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setPreviewFilename(null)}
+              aria-label="Close artifact preview"
+              className="absolute right-4 top-4 z-10 rounded-full bg-black/60 text-white hover:bg-black/80 hover:text-white"
+            >
+              <X className="size-4" />
+            </Button>
+
+            {previewArtifact[1].content !== null ? (
               previewArtifact[1].mimeType.startsWith('video/') ? (
                 <video
                   src={`data:video/mp4;base64,${previewArtifact[1].content}`}
-                  className="h-full w-full rounded-lg object-contain"
+                  className="max-h-[92vh] w-auto max-w-[92vw] rounded-xl object-contain shadow-2xl"
                   controls
                   autoPlay
                 />
@@ -189,16 +199,16 @@ function GalleryStrip({
                 <img
                   src={`data:image/png;base64,${previewArtifact[1].content}`}
                   alt={previewArtifact[1].label ?? previewArtifact[0]}
-                  className="h-full w-full rounded-lg object-contain"
+                  className="max-h-[92vh] w-auto max-w-[92vw] rounded-xl object-contain shadow-2xl"
                 />
               )
             ) : (
               <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="size-10 animate-spin text-stone-500" />
               </div>
-            )
-          ) : null}
-        </DialogContent>
+            )}
+          </div>
+        ) : null}
       </Dialog>
     </div>
   )
