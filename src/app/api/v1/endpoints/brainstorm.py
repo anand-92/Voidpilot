@@ -13,7 +13,7 @@ from starlette.websockets import WebSocketState
 from src.app.core.config import settings
 from src.app.services.brainstorm_artifact_persistence import (
     download_brainstorm_artifact,
-    get_thumbnail_artifact_ids,
+    get_thumbnail_artifacts,
     load_brainstorm_artifacts,
     save_brainstorm_artifact,
 )
@@ -486,15 +486,27 @@ async def list_brainstorm_sessions(
     except BrainstormSessionError as exc:
         raise exc.to_http_exception() from exc
 
-    session_ids = [s.id for s in sessions]
-    thumbnail_map = get_thumbnail_artifact_ids(services, session_ids=session_ids)
+    session_ids_missing_thumbnail = [
+        session.id
+        for session in sessions
+        if not session.thumbnail_artifact_id or not session.thumbnail_mime_type
+    ]
+    thumbnail_map = (
+        get_thumbnail_artifacts(
+            services,
+            session_ids=session_ids_missing_thumbnail,
+        )
+        if session_ids_missing_thumbnail
+        else {}
+    )
 
     result = []
     for session in sessions:
         payload = session.to_response_dict()
-        thumb_id = thumbnail_map.get(session.id)
-        if thumb_id:
-            payload["thumbnailArtifactId"] = thumb_id
+        thumbnail = thumbnail_map.get(session.id)
+        if thumbnail:
+            payload["thumbnailArtifactId"] = thumbnail["artifactId"]
+            payload["thumbnailMimeType"] = thumbnail["mimeType"]
         result.append(payload)
 
     return {"sessions": result}

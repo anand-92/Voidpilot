@@ -30,10 +30,12 @@ class BrainstormSessionRecord:
     created_at: str
     updated_at: str
     brainstorm_type: str = "open_studio"
+    thumbnail_artifact_id: str | None = None
+    thumbnail_mime_type: str | None = None
 
     def to_response_dict(self) -> dict[str, str | None]:
         payload = asdict(self)
-        return {
+        response = {
             "id": payload["id"],
             "ownerUid": payload["owner_uid"],
             "ownerEmail": payload["owner_email"],
@@ -44,6 +46,13 @@ class BrainstormSessionRecord:
             "updatedAt": payload["updated_at"],
             "brainstormType": payload["brainstorm_type"],
         }
+
+        if payload["thumbnail_artifact_id"]:
+            response["thumbnailArtifactId"] = payload["thumbnail_artifact_id"]
+        if payload["thumbnail_mime_type"]:
+            response["thumbnailMimeType"] = payload["thumbnail_mime_type"]
+
+        return response
 
 
 class BrainstormSessionError(RuntimeError):
@@ -95,6 +104,8 @@ def _session_record_from_snapshot(document_snapshot) -> BrainstormSessionRecord:
         created_at=payload["created_at"],
         updated_at=payload["updated_at"],
         brainstorm_type=payload.get("brainstorm_type", "open_studio"),
+        thumbnail_artifact_id=payload.get("thumbnail_artifact_id"),
+        thumbnail_mime_type=payload.get("thumbnail_mime_type"),
     )
 
 

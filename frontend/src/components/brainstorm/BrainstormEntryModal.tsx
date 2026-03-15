@@ -128,8 +128,17 @@ function formatSessionTimestamp(timestamp: string) {
   }).format(date)
 }
 
-function SessionThumbnail({ sessionId, artifactId }: { sessionId: string; artifactId: string }) {
+function SessionThumbnail({
+  sessionId,
+  artifactId,
+  mimeType,
+}: {
+  sessionId: string
+  artifactId: string
+  mimeType?: string
+}) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const isVideo = (mimeType ?? '').startsWith('video/')
 
   useEffect(() => {
     let revoked = false
@@ -166,11 +175,23 @@ function SessionThumbnail({ sessionId, artifactId }: { sessionId: string; artifa
 
   return (
     <div className="absolute inset-0 z-0 overflow-hidden rounded-[2rem]">
-      <img
-        src={objectUrl}
-        alt=""
-        className="h-full w-full object-cover opacity-30 transition-opacity duration-500"
-      />
+      {isVideo ? (
+        <video
+          src={objectUrl}
+          className="h-full w-full object-cover opacity-30 transition-opacity duration-500"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+        />
+      ) : (
+        <img
+          src={objectUrl}
+          alt=""
+          className="h-full w-full object-cover opacity-30 transition-opacity duration-500"
+        />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/30" />
     </div>
   )
@@ -325,7 +346,11 @@ function LibraryState({
                       className="group relative flex h-full min-h-[220px] w-full flex-col justify-between rounded-[2rem] p-6 text-left transition-all hover:bg-white/[0.02] disabled:opacity-50"
                     >
                       {session.thumbnailArtifactId && (
-                        <SessionThumbnail sessionId={session.id} artifactId={session.thumbnailArtifactId} />
+                        <SessionThumbnail
+                          sessionId={session.id}
+                          artifactId={session.thumbnailArtifactId}
+                          mimeType={session.thumbnailMimeType}
+                        />
                       )}
                       <div className="relative z-10 flex w-full items-start justify-between">
                         <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-stone-500/10 text-stone-400 backdrop-blur-sm">
