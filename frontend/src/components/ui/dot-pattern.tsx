@@ -1,23 +1,8 @@
 "use client"
 
-import React, { useEffect, useId, useRef, useState } from "react"
-import { motion } from "motion/react"
-
+import React, { useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
 
-/**
- *  DotPattern Component Props
- *
- * @param {number} [width=16] - The horizontal spacing between dots
- * @param {number} [height=16] - The vertical spacing between dots
- * @param {number} [x=0] - The x-offset of the entire pattern
- * @param {number} [y=0] - The y-offset of the entire pattern
- * @param {number} [cx=1] - The x-offset of individual dots
- * @param {number} [cy=1] - The y-offset of individual dots
- * @param {number} [cr=1] - The radius of each dot
- * @param {string} [className] - Additional CSS classes to apply to the SVG container
- * @param {boolean} [glow=false] - Whether dots should have a glowing animation effect
- */
 interface DotPatternProps extends React.SVGProps<SVGSVGElement> {
   width?: number
   height?: number
@@ -31,134 +16,104 @@ interface DotPatternProps extends React.SVGProps<SVGSVGElement> {
   [key: string]: unknown
 }
 
-/**
- * DotPattern Component
- *
- * A React component that creates an animated or static dot pattern background using SVG.
- * The pattern automatically adjusts to fill its container and can optionally display glowing dots.
- *
- * @component
- *
- * @see DotPatternProps for the props interface.
- *
- * @example
- * // Basic usage
- * <DotPattern />
- *
- * // With glowing effect and custom spacing
- * <DotPattern
- *   width={20}
- *   height={20}
- *   glow={true}
- *   className="opacity-50"
- * />
- *
- * @notes
- * - The component is client-side only ("use client")
- * - Automatically responds to container size changes
- * - When glow is enabled, dots will animate with random delays and durations
- * - Uses Motion for animations
- * - Dots color can be controlled via the text color utility classes
- */
-
 export function DotPattern({
-  width = 16,
-  height = 16,
-  x = 0,
-  y = 0,
-  cx = 1,
-  cy = 1,
-  cr = 1,
   className,
-  glow = false,
   ...props
 }: DotPatternProps) {
-  const id = useId()
-  const containerRef = useRef<SVGSVGElement>(null)
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
-  const [dots, setDots] = useState<Array<{ x: number; y: number; delay: number; duration: number }>>([])
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const { width, height } = containerRef.current.getBoundingClientRect()
-        setDimensions({ width, height })
-      }
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    const setSize = () => {
+      if (!canvas.parentElement) return
+      canvas.width = canvas.parentElement.clientWidth
+      canvas.height = canvas.parentElement.clientHeight
+    }
+    
+    setSize()
+    window.addEventListener("resize", setSize)
+
+    // Increase star count for a more galaxy-like feel
+    const starCount = 350
+    const stars = Array.from({ length: starCount }, () => ({
+      x: Math.random() * (canvas.parentElement?.clientWidth || window.innerWidth),
+      y: Math.random() * (canvas.parentElement?.clientHeight || window.innerHeight),
+      radius: Math.random() > 0.85 ? Math.random() * 2 + 1 : Math.random() * 1.2 + 0.3,
+      alpha: Math.random(),
+      velocity: (Math.random() * 0.003) + 0.001, // Much slower and relaxing twinkle speed
+      direction: Math.random() > 0.5 ? 1 : -1,
+      minAlpha: Math.random() * 0.2, // Trough
+      maxAlpha: Math.random() * 0.5 + 0.5, // Peak
+      color: Math.random() > 0.7 ? "219, 234, 254" : "147, 197, 253" // blue-100 or blue-300
+    }))
+
+    let animationFrameId: number
+
+    const render = () => {
+      // Create a dark space-like background clear
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      
+      stars.forEach(star => {
+        // Smooth Twinkle effect
+        star.alpha += star.velocity * star.direction
+        if (star.alpha >= star.maxAlpha) {
+          star.alpha = star.maxAlpha
+          star.direction = -1
+        } else if (star.alpha <= star.minAlpha) {
+          star.alpha = star.minAlpha
+          star.direction = 1
+        }
+
+        // Add glow effect
+        ctx.shadowBlur = star.radius * 6
+        ctx.shadowColor = `rgba(${star.color}, ${star.alpha * 1.5})`
+
+        ctx.beginPath()
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(${star.color}, ${star.alpha})`
+        ctx.fill()
+
+        // Draw inner bright core for larger stars
+        if (star.radius > 1.5) {
+          ctx.shadowBlur = 0 // Disable shadow for inner core
+          ctx.beginPath()
+          ctx.arc(star.x, star.y, star.radius * 0.4, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, star.alpha + 0.3)})`
+          ctx.fill()
+        }
+      })
+      
+      // Reset shadow blur to avoid accumulating performance penalty
+      ctx.shadowBlur = 0
+
+      animationFrameId = requestAnimationFrame(render)
     }
 
-    updateDimensions()
-    window.addEventListener("resize", updateDimensions)
-    return () => window.removeEventListener("resize", updateDimensions)
+    render()
+
+    return () => {
+      window.removeEventListener("resize", setSize)
+      cancelAnimationFrame(animationFrameId)
+    }
   }, [])
 
-  useEffect(() => {
-    if (dimensions.width === 0 || dimensions.height === 0) return
-    const newDots = Array.from(
-      {
-        length:
-          Math.ceil(dimensions.width / width) *
-          Math.ceil(dimensions.height / height),
-      },
-      (_, i) => {
-        const col = i % Math.ceil(dimensions.width / width)
-        const row = Math.floor(i / Math.ceil(dimensions.width / width))
-        return {
-          x: col * width + cx + x,
-          y: row * height + cy + y,
-          delay: Math.random() * 5,
-          duration: Math.random() * 3 + 2,
-        }
-      }
-    )
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDots(newDots)
-  }, [dimensions.width, dimensions.height, width, height, cx, cy, x, y])
+  // Render a canvas instead of an SVG, but keep it positioned the same
+  // Exclude SVG-specific props that were used by the old DotPattern
+  const { cx, cy, cr, width, height, glow, ...validProps } = props as any
 
   return (
-    <svg
-      ref={containerRef}
-      aria-hidden="true"
+    <canvas
+      ref={canvasRef}
       className={cn(
-        "pointer-events-none absolute inset-0 h-full w-full text-neutral-400/80",
+        "pointer-events-none absolute inset-0 z-0 h-full w-full",
         className
       )}
-      {...props}
-    >
-      <defs>
-        <radialGradient id={`${id}-gradient`}>
-          <stop offset="0%" stopColor="currentColor" stopOpacity="1" />
-          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      {dots.map((dot) => (
-        <motion.circle
-          key={`${dot.x}-${dot.y}`}
-          cx={dot.x}
-          cy={dot.y}
-          r={cr}
-          fill={glow ? `url(#${id}-gradient)` : "currentColor"}
-          initial={glow ? { opacity: 0.4, scale: 1 } : {}}
-          animate={
-            glow
-              ? {
-                  opacity: [0.4, 1, 0.4],
-                  scale: [1, 1.5, 1],
-                }
-              : {}
-          }
-          transition={
-            glow
-              ? {
-                  duration: dot.duration,
-                  repeat: Infinity,
-                  repeatType: "reverse",
-                  delay: dot.delay,
-                  ease: "easeInOut",
-                }
-              : {}
-          }
-        />
-      ))}
-    </svg>
+      {...validProps}
+    />
   )
 }
