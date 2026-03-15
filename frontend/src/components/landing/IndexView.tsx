@@ -10,22 +10,16 @@ import { PulseDot } from './PulseDot';
 import { sectionVariants, indexCardVariants } from './LandingConstants';
 import type { SectionId } from './LandingConstants';
 import {
-  IconOverviewOrbit,
-  IconCapabilitiesConverge,
   IconHackathonLaunch,
   IconWalkthroughVoid,
   IconBrainstorm,
 } from '../icons/CustomIcons';
 
 const sections = [
-  { id: 'hero' as SectionId, label: 'Overview', subtitle: 'Voice, vision, and desktop control', icon: IconOverviewOrbit, color: 'amber' },
-  { id: 'capabilities' as SectionId, label: 'Capabilities', subtitle: 'Multimodal synergy', icon: IconCapabilitiesConverge, color: 'orange' },
   { id: 'hackathon' as SectionId, label: 'Hackathon', subtitle: 'Global challenge details', icon: IconHackathonLaunch, color: 'yellow' },
 ];
 
 const COLOR_MAP: Record<string, { bg: string; border: string; text: string; glow: string }> = {
-  amber: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-400', glow: 'shadow-amber-500/20' },
-  orange: { bg: 'bg-orange-500/10', border: 'border-orange-500/20', text: 'text-orange-400', glow: 'shadow-orange-500/20' },
   yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400', glow: 'shadow-yellow-500/20' },
   rose: { bg: 'bg-rose-500/10', border: 'border-rose-500/20', text: 'text-rose-400', glow: 'shadow-rose-500/20' },
   stone: { bg: 'bg-stone-500/10', border: 'border-stone-500/20', text: 'text-stone-400', glow: 'shadow-stone-500/20' },
@@ -109,7 +103,7 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
         </p>
       </BlurFade>
 
-      <div className="mt-4 md:mt-10 grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-5 max-w-5xl w-full pointer-events-auto">
+      <div className="mt-4 md:mt-10 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5 max-w-3xl w-full pointer-events-auto">
         {indexCards.map((card, i) => {
           const colors = COLOR_MAP[card.color];
           const Icon = card.icon;
