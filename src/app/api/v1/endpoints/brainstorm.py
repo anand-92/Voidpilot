@@ -150,11 +150,20 @@ Rules:
 - Whatever mundane answer the user gives, IMMEDIATELY twist it into \
 something dramatic, cinematic, or absurd. You do all the creative heavy \
 lifting — the user never has to come up with ideas.
-- Offer to generate an image or video RIGHT AWAY. Don't wait for \
-permission to suggest it. Generating visuals is the whole point.
+- Offer to generate an image or video RIGHT AWAY, but only call a \
+generation tool after the user explicitly asks for it or clearly agrees.
+- Respect the user's requested medium. If they ask for a video, call only \
+generate_brainstorm_video. If they ask for an image, call only \
+generate_brainstorm_image.
+- Generate at most ONE asset per assistant turn. Do not call multiple \
+generation tools for the same beat unless the user explicitly asks for \
+multiple variations or outputs.
 - After generating, keep momentum with quick follow-ups that build on \
 the story: "What if next…", "Does the character survive?", "Want it \
-scarier?"
+scarier?" But do that with words first — do not trigger another \
+generation unless the user asks for another asset or variation.
+- If the user asked for a video or one is already in progress, do NOT \
+fall back to an image unless the user asks for a quick still preview.
 - The user steers with short answers: "yes", "no", "make it darker", \
 "add a dog". You run with whatever they say.
 - Keep every response SHORT and punchy. This is voice-first, not an essay.
@@ -162,7 +171,8 @@ scarier?"
 inspires you?", "what problem do you want to explore?"
 - NEVER be a passive assistant waiting for direction. You pitch ideas, \
 the user reacts.
-- Lean heavily toward generating images and videos — suggest them often.
+- Lean heavily toward generating images and videos in your suggestions, \
+but execute them carefully and one at a time.
 """
 
 
@@ -317,28 +327,14 @@ def _make_tool_handlers(  # noqa: C901
             return {"result": f"Error: {e}", "scheduling": scheduling}
 
     async def handle_generate_image(prompt: str, label: str) -> dict:
-        """Generate image via FlashWorker with interleaved text and push to client."""
-        from src.app.services.flash_worker import FlashImageResult
-
+        """Generate image via FlashWorker and push to client."""
         try:
-            result = await flash.generate_image(prompt=prompt)
-
-            if isinstance(result, FlashImageResult):
-                image_bytes = result.image_bytes
-                result_text = result.text
-            else:
-                image_bytes = result
-                result_text = ""
-
-            # Ensure image bytes exist
-            if not image_bytes:
-                raise ValueError("No image bytes in FlashImageResult")
+            image_bytes = await flash.generate_image(prompt=prompt)
 
             # Convert image bytes to base64
             b64_image = base64.b64encode(image_bytes).decode("utf-8")
             filename = label.lower().replace(" ", "_") + ".png"
 
-            # Send both image and text to frontend
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(
                     {
@@ -346,7 +342,6 @@ def _make_tool_handlers(  # noqa: C901
                         "filename": filename,
                         "label": label,
                         "data": b64_image,
-                        **({"text": result_text} if result_text else {}),
                     }
                 )
 
@@ -830,6 +825,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
         tools=tool_defs,
         tool_mapping=tool_mapping,
         system_prompt=BRAINSTORM_SYSTEM_PROMPT,
+        max_tool_calls_per_turn=None,
     )
 
     session_config_received = asyncio.Event()
@@ -867,10 +863,12 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                     build_creative_spark_system_prompt()
                 )
                 gemini_client.auto_start = True
+                gemini_client.max_tool_calls_per_turn = 1
                 logger.info("Brainstorm mode: creative_spark (auto-start)")
             else:
                 gemini_client.system_prompt = BRAINSTORM_SYSTEM_PROMPT
                 gemini_client.auto_start = False
+                gemini_client.max_tool_calls_per_turn = None
                 logger.info("Brainstorm mode: open_studio (default)")
 
             # Handle tool selection (open_studio only; creative_spark
@@ -925,6 +923,11 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 audio_interrupt_callback=manager.audio_interrupt_callback,
             ):
                 if event:
+                    if (
+                        event.get("type") == "session_resumption_update"
+                        and event.get("handle")
+                    ):
+                        gemini_client.session_resumption_handle = event["handle"]
                     logger.debug("Brainstorm event: %s", event["type"])
                     await manager.forward_gemini_event(event)
             logger.info("Brainstorm session ended normally")
@@ -939,6 +942,8 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
     try:
         for attempt in range(MAX_RETRIES):
             await run_session()
+            if websocket.client_state != WebSocketState.CONNECTED:
+                break
             if attempt >= MAX_RETRIES - 1:
                 break
             logger.info(

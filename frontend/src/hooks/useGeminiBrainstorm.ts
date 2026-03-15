@@ -12,6 +12,7 @@ import {
   requestMicrophone,
   resampleAudio,
   scheduleAudioPlayback,
+  stopScheduledAudioPlayback,
 } from '../utils/audio.ts'
 import type { BrainstormType } from '@/components/brainstorm/ModeSelectionScreen'
 import type { Message, MessageRole } from '@/types/messages'
@@ -68,7 +69,7 @@ export type BrainstormArtifact = {
   sizeBytes?: number
   label?: string
   updatedAt: string
-  text?: string  // Interleaved text from image generation
+  text?: string
 }
 
 // Artifact type to MIME type mapping
@@ -78,13 +79,82 @@ const ARTIFACT_MIME_TYPES: Record<string, string> = {
   brainstorm_video: 'video/mp4',
 }
 
+const MESSAGE_OVERLAP_LIMIT = 120
+const MIN_MESSAGE_OVERLAP = 2
+const SPACE_PREFIX_CHARS = new Set(['.', '!', '?', ',', ':', ';', ')', ']', '}', '"', '”'])
+
+function isGeminiRole(role: MessageRole): role is 'gemini' | 'gemini_voice' {
+  return role === 'gemini' || role === 'gemini_voice'
+}
+
+function isUserRole(role: MessageRole): role is 'user' | 'user_voice' {
+  return role === 'user' || role === 'user_voice'
+}
+
+function isWordBoundaryChar(char: string): boolean {
+  return /[\p{L}\p{N}]/u.test(char)
+}
+
+function isMessageOverlapStart(text: string, index: number): boolean {
+  if (index <= 0) return true
+  return !isWordBoundaryChar(text[index - 1])
+}
+
+function isMessageOverlapEnd(text: string, index: number): boolean {
+  if (index >= text.length) return true
+  return !isWordBoundaryChar(text[index])
+}
+
+function findMessageOverlap(existingContent: string, nextContent: string): number {
+  const maxOverlap = Math.min(existingContent.length, nextContent.length, MESSAGE_OVERLAP_LIMIT)
+  for (let size = maxOverlap; size >= MIN_MESSAGE_OVERLAP; size -= 1) {
+    const prefix = nextContent.slice(0, size)
+    if (
+      existingContent.endsWith(prefix)
+      && isMessageOverlapStart(existingContent, existingContent.length - size)
+      && isMessageOverlapEnd(nextContent, size)
+    ) {
+      return size
+    }
+  }
+
+  return 0
+}
+
+function needsMessageSeparator(existingContent: string, nextContent: string): boolean {
+  if (!existingContent || !nextContent) return false
+
+  const previousChar = existingContent.at(-1)
+  const nextChar = nextContent[0]
+  if (!previousChar || !nextChar) return false
+  if (/\s/u.test(previousChar) || /\s/u.test(nextChar)) return false
+
+  return (
+    isWordBoundaryChar(previousChar) && isWordBoundaryChar(nextChar)
+  ) || (
+    SPACE_PREFIX_CHARS.has(previousChar) && isWordBoundaryChar(nextChar)
+  )
+}
+
+function mergeMessageContent(existingContent: string, nextContent: string): string {
+  if (!existingContent) return nextContent
+  if (!nextContent) return existingContent
+
+  const overlap = findMessageOverlap(existingContent, nextContent)
+  const suffix = nextContent.slice(overlap)
+  if (!suffix) return existingContent
+
+  const separator = needsMessageSeparator(existingContent, suffix) ? ' ' : ''
+  return existingContent + separator + suffix
+}
+
 /**
  * Generate a short session title from the first substantive user messages.
  * Returns null if there's not enough content to generate a meaningful title.
  */
 function generateSessionTitle(messages: Message[]): string | null {
   const userMessages = messages.filter(
-    (m) => m.role === 'user' && m.content.trim().length > 3,
+    (m) => isUserRole(m.role) && m.content.trim().length > 3,
   )
   if (userMessages.length === 0) return null
 
@@ -150,6 +220,7 @@ export function useGeminiBrainstorm() {
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const nextPlayTimeRef = useRef(0)
+  const activePlaybackSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set())
   const sessionHandleRef = useRef<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const sessionModeRef = useRef<BrainstormSessionMode>('guest')
@@ -190,15 +261,26 @@ export function useGeminiBrainstorm() {
     artifactsRef.current = artifacts
   }, [artifacts])
 
-  const startToolCallTurn = useCallback(() => {
+  const clearScheduledAudioPlayback = useCallback(() => {
+    stopScheduledAudioPlayback(activePlaybackSourcesRef)
+    nextPlayTimeRef.current = 0
+    intensityRef.current = 0
+  }, [])
+
+  const queueToolResultTurn = useCallback(() => {
     turnBoundaryRef.current = true
-    toolResponseTurnRef.current = true
+    toolCallPendingRef.current = true
   }, [])
 
   const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages((previous) => {
       const last = previous[previous.length - 1]
-      const isNewTurn = turnBoundaryRef.current && role === 'gemini'
+      const isNewTurn = turnBoundaryRef.current && isGeminiRole(role)
+
+      if (isUserRole(role)) {
+        toolCallPendingRef.current = false
+        toolResponseTurnRef.current = false
+      }
 
       if (isNewTurn) {
         turnBoundaryRef.current = false
@@ -208,7 +290,7 @@ export function useGeminiBrainstorm() {
         }
       }
 
-      const shouldAppend = role === 'gemini' && toolResponseTurnRef.current
+      const shouldAppend = isGeminiRole(role) && toolResponseTurnRef.current
       const canAppend =
         !isNewTurn &&
         last?.role === role &&
@@ -217,18 +299,7 @@ export function useGeminiBrainstorm() {
       let next: Message[]
       if (canAppend) {
         next = [...previous]
-        // Always insert a space when concatenating chunks if neither the
-        // previous content ends with whitespace nor the new chunk starts
-        // with whitespace.  Gemini input_transcription chunks do NOT
-        // reliably include word-boundary spaces.
-        const needsSpace =
-          last.content.length > 0 &&
-          !last.content.endsWith(' ') &&
-          !last.content.endsWith('\n') &&
-          !content.startsWith(' ') &&
-          !content.startsWith('\n')
-        const separator = needsSpace ? ' ' : ''
-        next[next.length - 1] = { ...last, content: last.content + separator + content }
+        next[next.length - 1] = { ...last, content: mergeMessageContent(last.content, content) }
       } else {
         next = [...previous, { role, content, isToolResponse: shouldAppend ?? undefined }]
       }
@@ -274,8 +345,11 @@ export function useGeminiBrainstorm() {
   }, [upsertArtifact])
 
   const handleTextMessage = useCallback((data: { content: string; role?: string }) => {
-    if (isPausedRef.current) return
-    const role: MessageRole = data.role === 'user' ? 'user' : 'gemini'
+    const role: MessageRole = data.role === 'user'
+      ? 'user_voice'
+      : data.role === 'gemini'
+        ? 'gemini_voice'
+        : 'gemini'
     addMessage(data.content, role)
   }, [addMessage])
 
@@ -285,7 +359,12 @@ export function useGeminiBrainstorm() {
     if (pcmData && pcmData.length > 0 && audioContextRef.current) {
       const floatData = pcm16ToFloat32(pcmData)
       intensityRef.current = calculateIntensity(floatData)
-      scheduleAudioPlayback(audioContextRef.current, floatData, nextPlayTimeRef)
+      scheduleAudioPlayback(
+        audioContextRef.current,
+        floatData,
+        nextPlayTimeRef,
+        activePlaybackSourcesRef,
+      )
     }
   }, [])
 
@@ -307,9 +386,8 @@ export function useGeminiBrainstorm() {
     titleSavedRef.current = false
     savePendingRef.current = false
     artifactLoadPromisesRef.current.clear()
-    intensityRef.current = 0
-    nextPlayTimeRef.current = 0
-  }, [])
+    clearScheduledAudioPlayback()
+  }, [clearScheduledAudioPlayback])
 
   /**
    * Persist the current transcript state for the active signed-in session.
@@ -521,6 +599,7 @@ export function useGeminiBrainstorm() {
     }
     processorRef.current?.disconnect()
     processorRef.current = null
+    clearScheduledAudioPlayback()
     audioContextRef.current?.close()
     audioContextRef.current = null
     setIsConnected(false)
@@ -532,9 +611,7 @@ export function useGeminiBrainstorm() {
     toolCallPendingRef.current = false
     toolResponseTurnRef.current = false
     modelHasSpokenRef.current = false
-    intensityRef.current = 0
-    nextPlayTimeRef.current = 0
-  }, [])
+  }, [clearScheduledAudioPlayback])
 
   const toggleMicPause = useCallback(() => {
     if (!streamRef.current) return
@@ -641,6 +718,7 @@ export function useGeminiBrainstorm() {
       }
 
       const ws = new WebSocket(`${API_BASE_URL}/api/v1/live/brainstorm`)
+      wsRef.current = ws
       let startupSettled = false
 
       const startupPromise = new Promise<void>((resolve, reject) => {
@@ -661,6 +739,10 @@ export function useGeminiBrainstorm() {
         }
 
         ws.onopen = () => {
+          if (ws !== wsRef.current) {
+            return
+          }
+
           console.log('Connected to brainstorm endpoint')
           setIsConnected(true)
           const modeName = brainstormTypeRef.current === 'creative_spark' ? 'Creative Spark' : 'Open Studio'
@@ -682,6 +764,10 @@ export function useGeminiBrainstorm() {
         }
 
         ws.onmessage = (event) => {
+          if (ws !== wsRef.current) {
+            return
+          }
+
           const data = JSON.parse(event.data)
           const dataType = data.type
 
@@ -710,19 +796,19 @@ export function useGeminiBrainstorm() {
               }
               break
             case 'interrupted':
-              nextPlayTimeRef.current = 0
+              clearScheduledAudioPlayback()
               break
             case 'tool_call_start':
               setIsGenerating(true)
-              startToolCallTurn()
               break
             case 'tool_call':
               setIsGenerating(false)
-              toolCallPendingRef.current = true
+              queueToolResultTurn()
               break
 
             case 'turn_complete':
               turnBoundaryRef.current = true
+              toolCallPendingRef.current = false
               toolResponseTurnRef.current = false
               // Persist transcript state after each completed turn (signed-in only)
               persistCurrentTurns(messagesRef.current)
@@ -741,6 +827,10 @@ export function useGeminiBrainstorm() {
         }
 
         ws.onerror = (error) => {
+          if (ws !== wsRef.current) {
+            return
+          }
+
           console.error('Brainstorm WebSocket error:', error)
           if (!startupSettled) {
             rejectStartup('Failed to connect to brainstorm endpoint')
@@ -750,16 +840,20 @@ export function useGeminiBrainstorm() {
         }
 
         ws.onclose = (event) => {
+          if (ws !== wsRef.current) {
+            return
+          }
+
           console.log('Brainstorm WebSocket closed')
+          wsRef.current = null
           setIsConnected(false)
+          clearScheduledAudioPlayback()
           if (!startupSettled) {
             const closeMessage = event.reason || 'Brainstorm connection closed before startup completed'
             rejectStartup(closeMessage)
           }
         }
       })
-
-      wsRef.current = ws
 
       await startupPromise
 
@@ -778,7 +872,7 @@ export function useGeminiBrainstorm() {
     } finally {
       setIsStarting(false)
     }
-  }, [addMessage, selectedFlashModel, selectedTools, stop, startToolCallTurn, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing, persistCurrentTurns])
+  }, [addMessage, selectedFlashModel, selectedTools, stop, queueToolResultTurn, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing, persistCurrentTurns, clearScheduledAudioPlayback])
 
   const sendText = useCallback(
     (text: string) => {

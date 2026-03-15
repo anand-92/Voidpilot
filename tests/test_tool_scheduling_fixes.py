@@ -7,7 +7,7 @@ Covers:
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -341,3 +341,87 @@ async def test_brainstorm_endpoint_no_default_tools():
     call_kwargs = MockGeminiLive.call_args[1]
     # Brainstorm should only have custom tools, no defaults
     assert call_kwargs.get("tools") is not None
+
+
+@pytest.mark.asyncio
+async def test_duplicate_tool_calls_are_ignored():
+    """Repeated function call ids should not be scheduled twice."""
+    gl = GeminiLive(
+        api_key="test",
+        model="test-model",
+        input_sample_rate=16000,
+    )
+
+    session = AsyncMock()
+    event_queue: asyncio.Queue = asyncio.Queue()
+
+    mock_fc = MagicMock()
+    mock_fc.name = "string_tool"
+    mock_fc.id = "call_duplicate"
+    mock_fc.args = {}
+
+    mock_tool_call = MagicMock()
+    mock_tool_call.function_calls = [mock_fc]
+
+    gl._completed_tool_call_ids.add("call_duplicate")
+
+    def close_coro(coro):
+        coro.close()
+        return MagicMock()
+
+    with patch(
+        "src.app.services.gemini_audio.asyncio.create_task",
+        side_effect=close_coro,
+    ) as create_task:
+        await gl._handle_tool_call(session, mock_tool_call, event_queue)
+
+    create_task.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_max_tool_calls_per_turn_skips_extra_calls():
+    """Creative Spark style limits allow only one tool call per turn."""
+    gl = GeminiLive(
+        api_key="test",
+        model="test-model",
+        input_sample_rate=16000,
+        max_tool_calls_per_turn=1,
+    )
+
+    session = AsyncMock()
+    event_queue: asyncio.Queue = asyncio.Queue()
+
+    first_fc = MagicMock()
+    first_fc.name = "generate_brainstorm_image"
+    first_fc.id = "call_one"
+    first_fc.args = {}
+
+    second_fc = MagicMock()
+    second_fc.name = "generate_brainstorm_video"
+    second_fc.id = "call_two"
+    second_fc.args = {}
+
+    mock_tool_call = MagicMock()
+    mock_tool_call.function_calls = [first_fc, second_fc]
+
+    send_tool_response = AsyncMock()
+
+    def close_coro(coro):
+        coro.close()
+        return MagicMock()
+
+    with (
+        patch.object(gl, "_send_tool_response", send_tool_response),
+        patch(
+            "src.app.services.gemini_audio.asyncio.create_task",
+            side_effect=close_coro,
+        ) as create_task,
+    ):
+        await gl._handle_tool_call(session, mock_tool_call, event_queue)
+
+    assert create_task.call_count == 1
+    send_tool_response.assert_awaited_once()
+    assert (
+        "Only one generation is allowed per turn"
+        in send_tool_response.await_args.kwargs["result"]
+    )

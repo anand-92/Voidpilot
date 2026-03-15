@@ -141,8 +141,7 @@ async def test_generate_image(mock_client):
     assert call_args.kwargs["contents"] == "a cat"
 
     config = call_args.kwargs["config"]
-    assert "Image" in config.response_modalities
-    assert "Text" in config.response_modalities
+    assert config.response_modalities == ["Image"]
 
 
 @pytest.mark.asyncio
