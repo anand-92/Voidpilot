@@ -1,0 +1,128 @@
+{
+  "milestone": "walkthrough-revamp",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "uv run pytest tests/ -v",
+      "exitCode": 0,
+      "details": "221 tests passed in 75.68s"
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "uv run mypy src/",
+      "exitCode": 0,
+      "details": "no issues found in 28 source files"
+    },
+    "lint": {
+      "passed": true,
+      "command": "uv run ruff check src/",
+      "exitCode": 0,
+      "details": "All checks passed"
+    },
+    "frontend-lint": {
+      "passed": true,
+      "command": "npm --prefix frontend run lint",
+      "exitCode": 0,
+      "details": "No lint errors"
+    },
+    "frontend-build": {
+      "passed": true,
+      "command": "npm --prefix frontend run build",
+      "exitCode": 0,
+      "details": "Built successfully (tsc + vite). One chunk size warning (1617 kB > 500 kB limit) — pre-existing, not introduced by this milestone."
+    }
+  },
+  "reviewsSummary": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "nonBlockingIssues": [
+    {
+      "featureId": "walkthrough-transport-and-test-foundation",
+      "severity": "non_blocking",
+      "description": "4 ruff lint violations in tests/test_walkthrough.py (unused imports, unsorted imports, line length) go undetected because the project only lints src/."
+    },
+    {
+      "featureId": "walkthrough-transport-and-test-foundation",
+      "severity": "non_blocking",
+      "description": "Minor AudioContext leak on mic denial — audioContextRef created before early return, cleaned up when stop() is called."
+    },
+    {
+      "featureId": "walkthrough-live-transcript-and-grounding-experience",
+      "severity": "non_blocking",
+      "description": "The 'interrupted' handler resets top-level toolActivity but does not update inline tool_activity transcript entries (unlike the error handler). Could leave a stuck spinner if user interrupts during an in-flight grounding search."
+    },
+    {
+      "featureId": "walkthrough-shell-and-explainer-revamp",
+      "severity": "non_blocking",
+      "description": "WebSocket open promise doesn't handle the case where WS transitions to CLOSED before OPEN (e.g., immediate server rejection), leaving a dangling promise. The outer error handling mitigates UX impact."
+    },
+    {
+      "featureId": "walkthrough-end-to-end-session-flows",
+      "severity": "non_blocking",
+      "description": "setErrorMessage on ws.onclose runs unconditionally for all close paths including clean user-initiated close. Benign because stop() already clears state and the overlay unmounts."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Updated .factory/library/frontend-knowledge.md to replace stale WalkthroughModal.tsx reference with the new walkthrough component directory (WalkthroughOverlay, WalkthroughTranscript, WalkthroughComposer, WalkthroughStarterPrompts, WalkthroughExplainer, types/walkthrough.ts).",
+      "sourceFeature": "walkthrough-shell-and-explainer-revamp"
+    },
+    {
+      "target": "library",
+      "description": "Updated .factory/library/architecture.md to replace stale WalkthroughModal.tsx reference with the new walkthrough component paths.",
+      "sourceFeature": "walkthrough-live-transcript-and-grounding-experience"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Replace the entry point reference 'frontend/src/components/WalkthroughModal.tsx: walkthrough voice modal' with 'frontend/src/components/walkthrough/WalkthroughOverlay.tsx: walkthrough overlay shell' (and optionally list the sibling components WalkthroughTranscript, WalkthroughComposer, WalkthroughStarterPrompts, WalkthroughExplainer).",
+      "evidence": "WalkthroughModal.tsx was deleted in commit 6247dee. Three of four reviewers flagged the stale AGENTS.md reference.",
+      "isSystemic": true
+    },
+    {
+      "target": "skills (frontend-worker, fullstack-worker)",
+      "suggestion": "Update both worker skill SKILL.md files to replace 'frontend/src/components/WalkthroughModal.tsx' with 'frontend/src/components/walkthrough/WalkthroughOverlay.tsx' in step 2 / step 1.2 file lists.",
+      "evidence": "Both skills point to the deleted WalkthroughModal.tsx. Flagged by 3 of 4 reviewers independently.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Consider documenting that the project uses @base-ui/react primitives (Dialog, Button) for complex interactive components alongside shadcn/ui composition and Tailwind styling. The current AGENTS.md mentions shadcn/ui but not base-ui.",
+      "evidence": "button.tsx uses @base-ui/react/button; WalkthroughOverlay.tsx uses @base-ui/react/dialog. Pattern is consistent but undocumented.",
+      "isSystemic": false
+    },
+    {
+      "target": "services.yaml / AGENTS.md",
+      "suggestion": "Consider extending the ruff lint scope to include tests/ (currently only src/). This would catch lint violations in test files (4 violations found by reviewer in test_walkthrough.py).",
+      "evidence": "services.yaml lint command: 'uv run ruff check src/'. Running ruff on tests/ found F401, I001, E501 violations. AGENTS.md testing section only documents 'uv run ruff check src/'.",
+      "isSystemic": false
+    },
+    {
+      "target": "skills (fullstack-worker)",
+      "suggestion": "Clarify in the fullstack-worker skill that shadcn invocation (step 4) is only required for UI composition work, not for transport/hook/type-only features.",
+      "evidence": "The walkthrough-transport-and-test-foundation worker noted in skillFeedback that step 4's shadcn invocation was unnecessary for non-UI transport work.",
+      "isSystemic": false
+    },
+    {
+      "target": "skills (fullstack-worker)",
+      "suggestion": "Consider relaxing the fullstack-worker skill step 5 requirement for agent-browser interactive verification when the feature is primarily test-coverage and backend-driven. The walkthrough-end-to-end-session-flows worker skipped browser verification but didn't document the deviation.",
+      "evidence": "Worker handoff has no interactiveChecks. Transcript shows no agent-browser usage. skillFeedback.followedProcedure=true with empty deviations, which is inconsistent with skipping step 5.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Degraded banner Tailwind color pattern (yellow for degraded, red for error) is consistent with codebase",
+      "reason": "No gap — reviewer was noting consistent pattern, not flagging an issue"
+    }
+  ],
+  "previousRound": null
+}

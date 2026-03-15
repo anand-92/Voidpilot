@@ -105,7 +105,8 @@ Guided inspiration mode focused on visual generation:
 ### Walkthrough Mode (`/api/v1/live/walkthrough`)
 Voice-guided exploration mode:
 - **System Prompt**: Customizable via query parameters (`?system_prompt=...`)
-- **Tools**: None exposed (voice-only interaction)
+- **Tools**: Backend `search_project_context` tool is available to the walkthrough session for project grounding; the tool is fulfilled server-side through the configured Gemini File Search helper flow
+- **Input modes**: Voice is primary, and the websocket also accepts typed text messages on the same walkthrough session path
 
 ## Architecture Notes
 

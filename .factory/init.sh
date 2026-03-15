@@ -1,5 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+cd "$ROOT"
 uv sync
-cd frontend && npm install
+npm --prefix "$ROOT/frontend" install
