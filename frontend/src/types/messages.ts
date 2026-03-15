@@ -11,3 +11,11 @@ export interface Message {
   content: string
   isToolResponse?: boolean
 }
+
+export type ToolActivityStatus = 'running' | 'complete' | 'no_results' | 'error'
+
+export interface ConversationToolActivityEntry {
+  insertionIndex: number
+  status: ToolActivityStatus
+  toolName: string | null
+}

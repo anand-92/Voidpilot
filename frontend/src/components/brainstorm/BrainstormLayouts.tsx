@@ -1,7 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import type { BrainstormArtifact, BrainstormFlashModel, BrainstormToolId, BrainstormVoice } from '../../hooks/useGeminiBrainstorm'
 import type { BrainstormType } from './ModeSelectionScreen'
-import type { Message } from '@/types/messages'
+import type { ConversationToolActivityEntry, Message } from '@/types/messages'
 
 export type BrainstormLayoutProps = {
   brainstormType: BrainstormType | null
@@ -9,6 +9,7 @@ export type BrainstormLayoutProps = {
   isConnected: boolean
   isStarting: boolean
   messages: Message[]
+  toolActivityEntries: ConversationToolActivityEntry[]
   artifactList: Array<[string, BrainstormArtifact]>
   totalSize: number
   isGenerating: boolean

@@ -1,16 +1,33 @@
-import { useCallback, useEffect, useState, type RefObject } from 'react'
-import { Share2, Check, Link as LinkIcon, Mic, MicOff, Pause, Play } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react'
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  Clapperboard,
+  FileText,
+  Image,
+  Link as LinkIcon,
+  Loader2,
+  Mic,
+  MicOff,
+  Pause,
+  Play,
+  Share2,
+  Sparkles,
+  type LucideIcon,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import type { Message } from '@/types/messages'
+import type { ConversationToolActivityEntry, Message } from '@/types/messages'
 import { GeminiChat } from '../icons/GeminiIcons'
 import { IconBrainstorm } from '../icons/CustomIcons'
 import { MessageBubble } from '../SharedUI'
 
 type ConversationPanelProps = {
   messages: Message[]
+  toolActivityEntries?: ConversationToolActivityEntry[]
   messagesEndRef: RefObject<HTMLDivElement | null>
   mobile: boolean
   sessionTitle?: string | null
@@ -23,12 +40,122 @@ type ConversationPanelProps = {
   toggleMicPause?: () => void
 }
 
-export function ConversationPanel({ messages, messagesEndRef, mobile, sessionTitle, onCreateShare, isConnected, isStarting, isMicPaused, handleConnect, stop, toggleMicPause }: ConversationPanelProps) {
+function getToolDescriptor(toolName: string | null) {
+  switch (toolName) {
+    case 'generate_brainstorm_image':
+      return {
+        icon: Image,
+        running: 'Generating image…',
+        complete: 'Image created',
+        noResults: 'Image generation returned no output',
+        error: 'Image generation failed',
+      }
+    case 'generate_brainstorm_video':
+      return {
+        icon: Clapperboard,
+        running: 'Generating video…',
+        complete: 'Video created',
+        noResults: 'Video generation returned no output',
+        error: 'Video generation failed',
+      }
+    case 'save_brainstorm_artifact':
+      return {
+        icon: FileText,
+        running: 'Saving artifact…',
+        complete: 'Artifact saved',
+        noResults: 'Artifact save returned no output',
+        error: 'Artifact save failed',
+      }
+    case 'delegate_to_flash':
+      return {
+        icon: Sparkles,
+        running: 'Generating with Flash…',
+        complete: 'Flash response ready',
+        noResults: 'Flash returned no output',
+        error: 'Flash generation failed',
+      }
+    default:
+      return {
+        icon: Sparkles,
+        running: 'Running tool…',
+        complete: 'Tool complete',
+        noResults: 'Tool returned no output',
+        error: 'Tool failed',
+      }
+  }
+}
+
+function InlineToolActivity({ entry }: { entry: ConversationToolActivityEntry }) {
+  const descriptor = getToolDescriptor(entry.toolName)
+
+  let Icon: LucideIcon = descriptor.icon
+  let label = descriptor.complete
+  let tone = 'border-emerald-500/15 bg-emerald-500/5 text-emerald-300'
+  let iconClassName = 'size-3'
+
+  if (entry.status === 'running') {
+    Icon = Loader2
+    label = descriptor.running
+    tone = 'border-amber-500/15 bg-amber-500/5 text-amber-300'
+    iconClassName = 'size-3 animate-spin'
+  } else if (entry.status === 'no_results') {
+    label = descriptor.noResults
+    tone = 'border-yellow-500/15 bg-yellow-500/5 text-yellow-300'
+  } else if (entry.status === 'error') {
+    Icon = AlertCircle
+    label = descriptor.error
+    tone = 'border-rose-500/15 bg-rose-500/5 text-rose-300'
+  } else {
+    Icon = CheckCircle2
+  }
+
+  return (
+    <div className="flex justify-start px-1">
+      <div className={cn('flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs', tone)}>
+        <Icon className={iconClassName} />
+        <span>{label}</span>
+      </div>
+    </div>
+  )
+}
+
+export function ConversationPanel({ messages, toolActivityEntries = [], messagesEndRef, mobile, sessionTitle, onCreateShare, isConnected, isStarting, isMicPaused, handleConnect, stop, toggleMicPause }: ConversationPanelProps) {
   const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
+
+  const transcriptItems = useMemo(() => {
+    const entriesByIndex = new Map<number, ConversationToolActivityEntry[]>()
+
+    toolActivityEntries.forEach((entry) => {
+      const existing = entriesByIndex.get(entry.insertionIndex)
+      if (existing) {
+        existing.push(entry)
+      } else {
+        entriesByIndex.set(entry.insertionIndex, [entry])
+      }
+    })
+
+    const items: Array<
+      { type: 'message'; message: Message }
+      | { type: 'tool_activity'; entry: ConversationToolActivityEntry }
+    > = []
+
+    entriesByIndex.get(0)?.forEach((entry) => {
+      items.push({ type: 'tool_activity', entry })
+    })
+
+    messages.forEach((message, index) => {
+      items.push({ type: 'message', message })
+      entriesByIndex.get(index + 1)?.forEach((entry) => {
+        items.push({ type: 'tool_activity', entry })
+      })
+    })
+
+    return items
+  }, [messages, toolActivityEntries])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, messagesEndRef])
+  }, [messagesEndRef, transcriptItems])
 
   const handleShare = useCallback(async () => {
     if (!onCreateShare || shareState === 'loading') return
@@ -98,7 +225,7 @@ export function ConversationPanel({ messages, messagesEndRef, mobile, sessionTit
           mobile ? 'px-4 py-4' : 'px-5 py-4',
         )}
       >
-        {messages.length === 0 ? (
+        {transcriptItems.length === 0 ? (
           <div
             className={cn(
               'relative flex flex-col items-center justify-center gap-4 text-center',
@@ -124,12 +251,12 @@ export function ConversationPanel({ messages, messagesEndRef, mobile, sessionTit
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {messages.map((message, index) => {
-              const isLatest = index === messages.length - 1
-              const isSecondLast = index === messages.length - 2
+            {transcriptItems.map((item, index) => {
+              const isLatest = index === transcriptItems.length - 1
+              const isSecondLast = index === transcriptItems.length - 2
               return (
                 <div
-                  key={index}
+                  key={`${item.type}-${index}`}
                   className={cn(
                     'transition-opacity duration-500',
                     isLatest
@@ -139,12 +266,16 @@ export function ConversationPanel({ messages, messagesEndRef, mobile, sessionTit
                         : 'opacity-10',
                   )}
                 >
-                  <MessageBubble
-                    role={message.role}
-                    content={message.content}
-                    isToolResponse={message.isToolResponse}
-                  />
-                  {isLatest && message.role !== 'system' && isConnected && (
+                  {item.type === 'message' ? (
+                    <MessageBubble
+                      role={item.message.role}
+                      content={item.message.content}
+                      isToolResponse={item.message.isToolResponse}
+                    />
+                  ) : (
+                    <InlineToolActivity entry={item.entry} />
+                  )}
+                  {isLatest && item.type === 'message' && item.message.role !== 'system' && isConnected && (
                     <span className="ml-4 mt-1 inline-block h-4 w-0.5 animate-pulse bg-amber-500/60" />
                   )}
                 </div>

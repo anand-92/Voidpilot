@@ -29,6 +29,7 @@ export function CreativeSparkDesktopLayout({
   isConnected,
   isStarting,
   messages,
+  toolActivityEntries,
   artifactList,
   isGenerating,
   messagesEndRef,
@@ -242,6 +243,7 @@ export function CreativeSparkDesktopLayout({
               </div>
               <ConversationPanel
                 messages={messages}
+                toolActivityEntries={toolActivityEntries}
                 messagesEndRef={messagesEndRef}
                 mobile={false}
                 sessionTitle={sessionTitle}

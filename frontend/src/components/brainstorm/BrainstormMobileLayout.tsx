@@ -20,6 +20,7 @@ export function BrainstormMobileLayout({
   isConnected,
   isStarting,
   messages,
+  toolActivityEntries,
   artifactList,
   totalSize,
   isGenerating,
@@ -135,6 +136,7 @@ export function BrainstormMobileLayout({
               <BrainstormControls
                 isConnected={isConnected}
                 isStarting={isStarting}
+                isToolRunning={isGenerating}
                 selectedFlashModel={selectedFlashModel}
                 setSelectedFlashModel={setSelectedFlashModel}
                 selectedVoice={selectedVoice}
@@ -151,7 +153,7 @@ export function BrainstormMobileLayout({
             </section>
 
             <section className="mt-4 flex min-h-0 flex-1 flex-col rounded-3xl border border-white/[0.05] bg-stone-950/60 shadow-[0_20px_60px_rgba(12,10,9,0.4)]">
-              <ConversationPanel messages={messages} messagesEndRef={messagesEndRef} mobile sessionTitle={sessionTitle} onCreateShare={onCreateShare} />
+              <ConversationPanel messages={messages} toolActivityEntries={toolActivityEntries} messagesEndRef={messagesEndRef} mobile sessionTitle={sessionTitle} onCreateShare={onCreateShare} />
             </section>
           </>
         ) : (

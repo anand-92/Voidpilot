@@ -33,6 +33,7 @@ export function CreativeSparkMobileLayout({
   isConnected,
   isStarting,
   messages,
+  toolActivityEntries,
   artifactList,
   isGenerating,
   inputText,
@@ -131,6 +132,7 @@ export function CreativeSparkMobileLayout({
           <CreativeSparkControls
             isConnected={isConnected}
             isStarting={isStarting}
+            isToolRunning={isGenerating}
             selectedVoice={selectedVoice}
             setSelectedVoice={setSelectedVoice}
             inputText={inputText}
@@ -180,6 +182,7 @@ export function CreativeSparkMobileLayout({
             <div className="min-h-0 flex-1 overflow-hidden">
               <ConversationPanel
                 messages={messages}
+                toolActivityEntries={toolActivityEntries}
                 messagesEndRef={messagesEndRef}
                 mobile
                 sessionTitle={sessionTitle}
@@ -196,6 +199,7 @@ export function CreativeSparkMobileLayout({
               <CreativeSparkControls
                 isConnected={isConnected}
                 isStarting={isStarting}
+                isToolRunning={isGenerating}
                 selectedVoice={selectedVoice}
                 setSelectedVoice={setSelectedVoice}
                 inputText={inputText}

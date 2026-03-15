@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 type BrainstormControlsProps = {
   isConnected: boolean
   isStarting: boolean
+  isToolRunning: boolean
   selectedFlashModel: BrainstormFlashModel
   setSelectedFlashModel: Dispatch<SetStateAction<BrainstormFlashModel>>
   selectedVoice: BrainstormVoice
@@ -177,12 +178,14 @@ function MessageInput({
   onChange,
   onSend,
   isConnected,
+  isToolRunning,
   layout,
 }: {
   inputText: string
   onChange: (value: string) => void
   onSend: () => void
   isConnected: boolean
+  isToolRunning: boolean
   layout: 'desktop' | 'mobile'
 }) {
   const isCompact = layout === 'mobile'
@@ -196,11 +199,13 @@ function MessageInput({
         type="text"
         value={inputText}
         onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && onSend()}
-        placeholder={isConnected 
-          ? (isCompact ? 'Type a message…' : 'Message Gemini...') 
+        onKeyDown={(e) => e.key === 'Enter' && !isToolRunning && onSend()}
+        placeholder={isConnected
+          ? isToolRunning
+            ? (isCompact ? 'Tool running…' : 'Wait for the tool to finish…')
+            : (isCompact ? 'Type a message…' : 'Message Gemini...')
           : (isCompact ? 'Connect first to chat' : 'Connect to brainstorm...')}
-        disabled={!isConnected}
+        disabled={!isConnected || isToolRunning}
         aria-label="Message input"
         className={cn(
           "flex-1 border-0 bg-transparent text-sm text-white shadow-none focus-visible:ring-0 placeholder:text-stone-600 disabled:cursor-not-allowed disabled:opacity-50",
@@ -209,7 +214,7 @@ function MessageInput({
       />
       <Button
         onClick={onSend}
-        disabled={!isConnected || !inputText.trim()}
+        disabled={!isConnected || isToolRunning || !inputText.trim()}
         aria-label="Send message"
         className={cn(
           "shrink-0 cursor-pointer rounded-xl bg-gradient-to-br text-stone-950 shadow-md transition-transform hover:scale-105 hover:from-amber-400 hover:to-orange-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100",
@@ -227,6 +232,7 @@ function MessageInput({
 export function BrainstormControls({
   isConnected,
   isStarting,
+  isToolRunning,
   selectedFlashModel,
   setSelectedFlashModel,
   selectedVoice,
@@ -297,6 +303,7 @@ export function BrainstormControls({
           onChange={setInputText}
           onSend={handleSend}
           isConnected={isConnected}
+          isToolRunning={isToolRunning}
           layout="mobile"
         />
       </>
@@ -331,6 +338,7 @@ export function BrainstormControls({
         onChange={setInputText}
         onSend={handleSend}
         isConnected={isConnected}
+        isToolRunning={isToolRunning}
         layout="desktop"
       />
     </div>

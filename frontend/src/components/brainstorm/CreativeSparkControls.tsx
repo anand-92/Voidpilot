@@ -14,6 +14,7 @@ import { VoiceSelector } from './VoiceSelector'
 type CreativeSparkControlsProps = {
   isConnected: boolean
   isStarting: boolean
+  isToolRunning: boolean
   selectedVoice: BrainstormVoice
   setSelectedVoice: Dispatch<SetStateAction<BrainstormVoice>>
   inputText: string
@@ -33,6 +34,7 @@ type CreativeSparkControlsProps = {
 export function CreativeSparkControls({
   isConnected,
   isStarting,
+  isToolRunning,
   selectedVoice,
   setSelectedVoice,
   inputText,
@@ -84,15 +86,15 @@ export function CreativeSparkControls({
         type="text"
         value={inputText}
         onChange={(e) => setInputText(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-        placeholder={isConnected ? 'Type a message…' : 'Connect to start…'}
-        disabled={!isConnected}
+        onKeyDown={(e) => e.key === 'Enter' && !isToolRunning && handleSend()}
+        placeholder={isConnected ? (isToolRunning ? 'Wait for the tool to finish…' : 'Type a message…') : 'Connect to start…'}
+        disabled={!isConnected || isToolRunning}
         aria-label="Message input"
         className="min-w-0 flex-1 border-0 bg-transparent text-sm text-white shadow-none focus-visible:ring-0 placeholder:text-stone-600 disabled:cursor-not-allowed disabled:opacity-50 h-9 px-3"
       />
       <Button
         onClick={handleSend}
-        disabled={!isConnected || !inputText.trim()}
+        disabled={!isConnected || isToolRunning || !inputText.trim()}
         aria-label="Send message"
         className="shrink-0 cursor-pointer rounded-full bg-gradient-to-br from-orange-500 to-red-600 text-stone-950 shadow-md transition-transform size-9 hover:scale-105 hover:from-orange-400 hover:to-red-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
       >

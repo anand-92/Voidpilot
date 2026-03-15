@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState, useEffect } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Play, Sparkles, Video, Maximize2, Loader2, Image as ImageIcon } from 'lucide-react'
+import { Download, Sparkles, Video, Loader2, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import type { BrainstormArtifact } from '../../hooks/useGeminiBrainstorm'
 
 type MasonryGalleryProps = {
@@ -54,135 +55,22 @@ function GeneratingStateOverlay() {
   )
 }
 
-function MainStageArtifactView({
-  artifact,
-  filename,
-  onDownload,
-}: {
-  artifact: BrainstormArtifact
-  filename: string
-  onDownload: () => void
-}) {
-  const isVideo = artifact.mimeType.startsWith('video/')
-  const [isPlaying, setIsPlaying] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-
-  const togglePlay = useCallback(() => {
-    const video = videoRef.current
-    if (!video) return
-    if (video.paused) {
-      void video.play()
-      setIsPlaying(true)
-    } else {
-      video.pause()
-      setIsPlaying(false)
-    }
-  }, [])
-
-  if (artifact.content === null) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="absolute inset-4 flex flex-col items-center justify-center gap-4"
-      >
-        {isVideo ? <Video className="size-16 text-stone-600" /> : <ImageIcon className="size-16 text-stone-600" />}
-        <p className="text-sm text-stone-500">Loading content...</p>
-      </motion.div>
-    )
-  }
-
-  const content = isVideo ? (
-    <div className="relative w-full h-full flex items-center justify-center group">
-      <video
-        ref={videoRef}
-        src={`data:video/mp4;base64,${artifact.content}`}
-        className="max-w-full max-h-full object-contain drop-shadow-2xl rounded-xl"
-        controls={isPlaying}
-        onClick={togglePlay}
-        onEnded={() => setIsPlaying(false)}
-      />
-      {!isPlaying && (
-        <button
-          type="button"
-          onClick={togglePlay}
-          className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors hover:bg-black/40 z-10 rounded-xl"
-        >
-          <div className="flex size-20 items-center justify-center rounded-full bg-orange-500/90 text-stone-900 shadow-[0_0_30px_rgba(249,115,22,0.6)] hover:scale-105 transition-transform">
-            <Play className="size-8 ml-1" />
-          </div>
-        </button>
-      )}
-    </div>
-  ) : (
-    <img
-      src={`data:image/png;base64,${artifact.content}`}
-      alt={artifact.label ?? filename}
-      className="max-w-full max-h-full object-contain drop-shadow-2xl rounded-xl"
-    />
-  )
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="absolute inset-4 flex items-center justify-center"
-    >
-      {content}
-
-      {/* Top right controls */}
-      <div className="absolute top-0 right-0 flex gap-2 z-20">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onDownload}
-          className="bg-black/50 border-white/10 hover:bg-black/70 text-white backdrop-blur-md rounded-full"
-          title="Download"
-        >
-          <Download className="size-4" />
-        </Button>
-        <Dialog>
-          <DialogTrigger render={
-            <Button
-              variant="outline"
-              size="icon"
-              className="bg-black/50 border-white/10 hover:bg-black/70 text-white backdrop-blur-md rounded-full"
-              title="Pop out"
-            />
-          }>
-            <Maximize2 className="size-4" />
-          </DialogTrigger>
-          <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 border-none bg-black/90 backdrop-blur-xl flex items-center justify-center shadow-2xl">
-            <DialogTitle className="sr-only">Artifact Preview</DialogTitle>
-            {isVideo ? (
-              <video
-                src={`data:video/mp4;base64,${artifact.content}`}
-                className="max-w-full max-h-[95vh] object-contain rounded-lg"
-                controls
-                autoPlay
-              />
-            ) : (
-              <img
-                src={`data:image/png;base64,${artifact.content}`}
-                alt={artifact.label ?? filename}
-                className="max-w-full max-h-[95vh] object-contain rounded-lg"
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    </motion.div>
-  )
-}
-
 function GalleryStrip({
   artifacts,
   onDownload,
+  fillHeight = false,
 }: {
   artifacts: Array<[string, BrainstormArtifact]>
   onDownload: (f: string) => void
+  fillHeight?: boolean
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [previewFilename, setPreviewFilename] = useState<string | null>(null)
+
+  const previewArtifact = useMemo(
+    () => artifacts.find(([filename]) => filename === previewFilename) ?? null,
+    [artifacts, previewFilename],
+  )
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -194,7 +82,10 @@ function GalleryStrip({
   }, [artifacts.length])
 
   return (
-    <div className="shrink-0 h-48 bg-black/60 backdrop-blur-xl border-t border-white/10 flex flex-col relative z-30">
+    <div className={cn(
+      'bg-black/60 backdrop-blur-xl flex flex-col relative z-30',
+      fillHeight ? 'h-full border-t-0' : 'shrink-0 h-48 border-t border-white/10',
+    )}>
       <div className="absolute top-3 left-6 text-xs font-bold tracking-widest text-stone-400 uppercase font-mono z-10 flex items-center gap-2">
         <ImageIcon className="size-3" /> My Art Gallery
       </div>
@@ -206,7 +97,12 @@ function GalleryStrip({
       ) : (
       <div
         ref={scrollRef}
-        className="flex-1 overflow-x-auto flex items-center gap-4 px-6 pt-10 pb-4"
+        className={cn(
+          'flex-1 gap-4 px-6 pb-4',
+          fillHeight
+            ? 'flex flex-wrap content-start overflow-y-auto overflow-x-hidden pt-12'
+            : 'flex items-center overflow-x-auto pt-10',
+        )}
         style={{ overscrollBehavior: 'contain' }}
       >
         <AnimatePresence initial={false}>
@@ -216,7 +112,11 @@ function GalleryStrip({
               initial={{ opacity: 0, scale: 0.8, x: 20 }}
               animate={{ opacity: 1, scale: 1, x: 0 }}
               layout
-              className="shrink-0 h-full aspect-video relative group rounded-xl overflow-hidden border border-white/10 shadow-lg bg-stone-900"
+              className={cn(
+                'shrink-0 relative group cursor-pointer rounded-xl overflow-hidden border border-white/10 shadow-lg bg-stone-900',
+                fillHeight ? 'w-full sm:w-[280px] aspect-video' : 'h-full aspect-video',
+              )}
+              onClick={() => setPreviewFilename(filename)}
             >
               {artifact.content !== null ? (
                 artifact.mimeType.startsWith('video/') ? (
@@ -251,51 +151,55 @@ function GalleryStrip({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => onDownload(filename)}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDownload(filename)
+                  }}
                   className="bg-white/20 hover:bg-white/30 text-white rounded-full size-10"
                 >
                   <Download className="size-4" />
                 </Button>
-                <Dialog>
-                  <DialogTrigger render={
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="bg-white/20 hover:bg-white/30 text-white rounded-full size-10"
-                    />
-                  }>
-                    <Maximize2 className="size-4" />
-                  </DialogTrigger>
-                  <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 border-none bg-black/90 backdrop-blur-xl flex items-center justify-center">
-                    <DialogTitle className="sr-only">Artifact Preview</DialogTitle>
-                    {artifact.content !== null ? (
-                      artifact.mimeType.startsWith('video/') ? (
-                        <video
-                          src={`data:video/mp4;base64,${artifact.content}`}
-                          className="max-w-full max-h-[95vh] object-contain rounded-lg"
-                          controls
-                          autoPlay
-                        />
-                      ) : (
-                        <img
-                          src={`data:image/png;base64,${artifact.content}`}
-                          alt={artifact.label ?? filename}
-                          className="max-w-full max-h-[95vh] object-contain rounded-lg"
-                        />
-                      )
-                    ) : (
-                      <div className="flex items-center justify-center p-20">
-                        <Loader2 className="size-10 text-stone-500 animate-spin" />
-                      </div>
-                    )}
-                  </DialogContent>
-                </Dialog>
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
       )}
+
+      <Dialog
+        open={previewArtifact !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewFilename(null)
+          }
+        }}
+      >
+        <DialogContent className="h-[98vh] w-[98vw] max-w-none border-none bg-black/95 p-2 shadow-2xl backdrop-blur-xl sm:h-[96vh] sm:w-[96vw]">
+          <DialogTitle className="sr-only">Artifact Preview</DialogTitle>
+          {previewArtifact !== null ? (
+            previewArtifact[1].content !== null ? (
+              previewArtifact[1].mimeType.startsWith('video/') ? (
+                <video
+                  src={`data:video/mp4;base64,${previewArtifact[1].content}`}
+                  className="h-full w-full rounded-lg object-contain"
+                  controls
+                  autoPlay
+                />
+              ) : (
+                <img
+                  src={`data:image/png;base64,${previewArtifact[1].content}`}
+                  alt={previewArtifact[1].label ?? previewArtifact[0]}
+                  className="h-full w-full rounded-lg object-contain"
+                />
+              )
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="size-10 animate-spin text-stone-500" />
+              </div>
+            )
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -311,17 +215,6 @@ export function MasonryGallery({
   )
 
   const hasMedia = mediaArtifacts.length > 0
-
-  let mainStageItem: [string, BrainstormArtifact] | null = null
-  let galleryItems: Array<[string, BrainstormArtifact]> = []
-
-  if (isGenerating) {
-    galleryItems = mediaArtifacts
-    mainStageItem = null
-  } else if (hasMedia) {
-    mainStageItem = mediaArtifacts[mediaArtifacts.length - 1]
-    galleryItems = mediaArtifacts.slice(0, -1)
-  }
 
   return (
     <div className="flex h-full w-full flex-col bg-black overflow-hidden relative font-sans">
@@ -342,24 +235,18 @@ export function MasonryGallery({
       <div className="flex-1 relative overflow-hidden">
         <AnimatePresence mode="wait">
           {!hasMedia && !isGenerating && <EmptyState key="empty" />}
-          
+
           {isGenerating && <GeneratingStateOverlay key="generating" />}
-
-          {mainStageItem && !isGenerating && (
-            <MainStageArtifactView
-              key={`main-${mainStageItem[0]}`}
-              filename={mainStageItem[0]}
-              artifact={mainStageItem[1]}
-              onDownload={() => void downloadArtifact(mainStageItem[0])}
-            />
-          )}
         </AnimatePresence>
-      </div>
 
-      <GalleryStrip
-        artifacts={galleryItems}
-        onDownload={(f) => void downloadArtifact(f)}
-      />
+        {hasMedia && (
+          <GalleryStrip
+            artifacts={mediaArtifacts}
+            onDownload={(f) => void downloadArtifact(f)}
+            fillHeight
+          />
+        )}
+      </div>
     </div>
   )
 }

@@ -254,7 +254,7 @@ class SaveBrainstormArtifactRequest(BaseModel):
 
 
 def _make_tool_handlers(  # noqa: C901
-    websocket: WebSocket,
+    websocket: WebSocket | WebSocketManager,
     api_key: str,
     text_model_key: str = DEFAULT_FLASH_TEXT_MODEL_KEY,
     enabled_tools: list[str] | None = None,
@@ -264,7 +264,7 @@ def _make_tool_handlers(  # noqa: C901
     specific WebSocket and API key.
 
     Args:
-        websocket: The WebSocket connection
+        websocket: The WebSocket transport or manager used to send client events
         api_key: Google API key
         text_model_key: Flash text model to use
         enabled_tools: List of tool names to enable. If None, all tools are enabled.
@@ -285,18 +285,25 @@ def _make_tool_handlers(  # noqa: C901
             else DEFAULT_ENABLED_TOOLS.copy()
         )
 
+    async def send_client_event(payload: dict[str, Any]) -> None:
+        if isinstance(websocket, WebSocketManager):
+            await websocket.send_to_client(payload)
+            return
+
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.send_json(payload)
+
     async def handle_save_artifact(title: str, raw_ideas: str, filename: str) -> dict:
         """Generate markdown via FlashWorker and push to client."""
         try:
             markdown = await flash.generate_markdown(title=title, raw_ideas=raw_ideas)
-            if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_json(
-                    {
-                        "type": "brainstorm_artifact",
-                        "filename": filename,
-                        "content": markdown,
-                    }
-                )
+            await send_client_event(
+                {
+                    "type": "brainstorm_artifact",
+                    "filename": filename,
+                    "content": markdown,
+                }
+            )
             return {"result": f"Artifact '{filename}' saved.", "scheduling": "SILENT"}
         except Exception as e:
             logger.error("save_brainstorm_artifact failed: %s", e)
@@ -316,15 +323,14 @@ def _make_tool_handlers(  # noqa: C901
             data_bytes = await method(prompt=prompt)
             b64_data = base64.b64encode(data_bytes).decode("utf-8")
             filename = label.lower().replace(" ", "_") + "." + file_ext
-            if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_json(
-                    {
-                        "type": result_type,
-                        "filename": filename,
-                        "label": label,
-                        "data": b64_data,
-                    }
-                )
+            await send_client_event(
+                {
+                    "type": result_type,
+                    "filename": filename,
+                    "label": label,
+                    "data": b64_data,
+                }
+            )
             return {
                 "result": f"{result_type.replace('brainstorm_', '').title()} "
                 f"'{label}' generated.",
@@ -343,15 +349,14 @@ def _make_tool_handlers(  # noqa: C901
             b64_image = base64.b64encode(image_bytes).decode("utf-8")
             filename = label.lower().replace(" ", "_") + ".png"
 
-            if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_json(
-                    {
-                        "type": "brainstorm_image",
-                        "filename": filename,
-                        "label": label,
-                        "data": b64_image,
-                    }
-                )
+            await send_client_event(
+                {
+                    "type": "brainstorm_image",
+                    "filename": filename,
+                    "label": label,
+                    "data": b64_image,
+                }
+            )
 
             return {
                 "result": f"Image '{label}' generated.",
@@ -380,14 +385,13 @@ def _make_tool_handlers(  # noqa: C901
                 output_format=output_format,
             )
             filename = task[:30].lower().replace(" ", "_") + ".md"
-            if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_json(
-                    {
-                        "type": "brainstorm_artifact",
-                        "filename": filename,
-                        "content": result_text,
-                    }
-                )
+            await send_client_event(
+                {
+                    "type": "brainstorm_artifact",
+                    "filename": filename,
+                    "content": result_text,
+                }
+            )
             return {"result": result_text[:200], "scheduling": "SILENT"}
         except Exception as e:
             logger.error("delegate_to_flash failed: %s", e)
@@ -823,7 +827,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
     # Track enabled tools (starts with defaults)
     enabled_tools = DEFAULT_ENABLED_TOOLS.copy()
     tool_defs = _build_tool_defs(enabled_tools)
-    tool_mapping = _make_tool_handlers(websocket, api_key, enabled_tools=enabled_tools)
+    tool_mapping = _make_tool_handlers(manager, api_key, enabled_tools=enabled_tools)
 
     gemini_client = GeminiLive(
         api_key=api_key,
@@ -902,7 +906,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
             gemini_client.tools = new_tool_defs
 
             gemini_client.tool_mapping = _make_tool_handlers(
-                websocket,
+                manager,
                 api_key,
                 text_model_key=selected_text_model_key,
                 enabled_tools=enabled_tools,

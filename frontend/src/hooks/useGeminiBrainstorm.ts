@@ -15,7 +15,12 @@ import {
   stopScheduledAudioPlayback,
 } from '../utils/audio.ts'
 import type { BrainstormType } from '@/components/brainstorm/ModeSelectionScreen'
-import type { Message, MessageRole } from '@/types/messages'
+import type {
+  ConversationToolActivityEntry,
+  Message,
+  MessageRole,
+  ToolActivityStatus,
+} from '@/types/messages'
 import {
   artifactToBlob,
   blobToArtifactContent,
@@ -119,6 +124,8 @@ const ARTIFACT_MIME_TYPES: Record<string, string> = {
 const MESSAGE_OVERLAP_LIMIT = 120
 const MIN_MESSAGE_OVERLAP = 2
 const SPACE_PREFIX_CHARS = new Set(['.', '!', '?', ',', ':', ';', ')', ']', '}', '"', '”'])
+const NO_RESULTS_PATTERNS = ['no results found', 'no results', 'no relevant']
+const ERROR_PATTERNS = ['error:', 'error executing', 'unsupported tool']
 
 function isGeminiRole(role: MessageRole): role is 'gemini' | 'gemini_voice' {
   return role === 'gemini' || role === 'gemini_voice'
@@ -173,6 +180,17 @@ function needsMessageSeparator(existingContent: string, nextContent: string): bo
   )
 }
 
+function needsUserTranscriptSeparator(existingContent: string, nextContent: string): boolean {
+  if (!existingContent || !nextContent) return false
+
+  const previousChar = existingContent.at(-1)
+  const nextChar = nextContent[0]
+  if (!previousChar || !nextChar) return false
+  if (/\s/u.test(previousChar) || /\s/u.test(nextChar)) return false
+
+  return SPACE_PREFIX_CHARS.has(previousChar) && isWordBoundaryChar(nextChar)
+}
+
 function mergeMessageContent(existingContent: string, nextContent: string): string {
   if (!existingContent) return nextContent
   if (!nextContent) return existingContent
@@ -183,6 +201,31 @@ function mergeMessageContent(existingContent: string, nextContent: string): stri
 
   const separator = needsMessageSeparator(existingContent, suffix) ? ' ' : ''
   return existingContent + separator + suffix
+}
+
+function mergeUserTranscriptContent(existingContent: string, nextContent: string): string {
+  if (!existingContent) return nextContent
+  if (!nextContent) return existingContent
+
+  const overlap = findMessageOverlap(existingContent, nextContent)
+  const suffix = nextContent.slice(overlap)
+  if (!suffix) return existingContent
+
+  const separator = needsUserTranscriptSeparator(existingContent, suffix) ? ' ' : ''
+  return existingContent + separator + suffix
+}
+
+function classifyToolResult(result: unknown): ToolActivityStatus {
+  const text = typeof result === 'string'
+    ? result
+    : typeof result === 'object' && result !== null && 'result' in result
+      ? String((result as Record<string, unknown>).result)
+      : String(result)
+
+  const lower = text.toLowerCase()
+  if (ERROR_PATTERNS.some((pattern) => lower.includes(pattern))) return 'error'
+  if (NO_RESULTS_PATTERNS.some((pattern) => lower.includes(pattern))) return 'no_results'
+  return 'complete'
 }
 
 /**
@@ -234,6 +277,7 @@ export function useGeminiBrainstorm() {
   const [isConnected, setIsConnected] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
+  const [toolActivityEntries, setToolActivityEntries] = useState<ConversationToolActivityEntry[]>([])
   const [artifacts, setArtifacts] = useState<Map<string, BrainstormArtifact>>(new Map())
   const [artifactLoadStates, setArtifactLoadStates] = useState<Record<string, 'loading' | 'error'>>({})
   const [isGenerating, setIsGenerating] = useState(false)
@@ -271,7 +315,9 @@ export function useGeminiBrainstorm() {
   const modelHasSpokenRef = useRef(false)
   const titleSavedRef = useRef(false)
   const savePendingRef = useRef(false)
+  const isToolRunningRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
+  const toolActivityEntriesRef = useRef<ConversationToolActivityEntry[]>([])
   const artifactsRef = useRef<Map<string, BrainstormArtifact>>(new Map())
   const artifactLoadPromisesRef = useRef<Map<string, Promise<BrainstormArtifact | null>>>(new Map())
 
@@ -312,34 +358,81 @@ export function useGeminiBrainstorm() {
     toolCallPendingRef.current = true
   }, [])
 
+  const setToolRunningState = useCallback((isRunning: boolean) => {
+    isToolRunningRef.current = isRunning
+    setIsGenerating(isRunning)
+  }, [])
+
+  const addToolActivityEntry = useCallback((status: ToolActivityStatus, toolName: string | null) => {
+    setToolActivityEntries((previous) => {
+      const next = [...previous, { insertionIndex: messagesRef.current.length, status, toolName }]
+      toolActivityEntriesRef.current = next
+      return next
+    })
+  }, [])
+
+  const updateLastToolActivityEntry = useCallback((status: ToolActivityStatus) => {
+    setToolActivityEntries((previous) => {
+      for (let index = previous.length - 1; index >= 0; index -= 1) {
+        const entry = previous[index]
+        if (entry.status === 'running') {
+          const next = [...previous]
+          next[index] = { ...entry, status }
+          toolActivityEntriesRef.current = next
+          return next
+        }
+      }
+      return previous
+    })
+  }, [])
+
   const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages((previous) => {
       const last = previous[previous.length - 1]
-      const isNewTurn = turnBoundaryRef.current && isGeminiRole(role)
+      const isUserTurn = isUserRole(role)
+      const isNewTurn = turnBoundaryRef.current && (isUserTurn || isGeminiRole(role))
 
-      if (isUserRole(role)) {
+      if (isUserTurn) {
         toolCallPendingRef.current = false
         toolResponseTurnRef.current = false
       }
 
       if (isNewTurn) {
         turnBoundaryRef.current = false
-        if (toolCallPendingRef.current) {
+        if (isGeminiRole(role) && toolCallPendingRef.current) {
           toolResponseTurnRef.current = true
           toolCallPendingRef.current = false
         }
       }
 
       const shouldAppend = isGeminiRole(role) && toolResponseTurnRef.current
+      const canAppendUserTurn =
+        isUserTurn
+        && !isNewTurn
+        && !!last
+        && isUserRole(last.role)
+        && !last.isToolResponse
       const canAppend =
-        !isNewTurn &&
-        last?.role === role &&
-        !!last.isToolResponse === shouldAppend
+        canAppendUserTurn || (
+          !isUserTurn
+          && !isNewTurn
+          && last?.role === role
+          && !!last.isToolResponse === shouldAppend
+        )
 
       let next: Message[]
-      if (canAppend) {
+      if (canAppend && last) {
+        const nextRole = canAppendUserTurn
+          ? (last.role === 'user_voice' || role === 'user_voice' ? 'user_voice' : 'user')
+          : last.role
         next = [...previous]
-        next[next.length - 1] = { ...last, content: mergeMessageContent(last.content, content) }
+        next[next.length - 1] = {
+          ...last,
+          role: nextRole,
+          content: canAppendUserTurn
+            ? mergeUserTranscriptContent(last.content, content)
+            : mergeMessageContent(last.content, content),
+        }
       } else {
         next = [...previous, { role, content, isToolResponse: shouldAppend ?? undefined }]
       }
@@ -410,13 +503,16 @@ export function useGeminiBrainstorm() {
 
   const resetWorkspaceState = useCallback(() => {
     setMessages([])
+    setToolActivityEntries([])
     setArtifacts(new Map())
     artifactsRef.current = new Map()
     setArtifactLoadStates({})
     setIsGenerating(false)
+    isToolRunningRef.current = false
     setSessionTitle(null)
     setBrainstormType(null)
     messagesRef.current = []
+    toolActivityEntriesRef.current = []
     sessionHandleRef.current = null
     brainstormTypeRef.current = null
     turnBoundaryRef.current = false
@@ -644,14 +740,14 @@ export function useGeminiBrainstorm() {
     audioContextRef.current = null
     setIsConnected(false)
     setIsStarting(false)
-    setIsGenerating(false)
+    setToolRunningState(false)
     setIsMicPaused(false)
     isPausedRef.current = false
     turnBoundaryRef.current = false
     toolCallPendingRef.current = false
     toolResponseTurnRef.current = false
     modelHasSpokenRef.current = false
-  }, [clearScheduledAudioPlayback])
+  }, [clearScheduledAudioPlayback, setToolRunningState])
 
   const toggleMicPause = useCallback(() => {
     if (!streamRef.current) return
@@ -717,6 +813,8 @@ export function useGeminiBrainstorm() {
           messagesRef.current = savedMessages
           setMessages(savedMessages)
         }
+        toolActivityEntriesRef.current = []
+        setToolActivityEntries([])
         if (savedArtifacts.size > 0) {
           setArtifacts(savedArtifacts)
         }
@@ -733,7 +831,10 @@ export function useGeminiBrainstorm() {
 
     const sourceRate = audioContextRef.current.sampleRate
     processorRef.current.onaudioprocess = (event) => {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || isToolRunningRef.current) {
+        intensityRef.current = 0
+        return
+      }
 
       const inputData = event.inputBuffer.getChannelData(0)
       intensityRef.current = calculateIntensity(inputData)
@@ -840,11 +941,13 @@ export function useGeminiBrainstorm() {
               clearScheduledAudioPlayback()
               break
             case 'tool_call_start':
-              setIsGenerating(true)
+              setToolRunningState(true)
+              addToolActivityEntry('running', data.name ?? null)
               break
             case 'tool_call':
-              setIsGenerating(false)
+              setToolRunningState(false)
               queueToolResultTurn()
+              updateLastToolActivityEntry(classifyToolResult(data.result))
               break
 
             case 'turn_complete':
@@ -856,7 +959,9 @@ export function useGeminiBrainstorm() {
               break
             case 'error': {
               const errorContent = data.content ?? data.error ?? 'Unknown error'
+              setToolRunningState(false)
               addMessage(`Error: ${errorContent}`, 'system')
+              updateLastToolActivityEntry('error')
               // Flag auto-start errors for Creative Spark recovery UI
               // Only show the error overlay if the model never spoke
               if (brainstormTypeRef.current === 'creative_spark' && !modelHasSpokenRef.current) {
@@ -888,6 +993,7 @@ export function useGeminiBrainstorm() {
           console.log('Brainstorm WebSocket closed')
           wsRef.current = null
           setIsConnected(false)
+          setToolRunningState(false)
           clearScheduledAudioPlayback()
           if (!startupSettled) {
             const closeMessage = event.reason || 'Brainstorm connection closed before startup completed'
@@ -913,12 +1019,17 @@ export function useGeminiBrainstorm() {
     } finally {
       setIsStarting(false)
     }
-  }, [addMessage, selectedFlashModel, selectedVoice, selectedTools, stop, queueToolResultTurn, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing, persistCurrentTurns, clearScheduledAudioPlayback])
+  }, [addMessage, addToolActivityEntry, selectedFlashModel, selectedVoice, selectedTools, stop, queueToolResultTurn, setToolRunningState, updateLastToolActivityEntry, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing, persistCurrentTurns, clearScheduledAudioPlayback])
 
   const sendText = useCallback(
     (text: string) => {
+      if (isToolRunningRef.current) {
+        return
+      }
+
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'text', content: text }))
+        turnBoundaryRef.current = true
         addMessage(text, 'user')
       }
     },
@@ -939,6 +1050,7 @@ export function useGeminiBrainstorm() {
     isConnected,
     isStarting,
     messages,
+    toolActivityEntries,
     artifacts,
     artifactLoadStates,
     isGenerating,
