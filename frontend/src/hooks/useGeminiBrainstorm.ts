@@ -141,6 +141,8 @@ export function useGeminiBrainstorm() {
   )
   const [brainstormType, setBrainstormType] = useState<BrainstormType | null>(null)
   const [autoStartError, setAutoStartError] = useState<string | null>(null)
+  const [isMicPaused, setIsMicPaused] = useState(false)
+  const isPausedRef = useRef(false)
   const intensityRef = useRef(0)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -193,7 +195,7 @@ export function useGeminiBrainstorm() {
     toolResponseTurnRef.current = true
   }, [])
 
-  const addMessage = useCallback((content: string, role: MessageRole, isTranscription = false) => {
+  const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages((previous) => {
       const last = previous[previous.length - 1]
       const isNewTurn = turnBoundaryRef.current && role === 'gemini'
@@ -215,12 +217,11 @@ export function useGeminiBrainstorm() {
       let next: Message[]
       if (canAppend) {
         next = [...previous]
-        // Transcription chunks already include their own whitespace at
-        // word boundaries, so concatenate them directly. Non-transcription
-        // model text chunks (from model_turn.parts) need an explicit space
-        // separator when neither side provides one.
+        // Always insert a space when concatenating chunks if neither the
+        // previous content ends with whitespace nor the new chunk starts
+        // with whitespace.  Gemini input_transcription chunks do NOT
+        // reliably include word-boundary spaces.
         const needsSpace =
-          !isTranscription &&
           last.content.length > 0 &&
           !last.content.endsWith(' ') &&
           !last.content.endsWith('\n') &&
@@ -273,12 +274,13 @@ export function useGeminiBrainstorm() {
   }, [upsertArtifact])
 
   const handleTextMessage = useCallback((data: { content: string; role?: string }) => {
-    const isTranscription = data.role != null
+    if (isPausedRef.current) return
     const role: MessageRole = data.role === 'user' ? 'user' : 'gemini'
-    addMessage(data.content, role, isTranscription)
+    addMessage(data.content, role)
   }, [addMessage])
 
   const handleAudioMessage = useCallback((data: { content: string }) => {
+    if (isPausedRef.current) return
     const pcmData = decodeHexAudio(data.content)
     if (pcmData && pcmData.length > 0 && audioContextRef.current) {
       const floatData = pcm16ToFloat32(pcmData)
@@ -524,12 +526,30 @@ export function useGeminiBrainstorm() {
     setIsConnected(false)
     setIsStarting(false)
     setIsGenerating(false)
+    setIsMicPaused(false)
+    isPausedRef.current = false
     turnBoundaryRef.current = false
     toolCallPendingRef.current = false
     toolResponseTurnRef.current = false
     modelHasSpokenRef.current = false
     intensityRef.current = 0
     nextPlayTimeRef.current = 0
+  }, [])
+
+  const toggleMicPause = useCallback(() => {
+    if (!streamRef.current) return
+    const track = streamRef.current.getAudioTracks()[0]
+    if (!track) return
+    const next = !isPausedRef.current
+    isPausedRef.current = next
+    track.enabled = !next
+    setIsMicPaused(next)
+    if (next) {
+      nextPlayTimeRef.current = 0
+      if (audioContextRef.current) void audioContextRef.current.suspend()
+    } else {
+      if (audioContextRef.current) void audioContextRef.current.resume()
+    }
   }, [])
 
   const updateBrainstormType = useCallback((type: BrainstormType | null) => {
@@ -804,6 +824,8 @@ export function useGeminiBrainstorm() {
     ensureArtifactContent,
     downloadArtifact,
     downloadAllArtifacts,
+    isMicPaused,
+    toggleMicPause,
     start,
     stop,
     sendText,

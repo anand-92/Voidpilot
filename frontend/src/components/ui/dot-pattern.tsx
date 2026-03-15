@@ -1,9 +1,9 @@
 "use client"
 
-import React, { useEffect, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
 
-interface DotPatternProps extends React.SVGProps<SVGSVGElement> {
+interface DotPatternProps {
   width?: number
   height?: number
   x?: number
@@ -13,12 +13,10 @@ interface DotPatternProps extends React.SVGProps<SVGSVGElement> {
   cr?: number
   className?: string
   glow?: boolean
-  [key: string]: unknown
 }
 
 export function DotPattern({
   className,
-  ...props
 }: DotPatternProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -102,10 +100,6 @@ export function DotPattern({
     }
   }, [])
 
-  // Render a canvas instead of an SVG, but keep it positioned the same
-  // Exclude SVG-specific props that were used by the old DotPattern
-  const { cx, cy, cr, width, height, glow, ...validProps } = props as any
-
   return (
     <canvas
       ref={canvasRef}
@@ -113,7 +107,6 @@ export function DotPattern({
         "pointer-events-none absolute inset-0 z-0 h-full w-full",
         className
       )}
-      {...validProps}
     />
   )
 }
