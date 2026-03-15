@@ -8,12 +8,14 @@ import {
   BRAINSTORM_TOOL_OPTIONS,
   type BrainstormFlashModel,
   type BrainstormToolId,
+  type BrainstormVoice,
 } from '../../hooks/useGeminiBrainstorm'
 import {
   GeminiMicOff,
   GeminiMicOn,
   GeminiSend,
 } from '../icons/GeminiIcons'
+import { VoiceSelector } from './VoiceSelector'
 import { cn } from '@/lib/utils'
 
 type BrainstormControlsProps = {
@@ -21,6 +23,8 @@ type BrainstormControlsProps = {
   isStarting: boolean
   selectedFlashModel: BrainstormFlashModel
   setSelectedFlashModel: Dispatch<SetStateAction<BrainstormFlashModel>>
+  selectedVoice: BrainstormVoice
+  setSelectedVoice: Dispatch<SetStateAction<BrainstormVoice>>
   selectedTools: BrainstormToolId[]
   setSelectedTools: Dispatch<SetStateAction<BrainstormToolId[]>>
   inputText: string
@@ -225,6 +229,8 @@ export function BrainstormControls({
   isStarting,
   selectedFlashModel,
   setSelectedFlashModel,
+  selectedVoice,
+  setSelectedVoice,
   selectedTools,
   setSelectedTools,
   inputText,
@@ -270,6 +276,13 @@ export function BrainstormControls({
             layout="mobile"
           />
 
+          <VoiceSelector
+            selectedVoice={selectedVoice}
+            setSelectedVoice={setSelectedVoice}
+            disabled={isDisabled}
+            compact
+          />
+
           <ConnectionButton
             isConnected={isConnected}
             isStarting={isStarting}
@@ -296,6 +309,12 @@ export function BrainstormControls({
       <ToolSelector
         selectedTools={selectedTools}
         onToggle={handleToolToggle}
+        disabled={isDisabled}
+      />
+
+      <VoiceSelector
+        selectedVoice={selectedVoice}
+        setSelectedVoice={setSelectedVoice}
         disabled={isDisabled}
       />
 

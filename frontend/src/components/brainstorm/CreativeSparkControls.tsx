@@ -1,15 +1,21 @@
+import type { Dispatch, SetStateAction } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { PulsatingButton } from '@/components/ui/pulsating-button'
+import type { BrainstormVoice } from '@/hooks/useGeminiBrainstorm'
 import {
   GeminiMicOff,
   GeminiMicOn,
   GeminiSend,
 } from '../icons/GeminiIcons'
+import { VoiceSelector } from './VoiceSelector'
+
 type CreativeSparkControlsProps = {
   isConnected: boolean
   isStarting: boolean
+  selectedVoice: BrainstormVoice
+  setSelectedVoice: Dispatch<SetStateAction<BrainstormVoice>>
   inputText: string
   setInputText: (value: string) => void
   handleSend: () => void
@@ -27,15 +33,26 @@ type CreativeSparkControlsProps = {
 export function CreativeSparkControls({
   isConnected,
   isStarting,
+  selectedVoice,
+  setSelectedVoice,
   inputText,
   setInputText,
   handleSend,
   handleConnect,
   stop,
 }: CreativeSparkControlsProps) {
+  const isDisabled = isConnected || isStarting
 
   return (
     <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/60 p-1.5 shadow-2xl backdrop-blur-2xl">
+      {/* Voice selector */}
+      <VoiceSelector
+        selectedVoice={selectedVoice}
+        setSelectedVoice={setSelectedVoice}
+        disabled={isDisabled}
+        compact
+      />
+
       {/* Connection / disconnect button */}
       {!isConnected ? (
         <ShimmerButton
