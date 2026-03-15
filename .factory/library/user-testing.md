@@ -2,93 +2,63 @@
 
 ## Validation Surface
 
-### Primary browser surface
-- Use `chrome-devtools` for browser-based validation.
-- Do not use `cmux-browser` or `agent-browser` for this mission.
-- If `chrome-devtools` fails, is unavailable, or is too limited for popup/network inspection, do not block the mission on the remaining UI validation work; document the limitation and continue.
+### Browser UI surface
+- Use `agent-browser` for walkthrough browser validation.
+- Always restart the backend and frontend fresh via `.factory/services.yaml` before validating the walkthrough surface.
+- Load the landing page at `http://127.0.0.1:5173`, launch `Talk to Voidpilot`, and validate the overlay in place.
 
-### Local app setup
-- Backend: `127.0.0.1:8000`
-- Frontend: `127.0.0.1:5173`
-- Brainstorm route: `/#/brainstorm`
-- Public share route should remain `HashRouter`-compatible.
-- Before browser validation, confirm `8000` and `5173` are serving the current checkout; if stale local servers are bound to those ports, restart via `.factory/services.yaml` or skip browser validation rather than blocking the mission.
+### Browser voice surface
+- Voice-specific walkthrough validation still uses the local browser surface, but requires a headed browser session with microphone permission enabled.
+- Validate user transcript, Gemini transcript, audio visualization, interruption behavior, and mid-session recovery on this surface.
 
-### Browser flows to validate
-- Brainstorm entry modal on direct load and landing-page navigation
-- Email/password sign up
-- Email/password sign in
-- Google sign-in
-- Continue as guest
-- Mode selection screen (after auth, before workspace)
-- Open Studio mode selection and workspace rendering
-- Creative Spark mode selection and workspace rendering
-- Signed-in session library with mode badges
-- New session creation (shows mode selection)
-- Reopen session (skips mode selection, restores correct mode)
-- Delete session
-- Creative Spark masonry gallery with images/videos
-- Creative Spark conversation panel toggle
-- Creative Spark persistent controls (mic, connect)
-- Open Studio layout unchanged (agent visualizer, tool toggles, model selector)
-- Public share page open as signed-out user
-- Public share page with Creative Spark layout for Creative Spark sessions
-- Public artifact downloads
-- Share invalidation after delete
-
-### Audio / media caveat
-- Browser automation may not provide a reliable microphone path.
-- For brainstorm voice-connect checks, use mocked/fake-media approaches when needed.
-- The current backend hardcoded Gemini API key behavior is intentionally preserved for this hackathon mission; do not block validation on env-based Gemini key setup.
+### Core browser flows to validate
+- Landing-page entry launches the walkthrough with no sign-in
+- Transcript-first split-pane shell on desktop
+- Keyboard open/close/focus behavior
+- Starter prompts
+- Initial typed fallback visibility
+- User/Gemini transcript rendering
+- Tool activity visibility for grounded project questions
+- Off-topic redirect without misleading grounding activity
+- Close/reopen session reset
+- Narrow/mobile layout reachability
+- Explainer reachability and accuracy
 
 ## Validation Concurrency
 
-### Browser-based validation
-- Max concurrent validators: `1`
-- Rationale:
-  - local dry run confirmed frontend/backend boot and brainstorm route rendering work
-  - browser/GPU cost is the limiting factor on this machine, not backend CPU
-  - the `chrome-devtools` validator in this environment uses a shared browser profile that hard-fails when multiple validator sessions try to attach concurrently
-  - running a single browser validator at a time avoids profile-lock flake and is the only credible setup for this mission's required browser tool
-
-### Terminal/API validation
+### Browser UI-only walkthrough checks
 - Max concurrent validators: `5`
 - Rationale:
-  - backend health checks, pytest, mypy, ruff, and curl-based checks are much lighter than browser sessions
-  - these checks do not require multiple heavy browser instances
+  - this machine has ample memory/CPU headroom for several lightweight browser UI checks
+  - dry-run browser validation succeeded for landing-page load and walkthrough shell launch
+  - the walkthrough UI surface is much lighter than a full multi-app/Electron validation scenario
 
-## Known Limitations
+### Browser microphone-enabled walkthrough checks
+- Max concurrent validators: `1`
+- Rationale:
+  - microphone permission and live audio observation are the practical limiting factors
+  - concurrent mic-enabled walkthrough sessions would be brittle and hard to validate credibly
 
-- Browser validation for public share pages must confirm no live brainstorm websocket/audio session is started from the public route.
-- Google OAuth popup cannot be completed in chrome-devtools automation — the button works, opens the real Google accounts popup, and cancellation is handled gracefully, but full completion requires real Google credentials and interactive popup navigation.
-- The chrome-devtools MCP can become disconnected for subagents if a prior session left a browser profile lock. When this happens, API-based validation (Firebase REST API + curl) and code review can serve as a fallback for auth and session CRUD assertions.
-- To connect chrome-devtools MCP to Chrome: quit Chrome completely, then start with `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug-profile --no-first-run`. Then update `/Users/dks0662779/Library/Application Support/Google/Chrome/DevToolsActivePort` with the port and WebSocket path from the custom profile.
-- Firebase auth state persists in IndexedDB (database `firebaseLocalStorageDb`). To simulate a signed-out state, delete all IndexedDB databases and reload.
+## Dry-Run Findings
 
-## Validated API Endpoints
+- Dry run confirmed the validation path is executable in this environment:
+  - backend health check succeeded
+  - frontend loaded successfully
+  - the landing page and walkthrough trigger rendered
+  - the walkthrough overlay opened successfully
+- Automated microphone capture failed in browser automation with `NotSupportedError`, so final live-voice verification must use a headed local browser with mic permission enabled.
 
-- `GET /api/v1/live/brainstorm/sessions` — lists sessions for authenticated user (requires Firebase bearer token)
-- `POST /api/v1/live/brainstorm/sessions` — creates a new persisted session (returns 201)
-- `GET /api/v1/live/brainstorm/sessions/{id}` — reopens a session (returns session data or 404 if deleted)
-- `DELETE /api/v1/live/brainstorm/sessions/{id}` — deletes a session (returns 204)
-- `PUT /api/v1/live/brainstorm/sessions/{id}/turns` — saves turns for a session (returns 200 with turnCount)
-- `GET /api/v1/live/brainstorm/sessions/{id}/turns` — loads saved turns for a session
-- `PATCH /api/v1/live/brainstorm/sessions/{id}/title` — updates session title
-- `PUT /api/v1/live/brainstorm/sessions/{id}/artifacts` — saves artifact to Cloud Storage
-- `GET /api/v1/live/brainstorm/sessions/{id}/artifacts` — lists artifact metadata
-- `GET /api/v1/live/brainstorm/sessions/{id}/artifacts/{aid}/download` — downloads artifact content
-- All endpoints return 401 for missing/invalid auth tokens with code `brainstorm_auth_missing` or `brainstorm_auth_invalid`
+## Evidence Guidance
 
-## Cloud Storage
+- Capture screenshots for shell, explainer, narrow layout, and degraded/error states.
+- Capture recordings for starter prompts, typed fallback, close/reopen reset, interruption, repeated grounding, and recovery flows.
+- Check console errors during every browser validation run.
+- When grounding behavior is relevant, capture network/websocket evidence alongside the visible UI state.
 
-The Firebase Cloud Storage bucket `gen-lang-client-0579048282.firebasestorage.app` is provisioned in `US-EAST1` (standard storage class). Artifact upload/download operations should work with ADC credentials.
+## Validator Guidance
 
-## Flow Validator Guidance: browser
-
-- Use `chrome-devtools` only for this mission's browser validation.
-- Keep validators inside their assigned browser isolation context; do not reuse auth state, local storage, or cookies across assertion groups unless the prompt explicitly requires a returning-user check.
-- For signed-in email/password flows, create a unique Firebase account per validator run using a plus-addressed or timestamped email so parallel validators do not collide on auth or library data.
-- Treat the brainstorm library as user-owned state. A validator may create and delete only the sessions it created within its own signed-in account.
-- Guest-flow validators must stay signed out for their entire run and must not create or rely on persisted library state.
-- If Google popup auth cannot be credibly completed in `chrome-devtools`, capture the exact limitation and mark only the affected Google assertion as blocked rather than guessing.
-- Capture evidence for route gating by checking that no brainstorm websocket/session requests start before an entry choice is made.
+- Keep the walkthrough session session-only. Do not expect state to persist across close/reopen.
+- Validate both an on-topic project question and an off-topic question.
+- Validate one path with microphone unavailable or denied.
+- Validate one path where a later project question in the same session triggers a fresh grounding cycle.
+- If microphone-enabled validation cannot be completed in automation, mark only the affected voice-specific assertions as blocked or defer to headed local validation; do not guess.
