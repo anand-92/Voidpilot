@@ -22,6 +22,8 @@ export function BrainstormDesktopLayout({
   sessionTitle,
   selectedFlashModel,
   setSelectedFlashModel,
+  selectedVoice,
+  setSelectedVoice,
   selectedTools,
   setSelectedTools,
   messagesEndRef,
@@ -76,6 +78,8 @@ export function BrainstormDesktopLayout({
           isStarting={isStarting}
           selectedFlashModel={selectedFlashModel}
           setSelectedFlashModel={setSelectedFlashModel}
+          selectedVoice={selectedVoice}
+          setSelectedVoice={setSelectedVoice}
           selectedTools={selectedTools}
           setSelectedTools={setSelectedTools}
           inputText={inputText}

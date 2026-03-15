@@ -1,5 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
-import type { BrainstormArtifact, BrainstormFlashModel, BrainstormToolId } from '../../hooks/useGeminiBrainstorm'
+import type { BrainstormArtifact, BrainstormFlashModel, BrainstormToolId, BrainstormVoice } from '../../hooks/useGeminiBrainstorm'
 import type { BrainstormType } from './ModeSelectionScreen'
 import type { Message } from '@/types/messages'
 
@@ -19,6 +19,8 @@ export type BrainstormLayoutProps = {
   sessionTitle: string | null
   selectedFlashModel: BrainstormFlashModel
   setSelectedFlashModel: Dispatch<SetStateAction<BrainstormFlashModel>>
+  selectedVoice: BrainstormVoice
+  setSelectedVoice: Dispatch<SetStateAction<BrainstormVoice>>
   selectedTools: BrainstormToolId[]
   setSelectedTools: Dispatch<SetStateAction<BrainstormToolId[]>>
   messagesEndRef: RefObject<HTMLDivElement | null>

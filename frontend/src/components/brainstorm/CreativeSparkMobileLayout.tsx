@@ -38,6 +38,8 @@ export function CreativeSparkMobileLayout({
   inputText,
   messagesEndRef,
   sessionTitle,
+  selectedVoice,
+  setSelectedVoice,
   setInputText,
   handleSend,
   handleConnect,
@@ -129,6 +131,8 @@ export function CreativeSparkMobileLayout({
           <CreativeSparkControls
             isConnected={isConnected}
             isStarting={isStarting}
+            selectedVoice={selectedVoice}
+            setSelectedVoice={setSelectedVoice}
             inputText={inputText}
             setInputText={setInputText}
             handleSend={handleSend}
@@ -192,6 +196,8 @@ export function CreativeSparkMobileLayout({
               <CreativeSparkControls
                 isConnected={isConnected}
                 isStarting={isStarting}
+                selectedVoice={selectedVoice}
+                setSelectedVoice={setSelectedVoice}
                 inputText={inputText}
                 setInputText={setInputText}
                 handleSend={handleSend}
