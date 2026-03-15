@@ -226,7 +226,7 @@ export function CreativeSparkDesktopLayout({
             onFocus={() => bringToFront('conversation')}
             bounds="#layout-container"
           >
-            <div className="w-full h-full overflow-hidden flex flex-col bg-black/60">
+            <div className="w-full h-full overflow-hidden flex flex-col bg-black">
               <ConversationPanel
                 messages={messages}
                 messagesEndRef={messagesEndRef}
