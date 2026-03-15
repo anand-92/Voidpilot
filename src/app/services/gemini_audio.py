@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import json
 import logging
 import re
 import traceback
@@ -11,6 +12,7 @@ from google.genai import types
 logger = logging.getLogger(__name__)
 
 CTRL_TOKEN_PATTERN = re.compile(r"<ctrl\d+>", re.IGNORECASE)
+MAX_TEXT_CHUNK_OVERLAP = 120
 
 
 def _is_safe_live_text_char(char: str) -> bool:
@@ -26,6 +28,41 @@ def _sanitize_live_text(text: str) -> str:
     cleaned = CTRL_TOKEN_PATTERN.sub("", text)
     cleaned = "".join(char for char in cleaned if _is_safe_live_text_char(char))
     return cleaned.strip()
+
+
+def _find_live_text_overlap(previous_text: str, next_text: str) -> int:
+    max_overlap = min(len(previous_text), len(next_text), MAX_TEXT_CHUNK_OVERLAP)
+    for size in range(max_overlap, 0, -1):
+        if previous_text.endswith(next_text[:size]):
+            return size
+    return 0
+
+
+def _needs_live_text_separator(previous_text: str, next_text: str) -> bool:
+    if not previous_text or not next_text:
+        return False
+
+    previous_char = previous_text[-1]
+    next_char = next_text[0]
+    if previous_char.isspace() or next_char.isspace():
+        return False
+
+    return previous_char.isalnum() and next_char.isalnum()
+
+
+def _merge_live_text(previous_text: str, next_text: str) -> str:
+    if not previous_text:
+        return next_text
+    if not next_text:
+        return previous_text
+
+    overlap = _find_live_text_overlap(previous_text, next_text)
+    suffix = next_text[overlap:]
+    if not suffix:
+        return previous_text
+
+    separator = " " if _needs_live_text_separator(previous_text, suffix) else ""
+    return previous_text + separator + suffix
 
 
 def _build_error_event(message: str) -> dict[str, str]:
@@ -58,6 +95,7 @@ class GeminiLive:
         voice_name: str = "Puck",
         session_resumption_handle: str | None = None,
         auto_start: bool = False,
+        max_tool_calls_per_turn: int | None = None,
     ):
         self.api_key = api_key
         self.model = model
@@ -66,9 +104,17 @@ class GeminiLive:
         self.voice_name = voice_name
         self.session_resumption_handle = session_resumption_handle
         self.auto_start = auto_start
+        self.max_tool_calls_per_turn = max_tool_calls_per_turn
         self.client = genai.Client(
             api_key=api_key, http_options={"api_version": "v1beta"}
         )
+        self._auto_start_sent = False
+        self._pending_model_text = ""
+        self._saw_output_transcription_this_turn = False
+        self._tool_calls_this_turn = 0
+        self._inflight_tool_call_ids: set[str] = set()
+        self._completed_tool_call_ids: set[str] = set()
+        self._tool_response_lock = asyncio.Lock()
 
         self.tools: list[dict] = []
         self.tool_mapping: dict = {}
@@ -100,16 +146,35 @@ class GeminiLive:
         except Exception as e:
             logger.error("Error in %s send: %s", label, e)
 
-    async def _enqueue_model_text(self, event_queue: asyncio.Queue, text: str) -> None:
+    def _buffer_model_text(self, text: str) -> None:
         clean_text = _sanitize_live_text(text)
         if not clean_text:
             return
+        self._pending_model_text = _merge_live_text(
+            self._pending_model_text,
+            clean_text,
+        )
+
+    async def _flush_buffered_model_text(self, event_queue: asyncio.Queue) -> None:
+        if self._saw_output_transcription_this_turn:
+            self._pending_model_text = ""
+            return
+
+        if not self._pending_model_text:
+            return
+
         await event_queue.put(
             {
                 "type": "text",
-                "content": clean_text,
+                "content": self._pending_model_text,
             }
         )
+        self._pending_model_text = ""
+
+    def _reset_turn_state(self) -> None:
+        self._pending_model_text = ""
+        self._saw_output_transcription_this_turn = False
+        self._tool_calls_this_turn = 0
 
     async def _enqueue_transcription(
         self,
@@ -120,6 +185,9 @@ class GeminiLive:
         clean_text = _sanitize_live_text(text)
         if not clean_text:
             return
+        if role == "gemini":
+            self._saw_output_transcription_this_turn = True
+            self._pending_model_text = ""
         await event_queue.put({"type": role, "text": clean_text})
 
     async def _handle_transcriptions(
@@ -150,7 +218,7 @@ class GeminiLive:
                         part.inline_data.data,
                     )
                 if part.text and not part.text.startswith("**"):
-                    await self._enqueue_model_text(event_queue, part.text)
+                    self._buffer_model_text(part.text)
 
         await self._handle_transcriptions(server_content, event_queue)
 
@@ -159,79 +227,171 @@ class GeminiLive:
             await event_queue.put({"type": "generation_complete"})
 
         if server_content.turn_complete:
+            await self._flush_buffered_model_text(event_queue)
             logger.info("Turn complete, session continues")
             await event_queue.put({"type": "turn_complete"})
+            self._reset_turn_state()
 
         if server_content.interrupted:
             if audio_interrupt_callback:
                 await _call_maybe_async(audio_interrupt_callback)
+            self._reset_turn_state()
             await event_queue.put({"type": "interrupted"})
 
-    async def _dispatch_tool_call(self, session, fc, event_queue: asyncio.Queue):
+    @staticmethod
+    def _tool_call_key(fc) -> str:
+        if fc.id:
+            return str(fc.id)
+
         args = fc.args or {}
-        logger.info("Tool call: %s(%s)", fc.name, args)
-
-        await event_queue.put(
-            {
-                "type": "tool_call_start",
-                "name": fc.name,
-            }
-        )
-
-        if fc.name not in self.tool_mapping:
-            return None
-
         try:
-            result = await _call_maybe_async(self.tool_mapping[fc.name], **args)
-        except Exception as e:
-            logger.error(
-                "Error executing tool %s: %s",
-                fc.name,
-                e,
+            serialized_args = json.dumps(
+                args,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
             )
-            logger.error(traceback.format_exc())
-            result = f"Error: {e}"
+        except TypeError:
+            serialized_args = repr(args)
 
-        scheduling = "SILENT"
-        result_str = result
-        if isinstance(result, dict):
-            scheduling = result.get("scheduling", "SILENT")
-            result_str = result.get("result", str(result))
+        return f"{fc.name}:{serialized_args}"
 
-        logger.info(
-            "Tool %s result: %.200s...",
-            fc.name,
-            result_str,
-        )
-
-        await event_queue.put(
-            {
-                "type": "tool_call",
-                "name": fc.name,
-                "args": args,
-                "result": result,
-            }
-        )
-
+    async def _send_tool_response(
+        self,
+        session,
+        *,
+        fc,
+        result: str,
+        scheduling: str = "SILENT",
+    ) -> None:
         response = types.FunctionResponse(
             name=fc.name,
             id=fc.id,
             response={
-                "result": result_str,
+                "result": result,
                 "scheduling": scheduling,
             },
         )
 
-        await asyncio.sleep(0.05)
-        await session.send_tool_response(function_responses=[response])
+        try:
+            async with self._tool_response_lock:
+                await asyncio.sleep(0.05)
+                await session.send_tool_response(function_responses=[response])
+        except Exception as error:
+            logger.error(
+                "Error sending tool response for %s: %s",
+                fc.name,
+                error,
+            )
+            logger.error(traceback.format_exc())
+
+    async def _dispatch_tool_call(
+        self,
+        session,
+        fc,
+        event_queue: asyncio.Queue,
+        call_key: str,
+    ):
+        args = fc.args or {}
+        logger.info("Tool call: %s(%s)", fc.name, args)
+        try:
+            await event_queue.put(
+                {
+                    "type": "tool_call_start",
+                    "name": fc.name,
+                }
+            )
+
+            if fc.name not in self.tool_mapping:
+                await self._send_tool_response(
+                    session,
+                    fc=fc,
+                    result=f"Error: Unsupported tool '{fc.name}'.",
+                )
+                return None
+
+            try:
+                result = await _call_maybe_async(self.tool_mapping[fc.name], **args)
+            except Exception as e:
+                logger.error(
+                    "Error executing tool %s: %s",
+                    fc.name,
+                    e,
+                )
+                logger.error(traceback.format_exc())
+                result = f"Error: {e}"
+
+            scheduling = "SILENT"
+            result_str = result
+            if isinstance(result, dict):
+                scheduling = result.get("scheduling", "SILENT")
+                result_str = result.get("result", str(result))
+
+            logger.info(
+                "Tool %s result: %.200s...",
+                fc.name,
+                result_str,
+            )
+
+            await event_queue.put(
+                {
+                    "type": "tool_call",
+                    "name": fc.name,
+                    "args": args,
+                    "result": result,
+                }
+            )
+
+            await self._send_tool_response(
+                session,
+                fc=fc,
+                result=str(result_str),
+                scheduling=scheduling,
+            )
+        finally:
+            self._inflight_tool_call_ids.discard(call_key)
+            self._completed_tool_call_ids.add(call_key)
 
     async def _handle_tool_call(self, session, tool_call, event_queue: asyncio.Queue):
         """Execute tool calls and send responses without blocking."""
         for fc in tool_call.function_calls:
+            call_key = self._tool_call_key(fc)
+
+            if call_key in self._inflight_tool_call_ids:
+                logger.info("Skipping in-flight duplicate tool call: %s", call_key)
+                continue
+
+            if call_key in self._completed_tool_call_ids:
+                logger.info("Skipping completed duplicate tool call: %s", call_key)
+                continue
+
+            if (
+                self.max_tool_calls_per_turn is not None
+                and self._tool_calls_this_turn >= self.max_tool_calls_per_turn
+            ):
+                logger.info(
+                    "Skipping tool call %s; max_tool_calls_per_turn=%s",
+                    fc.name,
+                    self.max_tool_calls_per_turn,
+                )
+                self._completed_tool_call_ids.add(call_key)
+                await self._send_tool_response(
+                    session,
+                    fc=fc,
+                    result=(
+                        "Skipped: Only one generation is allowed per turn in "
+                        "Creative Spark. Wait for the user's next request "
+                        "before generating another asset."
+                    ),
+                )
+                continue
+
+            self._tool_calls_this_turn += 1
+            self._inflight_tool_call_ids.add(call_key)
             # Schedule tool calls as background tasks so they don't block
             # session.receive()
             asyncio.create_task(
-                self._dispatch_tool_call(session, fc, event_queue)
+                self._dispatch_tool_call(session, fc, event_queue, call_key)
             )
 
     async def _handle_receive_error(self, error, event_queue: asyncio.Queue):
@@ -355,6 +515,7 @@ class GeminiLive:
                 model=self.model, config=config
             ) as session:
                 logger.info("Session connected.")
+                self._reset_turn_state()
                 audio_mime = f"audio/pcm;rate={self.input_sample_rate}"
                 event_queue: asyncio.Queue = asyncio.Queue()
 
@@ -391,15 +552,21 @@ class GeminiLive:
 
                 # Auto-start: send an initial user turn to trigger
                 # the model to speak first (used by Creative Spark)
-                if self.auto_start:
-                    logger.info("Auto-start enabled, triggering model")
-                    await session.send_client_content(
-                        turns=types.Content(
-                            role="user",
-                            parts=[types.Part(text="Begin!")],
-                        ),
-                        turn_complete=True,
-                    )
+                if self.auto_start and not self._auto_start_sent:
+                    if self.session_resumption_handle:
+                        logger.info(
+                            "Auto-start skipped for resumed session handle"
+                        )
+                    else:
+                        logger.info("Auto-start enabled, triggering model")
+                        await session.send_client_content(
+                            turns=types.Content(
+                                role="user",
+                                parts=[types.Part(text="Begin!")],
+                            ),
+                            turn_complete=True,
+                        )
+                        self._auto_start_sent = True
 
                 try:
                     while session_active:

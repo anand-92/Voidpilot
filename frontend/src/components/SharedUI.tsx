@@ -49,11 +49,22 @@ const AI_STYLE = {
   isMarkdown: true,
 }
 
+const AI_VOICE_STYLE = {
+  ...AI_STYLE,
+  isMarkdown: false,
+}
+
 const MESSAGE_STYLES: Record<string, { bubble: string; label: string; name: string; isMarkdown?: boolean }> = {
   user: {
     bubble: 'bg-amber-600/15 text-amber-50',
     label: 'text-amber-400/60',
     name: 'You',
+  },
+  user_voice: {
+    bubble: 'bg-amber-600/15 text-amber-50',
+    label: 'text-amber-400/60',
+    name: 'You',
+    isMarkdown: false,
   },
   system: {
     bubble: 'border border-white/[0.06] bg-white/[0.02] text-stone-500 italic',
@@ -62,6 +73,7 @@ const MESSAGE_STYLES: Record<string, { bubble: string; label: string; name: stri
   },
   model: AI_STYLE,
   gemini: AI_STYLE,
+  gemini_voice: AI_VOICE_STYLE,
 }
 
 const LABEL_CLASSES = 'mb-1 text-[10px] font-bold uppercase tracking-[0.2em]'
@@ -75,7 +87,7 @@ export function MessageBubble({
   content: string
   isToolResponse?: boolean
 }) {
-  const isUser = role === 'user'
+  const isUser = role === 'user' || role === 'user_voice'
   const styles = MESSAGE_STYLES[role] ?? MESSAGE_STYLES.model
 
   if (isToolResponse) {
@@ -85,9 +97,13 @@ export function MessageBubble({
           <div className="rainbow-border max-w-[90%] md:max-w-[80%] rounded-2xl p-[2px]">
             <div className="rounded-[14px] bg-stone-950 px-4 py-3 text-sm leading-relaxed text-stone-200">
               <div className={`${LABEL_CLASSES} ${AI_STYLE.label}`}>Gemini — Tool Result</div>
-              <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-stone-900/50 prose-pre:border prose-pre:border-white/10">
-                <ReactMarkdown>{content}</ReactMarkdown>
-              </div>
+              {styles.isMarkdown ? (
+                <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-stone-900/50 prose-pre:border prose-pre:border-white/10">
+                  <ReactMarkdown>{content}</ReactMarkdown>
+                </div>
+              ) : (
+                <div className="whitespace-pre-wrap break-words">{content}</div>
+              )}
             </div>
           </div>
         </div>

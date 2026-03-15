@@ -78,13 +78,61 @@ const ARTIFACT_MIME_TYPES: Record<string, string> = {
   brainstorm_video: 'video/mp4',
 }
 
+const MESSAGE_OVERLAP_LIMIT = 120
+
+function isGeminiRole(role: MessageRole): role is 'gemini' | 'gemini_voice' {
+  return role === 'gemini' || role === 'gemini_voice'
+}
+
+function isUserRole(role: MessageRole): role is 'user' | 'user_voice' {
+  return role === 'user' || role === 'user_voice'
+}
+
+function isWordBoundaryChar(char: string): boolean {
+  return /[\p{L}\p{N}]/u.test(char)
+}
+
+function findMessageOverlap(existingContent: string, nextContent: string): number {
+  const maxOverlap = Math.min(existingContent.length, nextContent.length, MESSAGE_OVERLAP_LIMIT)
+  for (let size = maxOverlap; size > 0; size -= 1) {
+    if (existingContent.endsWith(nextContent.slice(0, size))) {
+      return size
+    }
+  }
+
+  return 0
+}
+
+function needsMessageSeparator(existingContent: string, nextContent: string): boolean {
+  if (!existingContent || !nextContent) return false
+
+  const previousChar = existingContent.at(-1)
+  const nextChar = nextContent[0]
+  if (!previousChar || !nextChar) return false
+  if (/\s/u.test(previousChar) || /\s/u.test(nextChar)) return false
+
+  return isWordBoundaryChar(previousChar) && isWordBoundaryChar(nextChar)
+}
+
+function mergeMessageContent(existingContent: string, nextContent: string): string {
+  if (!existingContent) return nextContent
+  if (!nextContent) return existingContent
+
+  const overlap = findMessageOverlap(existingContent, nextContent)
+  const suffix = nextContent.slice(overlap)
+  if (!suffix) return existingContent
+
+  const separator = needsMessageSeparator(existingContent, suffix) ? ' ' : ''
+  return existingContent + separator + suffix
+}
+
 /**
  * Generate a short session title from the first substantive user messages.
  * Returns null if there's not enough content to generate a meaningful title.
  */
 function generateSessionTitle(messages: Message[]): string | null {
   const userMessages = messages.filter(
-    (m) => m.role === 'user' && m.content.trim().length > 3,
+    (m) => isUserRole(m.role) && m.content.trim().length > 3,
   )
   if (userMessages.length === 0) return null
 
@@ -188,15 +236,20 @@ export function useGeminiBrainstorm() {
     artifactsRef.current = artifacts
   }, [artifacts])
 
-  const startToolCallTurn = useCallback(() => {
+  const queueToolResultTurn = useCallback(() => {
     turnBoundaryRef.current = true
-    toolResponseTurnRef.current = true
+    toolCallPendingRef.current = true
   }, [])
 
-  const addMessage = useCallback((content: string, role: MessageRole, isTranscription = false) => {
+  const addMessage = useCallback((content: string, role: MessageRole) => {
     setMessages((previous) => {
       const last = previous[previous.length - 1]
-      const isNewTurn = turnBoundaryRef.current && role === 'gemini'
+      const isNewTurn = turnBoundaryRef.current && isGeminiRole(role)
+
+      if (isUserRole(role)) {
+        toolCallPendingRef.current = false
+        toolResponseTurnRef.current = false
+      }
 
       if (isNewTurn) {
         turnBoundaryRef.current = false
@@ -206,7 +259,7 @@ export function useGeminiBrainstorm() {
         }
       }
 
-      const shouldAppend = role === 'gemini' && toolResponseTurnRef.current
+      const shouldAppend = isGeminiRole(role) && toolResponseTurnRef.current
       const canAppend =
         !isNewTurn &&
         last?.role === role &&
@@ -215,19 +268,7 @@ export function useGeminiBrainstorm() {
       let next: Message[]
       if (canAppend) {
         next = [...previous]
-        // Transcription chunks already include their own whitespace at
-        // word boundaries, so concatenate them directly. Non-transcription
-        // model text chunks (from model_turn.parts) need an explicit space
-        // separator when neither side provides one.
-        const needsSpace =
-          !isTranscription &&
-          last.content.length > 0 &&
-          !last.content.endsWith(' ') &&
-          !last.content.endsWith('\n') &&
-          !content.startsWith(' ') &&
-          !content.startsWith('\n')
-        const separator = needsSpace ? ' ' : ''
-        next[next.length - 1] = { ...last, content: last.content + separator + content }
+        next[next.length - 1] = { ...last, content: mergeMessageContent(last.content, content) }
       } else {
         next = [...previous, { role, content, isToolResponse: shouldAppend ?? undefined }]
       }
@@ -273,9 +314,12 @@ export function useGeminiBrainstorm() {
   }, [upsertArtifact])
 
   const handleTextMessage = useCallback((data: { content: string; role?: string }) => {
-    const isTranscription = data.role != null
-    const role: MessageRole = data.role === 'user' ? 'user' : 'gemini'
-    addMessage(data.content, role, isTranscription)
+    const role: MessageRole = data.role === 'user'
+      ? 'user_voice'
+      : data.role === 'gemini'
+        ? 'gemini_voice'
+        : 'gemini'
+    addMessage(data.content, role)
   }, [addMessage])
 
   const handleAudioMessage = useCallback((data: { content: string }) => {
@@ -694,15 +738,15 @@ export function useGeminiBrainstorm() {
               break
             case 'tool_call_start':
               setIsGenerating(true)
-              startToolCallTurn()
               break
             case 'tool_call':
               setIsGenerating(false)
-              toolCallPendingRef.current = true
+              queueToolResultTurn()
               break
 
             case 'turn_complete':
               turnBoundaryRef.current = true
+              toolCallPendingRef.current = false
               toolResponseTurnRef.current = false
               // Persist transcript state after each completed turn (signed-in only)
               persistCurrentTurns(messagesRef.current)
@@ -758,7 +802,7 @@ export function useGeminiBrainstorm() {
     } finally {
       setIsStarting(false)
     }
-  }, [addMessage, selectedFlashModel, selectedTools, stop, startToolCallTurn, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing, persistCurrentTurns])
+  }, [addMessage, selectedFlashModel, selectedTools, stop, queueToolResultTurn, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing, persistCurrentTurns])
 
   const sendText = useCallback(
     (text: string) => {
