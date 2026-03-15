@@ -211,6 +211,8 @@ export function useGeminiBrainstorm() {
   )
   const [brainstormType, setBrainstormType] = useState<BrainstormType | null>(null)
   const [autoStartError, setAutoStartError] = useState<string | null>(null)
+  const [isMicPaused, setIsMicPaused] = useState(false)
+  const isPausedRef = useRef(false)
   const intensityRef = useRef(0)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -352,6 +354,7 @@ export function useGeminiBrainstorm() {
   }, [addMessage])
 
   const handleAudioMessage = useCallback((data: { content: string }) => {
+    if (isPausedRef.current) return
     const pcmData = decodeHexAudio(data.content)
     if (pcmData && pcmData.length > 0 && audioContextRef.current) {
       const floatData = pcm16ToFloat32(pcmData)
@@ -602,11 +605,29 @@ export function useGeminiBrainstorm() {
     setIsConnected(false)
     setIsStarting(false)
     setIsGenerating(false)
+    setIsMicPaused(false)
+    isPausedRef.current = false
     turnBoundaryRef.current = false
     toolCallPendingRef.current = false
     toolResponseTurnRef.current = false
     modelHasSpokenRef.current = false
   }, [clearScheduledAudioPlayback])
+
+  const toggleMicPause = useCallback(() => {
+    if (!streamRef.current) return
+    const track = streamRef.current.getAudioTracks()[0]
+    if (!track) return
+    const next = !isPausedRef.current
+    isPausedRef.current = next
+    track.enabled = !next
+    setIsMicPaused(next)
+    if (next) {
+      nextPlayTimeRef.current = 0
+      if (audioContextRef.current) void audioContextRef.current.suspend()
+    } else {
+      if (audioContextRef.current) void audioContextRef.current.resume()
+    }
+  }, [])
 
   const updateBrainstormType = useCallback((type: BrainstormType | null) => {
     brainstormTypeRef.current = type
@@ -897,6 +918,8 @@ export function useGeminiBrainstorm() {
     ensureArtifactContent,
     downloadArtifact,
     downloadAllArtifacts,
+    isMicPaused,
+    toggleMicPause,
     start,
     stop,
     sendText,

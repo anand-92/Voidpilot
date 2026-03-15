@@ -13,6 +13,7 @@ import { ConversationPanel } from './ConversationPanel'
 import { CreativeSparkControls } from './CreativeSparkControls'
 import { FloatingAgentWindow } from './FloatingAgentWindow'
 import { MasonryGallery } from './MasonryGallery'
+import { DropDownSign } from './DropDownSign'
 
 /**
  * Mobile layout for Creative Spark mode.
@@ -49,11 +50,14 @@ export function CreativeSparkMobileLayout({
   onGoBack,
 }: BrainstormLayoutProps) {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [showSign, setShowSign] = useState(true)
 
   return (
     <main className="relative flex h-dvh flex-col bg-[#0a0a0a] text-stone-100 font-sans">
       <Particles className="absolute inset-0 z-0 opacity-30" quantity={40} ease={100} color="#f97316" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-20" width={24} height={24} cx={12} cy={12} cr={0.8} />
+
+      <DropDownSign show={showSign} onComplete={() => setShowSign(false)} />
 
       {/* Header */}
       <header className={cn(
@@ -176,6 +180,10 @@ export function CreativeSparkMobileLayout({
                 mobile
                 sessionTitle={sessionTitle}
                 onCreateShare={onCreateShare}
+                isConnected={isConnected}
+                isStarting={isStarting}
+                handleConnect={handleConnect}
+                stop={stop}
               />
             </div>
 

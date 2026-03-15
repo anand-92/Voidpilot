@@ -1,31 +1,28 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertCircle, ArrowLeft, MessageSquareText, RefreshCw, X } from 'lucide-react'
+import { AlertCircle, ArrowLeft, RefreshCw, Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DotPattern } from '@/components/ui/dot-pattern'
 import { Particles } from '@/components/ui/particles'
-import { cn } from '@/lib/utils'
 import type { BrainstormLayoutProps } from './BrainstormLayouts'
 import { ConversationPanel } from './ConversationPanel'
-import { CreativeSparkControls } from './CreativeSparkControls'
-import { FloatingAgentWindow } from './FloatingAgentWindow'
+import { AgentVisualizer } from './AgentVisualizer'
 import { MasonryGallery } from './MasonryGallery'
+import { DraggableWindow } from './DraggableWindow'
+import { SparkToolbar } from './SparkToolbar'
+import { DropDownSign } from './DropDownSign'
 
-const PANEL_WIDTH = 400
+type WindowId = 'visualizer' | 'output' | 'conversation'
 
-/**
- * Desktop layout for Creative Spark mode.
- *
- * Full-screen masonry gallery with a **collapsible** conversation panel
- * that slides in from the right. The panel is hidden by default — a
- * toggle button is always visible to reveal/hide it.
- *
- * Persistent controls (mic, connect/disconnect, text input) are fixed
- * at the bottom of the screen and never scroll with the gallery.
- *
- * AgentVisualizer renders as a floating draggable window. Excludes Open Studio
- * elements (WorkspacePanel, tool toggles, model selector).
- */
+interface WindowState {
+  id: WindowId
+  title: string
+  isMinimized: boolean
+  isMaximized: boolean
+  zIndex: number
+  defaultState: { x: number; y: number; w: number | string; h: number | string }
+}
+
 export function CreativeSparkDesktopLayout({
   intensityRef,
   isConnected,
@@ -33,13 +30,12 @@ export function CreativeSparkDesktopLayout({
   messages,
   artifactList,
   isGenerating,
-  inputText,
   messagesEndRef,
   sessionTitle,
-  setInputText,
-  handleSend,
   handleConnect,
   stop,
+  isMicPaused,
+  toggleMicPause,
   downloadArtifact,
   downloadAllArtifacts,
   onCreateShare,
@@ -47,100 +43,205 @@ export function CreativeSparkDesktopLayout({
   clearAutoStartError,
   onGoBack,
 }: BrainstormLayoutProps) {
-  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [maxZ, setMaxZ] = useState(10)
+  const [layoutKey, setLayoutKey] = useState(0)
+
+  const getInitialWindows = (): Record<WindowId, WindowState> => {
+    const isClient = typeof window !== 'undefined'
+    const iw = isClient ? window.innerWidth : 1024
+    const ih = isClient ? window.innerHeight : 768
+
+    // The output container takes up half of the page in width
+    const rightWidth = Math.round(iw * 0.5)
+    const leftWidth = iw - rightWidth
+    
+    const outputWidth = rightWidth
+    const outputHeight = ih
+
+    // Agent visualizer aspect ratio is 2754/1536 ≈ 1.793
+    // We calculate height to exactly preserve this ratio without being cut off
+    const visualizerWidth = leftWidth
+    const visualizerHeight = Math.round(visualizerWidth * (1536 / 2754))
+    
+    // Conversation takes the remaining height on the left
+    const conversationWidth = leftWidth
+    const conversationHeight = ih - visualizerHeight
+
+    return {
+      visualizer: {
+        id: 'visualizer',
+        title: 'Agent Visualizer',
+        isMinimized: false,
+        isMaximized: false,
+        zIndex: 3,
+        defaultState: { x: 0, y: 0, w: visualizerWidth, h: visualizerHeight }
+      },
+      output: {
+        id: 'output',
+        title: 'Output Exploration',
+        isMinimized: false,
+        isMaximized: false,
+        zIndex: 1,
+        // Positioned on the right
+        defaultState: { x: leftWidth, y: 0, w: outputWidth, h: outputHeight }
+      },
+      conversation: {
+        id: 'conversation',
+        title: 'Conversation History',
+        isMinimized: false,
+        isMaximized: false,
+        zIndex: 2,
+        // Positioned on the bottom left
+        defaultState: { x: 0, y: visualizerHeight, w: conversationWidth, h: conversationHeight }
+      }
+    }
+  }
+
+  const [windows, setWindows] = useState<Record<WindowId, WindowState>>(getInitialWindows)
+  const [showSign, setShowSign] = useState(true)
+
+  const resetLayout = () => {
+    setWindows(getInitialWindows())
+    setLayoutKey(k => k + 1)
+  }
+
+  const bringToFront = (id: WindowId) => {
+    setMaxZ(prev => prev + 1)
+    setWindows(prev => ({
+      ...prev,
+      [id]: { ...prev[id], zIndex: maxZ + 1 }
+    }))
+  }
+
+  const toggleMinimize = (id: WindowId) => {
+    setWindows(prev => ({
+      ...prev,
+      [id]: { ...prev[id], isMinimized: !prev[id].isMinimized, isMaximized: false }
+    }))
+  }
+
+  const toggleMaximize = (id: WindowId) => {
+    bringToFront(id)
+    setWindows(prev => ({
+      ...prev,
+      [id]: { ...prev[id], isMaximized: !prev[id].isMaximized, isMinimized: false }
+    }))
+  }
+
+  const minimizedWindows = Object.values(windows).filter(w => w.isMinimized)
 
   return (
-    <main className="relative flex h-screen w-full overflow-hidden bg-[#0a0a0a] text-stone-100 font-sans">
+    <main className="relative flex h-screen w-full overflow-hidden bg-[#0a0a0a] text-stone-100 font-sans" id="layout-container">
       <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={100} color="#f97316" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-40" width={24} height={24} cx={12} cy={12} cr={0.8} />
 
-      {/* Floating agent visualizer window */}
-      <FloatingAgentWindow
-        intensityRef={intensityRef}
-        isGenerating={isGenerating}
-        isConnected={isConnected}
-      />
+      <DropDownSign show={showSign} onComplete={() => setShowSign(false)} />
 
-      {/* Full-screen masonry gallery */}
-      <div
-        className="relative z-10 flex flex-1 flex-col overflow-hidden pb-20"
-        data-testid="creative-spark-gallery-area"
-      >
-        <MasonryGallery
-          artifactList={artifactList}
-          isGenerating={isGenerating}
-          downloadArtifact={downloadArtifact}
-          downloadAllArtifacts={downloadAllArtifacts}
-        />
+      {/* Top Left Toolbar: Back, Reset Layout, Help */}
+      <SparkToolbar onGoBack={onGoBack} onResetLayout={resetLayout} />
+
+      {/* Minimized Dock */}
+      <div className="absolute bottom-24 left-4 z-[100] flex flex-col-reverse gap-2">
+        <AnimatePresence>
+          {minimizedWindows.map(w => (
+            <motion.div
+              key={w.id}
+              initial={{ opacity: 0, x: -20, scale: 0.8 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -20, scale: 0.8 }}
+            >
+              <Button
+                variant="outline"
+                onClick={() => toggleMinimize(w.id)}
+                className="gap-2 rounded-xl border-white/[0.08] bg-black/80 backdrop-blur-xl text-stone-300 hover:bg-white/[0.1] hover:border-orange-500/30 shadow-2xl h-10 px-4"
+              >
+                <Maximize2 className="size-3.5 text-orange-400" />
+                <span className="text-xs font-mono tracking-wider">{w.title}</span>
+              </Button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
-      {/* Conversation panel toggle button — positioned below the gallery top bar to avoid overlap with Download All */}
-      <button
-        type="button"
-        onClick={() => setIsPanelOpen((v) => !v)}
-        aria-label={isPanelOpen ? 'Hide conversation' : 'Show conversation'}
-        data-testid="conversation-panel-toggle"
-        className={cn(
-          'fixed z-50 flex items-center justify-center rounded-2xl border border-white/[0.08] shadow-lg backdrop-blur-xl transition-all duration-300',
-          'hover:scale-105 hover:border-orange-500/30 hover:shadow-orange-500/10',
-          isPanelOpen
-            ? 'right-[416px] top-5 size-10 bg-white/[0.06]'
-            : 'right-5 top-16 gap-2 bg-orange-500/10 px-4 py-2.5',
-        )}
-      >
-        {isPanelOpen ? (
-          <X className="size-4 text-stone-400" />
-        ) : (
-          <>
-            <MessageSquareText className="size-4 text-orange-400" />
-            {messages.length > 0 && (
-              <span className="text-xs font-medium text-orange-300">
-                {messages.length}
-              </span>
-            )}
-          </>
-        )}
-      </button>
-
-      {/* Collapsible conversation panel — slides in from right */}
-      <AnimatePresence>
-        {isPanelOpen && (
-          <motion.div
-            initial={{ x: PANEL_WIDTH + 16 }}
-            animate={{ x: 0 }}
-            exit={{ x: PANEL_WIDTH + 16 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 z-40 flex h-full flex-col overflow-hidden border-l border-white/[0.08] bg-black/70 backdrop-blur-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
-            style={{ width: PANEL_WIDTH }}
-            data-testid="conversation-panel"
+      {/* Draggable Windows */}
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        <div className="pointer-events-auto">
+          <DraggableWindow
+            key={`visualizer-${layoutKey}`}
+            title={windows.visualizer.title}
+            defaultState={windows.visualizer.defaultState}
+            isMinimized={windows.visualizer.isMinimized}
+            isMaximized={windows.visualizer.isMaximized}
+            onMinimize={() => toggleMinimize('visualizer')}
+            onMaximize={() => toggleMaximize('visualizer')}
+            onRestore={() => toggleMaximize('visualizer')}
+            zIndex={windows.visualizer.zIndex}
+            onFocus={() => bringToFront('visualizer')}
+            bounds="#layout-container"
           >
-            <ConversationPanel
-              messages={messages}
-              messagesEndRef={messagesEndRef}
-              mobile={false}
-              sessionTitle={sessionTitle}
-              onCreateShare={onCreateShare}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="w-full h-full p-1 bg-black/20">
+              <AgentVisualizer
+                intensityRef={intensityRef}
+                isGenerating={isGenerating}
+                isConnected={isConnected}
+                className="w-full h-full rounded-xl object-cover"
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
+          </DraggableWindow>
 
-      {/* Floating controls — fixed at bottom center */}
-      <div
-        className="fixed inset-x-0 bottom-4 z-50 flex justify-center pointer-events-none"
-        data-testid="persistent-controls"
-      >
-        <div className="pointer-events-auto w-full max-w-lg px-4">
-          <CreativeSparkControls
-            isConnected={isConnected}
-            isStarting={isStarting}
-            inputText={inputText}
-            setInputText={setInputText}
-            handleSend={handleSend}
-            handleConnect={handleConnect}
-            stop={stop}
-            layout="desktop"
-          />
+          <DraggableWindow
+            key={`output-${layoutKey}`}
+            title={windows.output.title}
+            defaultState={windows.output.defaultState}
+            isMinimized={windows.output.isMinimized}
+            isMaximized={windows.output.isMaximized}
+            onMinimize={() => toggleMinimize('output')}
+            onMaximize={() => toggleMaximize('output')}
+            onRestore={() => toggleMaximize('output')}
+            zIndex={windows.output.zIndex}
+            onFocus={() => bringToFront('output')}
+            bounds="#layout-container"
+          >
+            <div className="w-full h-full overflow-hidden flex flex-col bg-black/40">
+              <MasonryGallery
+                artifactList={artifactList}
+                isGenerating={isGenerating}
+                downloadArtifact={downloadArtifact}
+                downloadAllArtifacts={downloadAllArtifacts}
+              />
+            </div>
+          </DraggableWindow>
+
+          <DraggableWindow
+            key={`conversation-${layoutKey}`}
+            title={windows.conversation.title}
+            defaultState={windows.conversation.defaultState}
+            isMinimized={windows.conversation.isMinimized}
+            isMaximized={windows.conversation.isMaximized}
+            onMinimize={() => toggleMinimize('conversation')}
+            onMaximize={() => toggleMaximize('conversation')}
+            onRestore={() => toggleMaximize('conversation')}
+            zIndex={windows.conversation.zIndex}
+            onFocus={() => bringToFront('conversation')}
+            bounds="#layout-container"
+          >
+            <div className="w-full h-full overflow-hidden flex flex-col bg-black/60">
+              <ConversationPanel
+                messages={messages}
+                messagesEndRef={messagesEndRef}
+                mobile={false}
+                sessionTitle={sessionTitle}
+                onCreateShare={onCreateShare}
+                isConnected={isConnected}
+                isStarting={isStarting}
+                isMicPaused={isMicPaused}
+                handleConnect={handleConnect}
+                stop={stop}
+                toggleMicPause={toggleMicPause}
+              />
+            </div>
+          </DraggableWindow>
         </div>
       </div>
 
@@ -152,7 +253,7 @@ export function CreativeSparkDesktopLayout({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md"
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-md"
             data-testid="auto-start-error-overlay"
           >
             <motion.div
@@ -202,3 +303,5 @@ export function CreativeSparkDesktopLayout({
     </main>
   )
 }
+
+

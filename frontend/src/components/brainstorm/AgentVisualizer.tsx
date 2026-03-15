@@ -362,8 +362,10 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
           oy = 0
         }
 
+        ctx.imageSmoothingEnabled = true
         ctx.drawImage(bg, ox, oy, drawW, drawH)
 
+        ctx.imageSmoothingEnabled = false
         const scale = drawW / IMG_W
         const agents = [gemini, flash].sort((a, b) => a.y - b.y)
         for (const a of agents) {
