@@ -36,7 +36,7 @@ export function HeroSection({ onLaunch }: { onLaunch: () => void }) {
               <AnimatedTextRoller
                 className="text-3xl sm:text-5xl md:text-7xl"
                 prefixClassName="font-extrabold tracking-tight text-white drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                itemClassName="font-extrabold drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]"
+                itemClassName="font-extrabold"
                 items={voidpilotHeroItems}
               />
             </h1>
