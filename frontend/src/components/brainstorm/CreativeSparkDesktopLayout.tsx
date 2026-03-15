@@ -142,7 +142,7 @@ export function CreativeSparkDesktopLayout({
       <DropDownSign show={showSign} onComplete={() => setShowSign(false)} />
 
       {/* Top Left Toolbar: Back, Reset Layout, Help */}
-      <SparkToolbar onGoBack={onGoBack} onResetLayout={resetLayout} />
+      <SparkToolbar onGoBack={onGoBack} onResetLayout={resetLayout} onCreateShare={onCreateShare} />
 
       {/* Minimized Dock */}
       <div className="absolute bottom-24 left-4 z-[100] flex flex-col-reverse gap-2">
@@ -247,7 +247,6 @@ export function CreativeSparkDesktopLayout({
                 messagesEndRef={messagesEndRef}
                 mobile={false}
                 sessionTitle={sessionTitle}
-                onCreateShare={onCreateShare}
                 isConnected={isConnected}
                 isStarting={isStarting}
                 isMicPaused={isMicPaused}

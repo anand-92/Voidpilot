@@ -17,6 +17,7 @@ export type BrainstormLibrarySession = {
   title: string
   createdAt: string
   updatedAt: string
+  thumbnailArtifactId?: string
 }
 
 type BrainstormSessionResponse = {

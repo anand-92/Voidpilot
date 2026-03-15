@@ -294,3 +294,49 @@ def download_brainstorm_artifact(
         raise_session_dependency_error(exc)
 
     return content_bytes, mime_type, filename
+
+
+_IMAGE_VIDEO_PREFIXES = ("image/", "video/")
+
+
+def get_thumbnail_artifact_ids(
+    services: BrainstormPersistenceServices,
+    *,
+    session_ids: list[str],
+) -> dict[str, str]:
+    """Return a mapping of session_id -> first image/video artifact_id.
+
+    Queries the artifacts subcollection for each session and picks the
+    most recently created image or video artifact. Sessions with no
+    image/video artifacts are omitted from the result.
+    """
+    result: dict[str, str] = {}
+
+    for sid in session_ids:
+        artifacts_collection = (
+            _sessions_collection(services)
+            .document(sid)
+            .collection(BRAINSTORM_ARTIFACTS_SUBCOLLECTION)
+        )
+        try:
+            snapshots = list(artifacts_collection.stream())
+        except (
+            BrainstormFirebaseConfigurationError,
+            DefaultCredentialsError,
+            google_api_exceptions.GoogleAPICallError,
+        ) as exc:
+            logger.warning("Failed to load artifacts for session %s: %s", sid, exc)
+            continue
+
+        candidates = []
+        for snap in snapshots:
+            data = snap.to_dict()
+            mime = data.get("mime_type", "")
+            if any(mime.startswith(prefix) for prefix in _IMAGE_VIDEO_PREFIXES):
+                candidates.append(data)
+
+        if candidates:
+            candidates.sort(key=lambda a: a.get("created_at") or "", reverse=True)
+            result[sid] = candidates[0]["artifact_id"]
+
+    return result
