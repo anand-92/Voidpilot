@@ -11,6 +11,10 @@ const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
 const wsHost = window.location.host
 export const API_BASE_URL = `${wsProtocol}//${wsHost}`
 
+export type ActiveAudioPlaybackRef = {
+  current: Set<AudioBufferSourceNode>
+}
+
 export function pcm16ToFloat32(pcmData: Int16Array): Float32Array {
   const floatData = new Float32Array(pcmData.length)
   for (let i = 0; i < pcmData.length; i += 1) {
@@ -99,12 +103,25 @@ export function scheduleAudioPlayback(
   audioContext: AudioContext,
   floatData: Float32Array,
   nextPlayTimeRef: { current: number },
+  activePlaybackRef?: ActiveAudioPlaybackRef,
 ): { startTime: number; endTime: number } {
   const audioBuffer = audioContext.createBuffer(1, floatData.length, SAMPLE_RATE)
   audioBuffer.getChannelData(0).set(floatData)
   const bufferSource = audioContext.createBufferSource()
   bufferSource.buffer = audioBuffer
   bufferSource.connect(audioContext.destination)
+
+  if (activePlaybackRef) {
+    activePlaybackRef.current.add(bufferSource)
+    bufferSource.onended = () => {
+      activePlaybackRef.current.delete(bufferSource)
+      try {
+        bufferSource.disconnect()
+      } catch {
+        // no-op
+      }
+    }
+  }
 
   const now = audioContext.currentTime
   if (nextPlayTimeRef.current < now) nextPlayTimeRef.current = now + 0.05
@@ -114,4 +131,24 @@ export function scheduleAudioPlayback(
   nextPlayTimeRef.current = endTime
 
   return { startTime, endTime }
+}
+
+export function stopScheduledAudioPlayback(activePlaybackRef: ActiveAudioPlaybackRef): void {
+  const activeSources = Array.from(activePlaybackRef.current)
+  activePlaybackRef.current.clear()
+
+  activeSources.forEach((bufferSource) => {
+    try {
+      bufferSource.onended = null
+      bufferSource.stop(0)
+    } catch {
+      // no-op
+    }
+
+    try {
+      bufferSource.disconnect()
+    } catch {
+      // no-op
+    }
+  })
 }

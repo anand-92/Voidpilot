@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 CTRL_TOKEN_PATTERN = re.compile(r"<ctrl\d+>", re.IGNORECASE)
 MAX_TEXT_CHUNK_OVERLAP = 120
+MIN_TEXT_CHUNK_OVERLAP = 2
+SPACE_PREFIX_CHARS = frozenset(".!?,:;)]}\"”")
 
 
 def _is_safe_live_text_char(char: str) -> bool:
@@ -27,13 +29,34 @@ def _is_safe_live_text_char(char: str) -> bool:
 def _sanitize_live_text(text: str) -> str:
     cleaned = CTRL_TOKEN_PATTERN.sub("", text)
     cleaned = "".join(char for char in cleaned if _is_safe_live_text_char(char))
-    return cleaned.strip()
+    return cleaned
+
+
+def _is_live_text_word_char(char: str) -> bool:
+    return char.isalnum()
+
+
+def _is_live_text_overlap_start(text: str, index: int) -> bool:
+    if index <= 0:
+        return True
+    return not _is_live_text_word_char(text[index - 1])
+
+
+def _is_live_text_overlap_end(text: str, index: int) -> bool:
+    if index >= len(text):
+        return True
+    return not _is_live_text_word_char(text[index])
 
 
 def _find_live_text_overlap(previous_text: str, next_text: str) -> int:
     max_overlap = min(len(previous_text), len(next_text), MAX_TEXT_CHUNK_OVERLAP)
-    for size in range(max_overlap, 0, -1):
-        if previous_text.endswith(next_text[:size]):
+    for size in range(max_overlap, MIN_TEXT_CHUNK_OVERLAP - 1, -1):
+        prefix = next_text[:size]
+        if (
+            previous_text.endswith(prefix)
+            and _is_live_text_overlap_start(previous_text, len(previous_text) - size)
+            and _is_live_text_overlap_end(next_text, size)
+        ):
             return size
     return 0
 
@@ -47,7 +70,9 @@ def _needs_live_text_separator(previous_text: str, next_text: str) -> bool:
     if previous_char.isspace() or next_char.isspace():
         return False
 
-    return previous_char.isalnum() and next_char.isalnum()
+    return (
+        previous_char.isalnum() and next_char.isalnum()
+    ) or (previous_char in SPACE_PREFIX_CHARS and next_char.isalnum())
 
 
 def _merge_live_text(previous_text: str, next_text: str) -> str:
@@ -148,7 +173,7 @@ class GeminiLive:
 
     def _buffer_model_text(self, text: str) -> None:
         clean_text = _sanitize_live_text(text)
-        if not clean_text:
+        if not clean_text.strip():
             return
         self._pending_model_text = _merge_live_text(
             self._pending_model_text,
@@ -183,7 +208,7 @@ class GeminiLive:
         text: str,
     ) -> None:
         clean_text = _sanitize_live_text(text)
-        if not clean_text:
+        if not clean_text.strip():
             return
         if role == "gemini":
             self._saw_output_transcription_this_turn = True

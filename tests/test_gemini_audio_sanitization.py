@@ -18,6 +18,16 @@ def test_sanitize_live_text_removes_ctrl_markers_and_control_chars():
 def test_merge_live_text_restores_word_boundaries_and_deduplicates_overlap():
     assert _merge_live_text("What color", "is the wall") == "What color is the wall"
     assert _merge_live_text("the wall", "wall in front") == "the wall in front"
+    assert _merge_live_text("Want", "to see") == "Want to see"
+    assert _merge_live_text("cosmic", "colors") == "cosmic colors"
+    assert (
+        _merge_live_text("That isn't a vape.", "It's alien tech")
+        == "That isn't a vape. It's alien tech"
+    )
+
+
+def test_sanitize_live_text_preserves_boundary_whitespace_for_chunk_merging():
+    assert _sanitize_live_text(" It's still spaced") == " It's still spaced"
 
 
 @pytest.mark.asyncio
