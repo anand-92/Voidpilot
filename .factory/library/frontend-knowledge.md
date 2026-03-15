@@ -7,8 +7,13 @@ Mission-specific frontend guidance for the walkthrough revamp.
 - Existing walkthrough entry and shell files:
   - `frontend/src/components/landing/IndexView.tsx`
   - `frontend/src/pages/LandingPage.tsx`
-  - `frontend/src/components/WalkthroughModal.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughOverlay.tsx` (main overlay shell)
+  - `frontend/src/components/walkthrough/WalkthroughTranscript.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughComposer.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughStarterPrompts.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughExplainer.tsx`
   - `frontend/src/hooks/useWalkthroughAgent.ts`
+  - `frontend/src/types/walkthrough.ts` (discriminated-union types for all walkthrough events and state)
 - Existing reusable UI primitives in `frontend/src/components/ui/` that are likely useful here:
   - `button.tsx`
   - `badge.tsx`

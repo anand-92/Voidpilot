@@ -38,8 +38,13 @@ Worker-facing architecture notes for the walkthrough revamp mission.
 - The most relevant files are:
   - `frontend/src/components/landing/IndexView.tsx`
   - `frontend/src/pages/LandingPage.tsx`
-  - `frontend/src/components/WalkthroughModal.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughOverlay.tsx` (main overlay shell)
+  - `frontend/src/components/walkthrough/WalkthroughTranscript.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughComposer.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughStarterPrompts.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughExplainer.tsx`
   - `frontend/src/hooks/useWalkthroughAgent.ts`
+  - `frontend/src/types/walkthrough.ts`
 - Reuse the existing landing-page visual language: dark glass surfaces, amber/stone accents, and framer-motion transitions.
 - Reuse existing `frontend/src/components/ui/*` primitives where possible instead of inventing custom structural markup.
 

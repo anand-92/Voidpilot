@@ -1,0 +1,63 @@
+{
+  "featureId": "walkthrough-transport-and-test-foundation",
+  "reviewedAt": "2026-03-15T19:15:00.000Z",
+  "commitId": "6c32f612d694d0e24b5a37e3c5ba80fdce20400e",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid foundational transport work. The frontend hook provides a clean normalized contract with transcript chunk-merging, tool activity lifecycle, connection state machine, typed-input fallback, and graceful mic-denied degradation. Backend tests cover event forwarding for all walkthrough-relevant event types. Types are well-structured as a discriminated union. All four expectedBehavior items are fully addressed. A few minor lint and consistency issues found in the test file and one edge-case gap in the hook, none blocking.",
+    "issues": [
+      {
+        "file": "tests/test_walkthrough.py",
+        "line": 4,
+        "severity": "non_blocking",
+        "description": "Unused import `types.SimpleNamespace` — caught by ruff F401 but the project only lints `src/`, not `tests/`."
+      },
+      {
+        "file": "tests/test_walkthrough.py",
+        "line": 10,
+        "severity": "non_blocking",
+        "description": "Unused import `router` from walkthrough endpoint — also caught by ruff F401 when run on tests."
+      },
+      {
+        "file": "tests/test_walkthrough.py",
+        "line": 29,
+        "severity": "non_blocking",
+        "description": "Line too long (90 > 88 chars) — ruff E501 violation. The assert on `test_prompt_redirects_off_topic` exceeds the 88-char limit."
+      },
+      {
+        "file": "tests/test_walkthrough.py",
+        "line": 1,
+        "severity": "non_blocking",
+        "description": "Import block is unsorted (ruff I001). Total: 4 ruff violations when linting tests/ directly."
+      },
+      {
+        "file": "frontend/src/hooks/useWalkthroughAgent.ts",
+        "line": 310,
+        "severity": "non_blocking",
+        "description": "On `interrupted` event, the hook resets `toolActivity` to idle but does NOT update the inline `tool_activity` transcript entry (which stays at `searching`). This creates a minor inconsistency between the header-level tool status and the inline transcript entry. Downstream UI work should decide the visual treatment."
+      },
+      {
+        "file": "frontend/src/hooks/useWalkthroughAgent.ts",
+        "line": 378,
+        "severity": "non_blocking",
+        "description": "When microphone access is denied, `audioContextRef.current` was already created (line 371) but the early `return` on line 378 doesn't clean it up. The AudioContext will be cleaned up when `stop()` is eventually called, so this leaks only temporarily. Minor resource hygiene issue."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The project's ruff lint command in services.yaml and AGENTS.md only covers `src/` (`uv run ruff check src/`), not `tests/`. This means test file lint violations (unused imports, import sorting, line length) go undetected during validation. The test file has 4 ruff violations that passed CI because tests/ was never linted.",
+      "evidence": "services.yaml lint command: `uv run ruff check src/ && npm --prefix frontend run lint`. Running `uv run ruff check tests/test_walkthrough.py` finds F401 (SimpleNamespace, router unused), I001 (unsorted imports), E501 (line 29 too long)."
+    },
+    {
+      "area": "skills",
+      "observation": "The fullstack-worker skill step 4 says to invoke the shadcn skill before composing walkthrough UI. The worker correctly skipped this for transport-only work but noted it in skillFeedback. The skill could explicitly note that shadcn invocation is only needed when composing visible walkthrough shell/UI components, not for hook/type transport work.",
+      "evidence": "skillFeedback.suggestedChanges: 'The fullstack-worker skill step 4 says to invoke the shadcn skill for UI work, but this foundational transport feature had no UI composition work — only hook/type changes.'"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The walkthrough transport foundation passes review. The commit delivers a clean normalized event contract between backend and frontend: discriminated-union types for all server events, a rewritten useWalkthroughAgent hook with transcript chunk-merging, tool activity lifecycle, connection state machine with degraded/error states, sendText() typed fallback through the same live session, and 19+ new backend tests covering event forwarding, transcript sanitization, tool lifecycle, interruption, and error events. All four expectedBehavior items are met. Non-blocking issues: 4 ruff violations in the test file (unused imports, sorting, line length) that go undetected because the project only lints src/; an edge-case where inline tool_activity transcript entries aren't updated on interrupt; and a minor AudioContext leak on mic denial. None require a fix before downstream features proceed."
+}

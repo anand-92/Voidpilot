@@ -1,0 +1,73 @@
+{
+  "featureId": "walkthrough-shell-and-explainer-revamp",
+  "reviewedAt": "2026-03-15T19:45:00.000Z",
+  "commitId": "25bc8f4",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of a transcript-first, split-pane walkthrough overlay. The worker created five well-structured walkthrough components (WalkthroughOverlay, WalkthroughTranscript, WalkthroughComposer, WalkthroughStarterPrompts, WalkthroughExplainer) plus a comprehensive useWalkthroughAgent hook with text-chunk merging, tool result classification, inline tool activity tracking, and graceful mic-unavailable degradation. The overlay uses @base-ui/react Dialog for accessible overlay mechanics (focus trap, Escape close, background inertness). LandingPage integration is a clean swap from WalkthroughModal to WalkthroughOverlay, preserving the no-sign-in overlay model. The explainer copy is technically accurate — correctly describes backend tool call + separate Gemini model + File Search store without claiming native Gemini Live File Search. The old WalkthroughModal.tsx was removed. Responsive layout uses standard md: breakpoint Tailwind classes. Code uses ?? over || for defaults and avoids eslint-disable. No blocking issues found.",
+    "issues": [
+      {
+        "file": "frontend/src/components/walkthrough/WalkthroughOverlay.tsx",
+        "line": 128,
+        "severity": "non_blocking",
+        "description": "The MiniVisualizer canvas drawing function uses non-null assertions (ctx!, canvas!) extensively. While the early null-return guards make these safe in practice, the repeated pattern is slightly fragile; extracting ctx and canvas into captured closure variables after the guard would be cleaner."
+      },
+      {
+        "file": "frontend/src/components/walkthrough/WalkthroughOverlay.tsx",
+        "line": 220,
+        "severity": "non_blocking",
+        "description": "The `start` and `stop` callbacks are in the useEffect dependency array for auto-start on open. If start/stop reference identities change on every render (they don't currently since they're wrapped in useCallback), this could cause infinite re-start loops. The current implementation is safe because useCallback stabilizes them, but this is a fragile coupling worth noting."
+      },
+      {
+        "file": "frontend/src/components/walkthrough/WalkthroughOverlay.tsx",
+        "line": 230,
+        "severity": "non_blocking",
+        "description": "Focus return uses requestAnimationFrame with a captured launcherRef. This is a reasonable approach, but if the launcher element is unmounted between close and the rAF callback, the focus call silently no-ops. Acceptable for this use case since LandingPage doesn't unmount the launcher on walkthrough close."
+      },
+      {
+        "file": "frontend/src/components/walkthrough/WalkthroughTranscript.tsx",
+        "line": 107,
+        "severity": "non_blocking",
+        "description": "Transcript items use `key={`${item.role}-${i}`}` which uses array index. For AnimatePresence popLayout this works since items are append-only, but if items could be reordered or removed (e.g., deduplication), the keys would produce incorrect animations. Acceptable given current append-only semantics."
+      },
+      {
+        "file": "frontend/src/hooks/useWalkthroughAgent.ts",
+        "line": 272,
+        "severity": "non_blocking",
+        "description": "The WebSocket open promise wraps the onopen handler but doesn't handle the case where the WebSocket transitions to CLOSED before OPEN (e.g., immediate server rejection). This would leave the promise unresolved until the component unmounts. The outer try-catch and the ws.onerror/onclose handlers mitigate the UX impact since error/disconnected state will be set, but the dangling promise is technically a minor leak."
+      },
+      {
+        "file": "frontend/src/components/walkthrough/WalkthroughOverlay.tsx",
+        "line": 275,
+        "severity": "non_blocking",
+        "description": "The mobile explainer toggle button has className 'md:hidden' making it only visible on narrow viewports, but the explainerOpen state is shared between mobile and desktop. Toggling the explainer on mobile will also affect the desktop sidebar explainer if the viewport is resized. Minor UX quirk, not a real-world issue."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "The .factory/library/frontend-knowledge.md and .factory/library/architecture.md still reference `frontend/src/components/WalkthroughModal.tsx` as a relevant file, but this component has been replaced by the new `frontend/src/components/walkthrough/WalkthroughOverlay.tsx` and its sibling components. Future workers will be confused by the stale reference.",
+      "evidence": ".factory/library/frontend-knowledge.md lists 'frontend/src/components/WalkthroughModal.tsx' under 'Relevant UI Building Blocks'; .factory/library/architecture.md lists it under 'Frontend Structure Guidance'. The file no longer exists in the repo."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The worker added new walkthrough types in frontend/src/types/walkthrough.ts (WalkthroughTranscriptItem, WalkthroughToolActivityEntry, WalkthroughToolStatus, WalkthroughConnectionStatus, WalkthroughServerEvent union, etc.) and a substantial useWalkthroughAgent hook with text-chunk merging and tool result classification. These are now important entry points for understanding the walkthrough frontend but aren't documented in the library files.",
+      "evidence": "frontend/src/types/walkthrough.ts defines the full type surface; frontend/src/hooks/useWalkthroughAgent.ts is ~310 lines with non-trivial transcript merging logic. Neither is mentioned in .factory/library/frontend-knowledge.md."
+    },
+    {
+      "area": "skills",
+      "observation": "The frontend-worker skill procedure step 2 still lists 'frontend/src/components/WalkthroughModal.tsx' as a file to inspect. This file no longer exists and the walkthrough components now live in the 'frontend/src/components/walkthrough/' directory.",
+      "evidence": ".factory/skills/frontend-worker/SKILL.md step 2 says 'Inspect the current flow first: ... frontend/src/components/WalkthroughModal.tsx'. The replacement is frontend/src/components/walkthrough/WalkthroughOverlay.tsx."
+    },
+    {
+      "area": "conventions",
+      "observation": "The worker used @base-ui/react Dialog for the overlay, which is consistent with the existing button.tsx using @base-ui/react/button. This establishes a pattern of using base-ui primitives for complex interactive components (dialogs, buttons) on top of Tailwind styling, but this convention isn't documented in AGENTS.md or the library.",
+      "evidence": "frontend/src/components/ui/button.tsx imports from '@base-ui/react/button'; WalkthroughOverlay.tsx imports from '@base-ui/react/dialog'. AGENTS.md mentions shadcn/ui but not base-ui explicitly."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. The implementation fully covers the feature description and expected behavior. Five new walkthrough components create a transcript-first split-pane shell with accessible overlay mechanics via @base-ui/react Dialog, immediate starter prompts, a text composer visible from the initial state, responsive narrow-layout behavior, and a technically accurate explainer panel. The LandingPage integration is preserved with no-sign-in overlay entry. The useWalkthroughAgent hook handles all transport concerns including text-chunk merging, tool activity tracking with inline transcript entries, graceful mic-unavailable degradation, and clean session teardown. No blocking issues were found. Six non-blocking code quality notes were flagged (non-null assertions in canvas drawing, shared explainer state between mobile/desktop, index-based keys, dangling promise on immediate WS rejection). Four shared-state observations noted: stale WalkthroughModal references in library and skill files, undocumented walkthrough types/hook, and undocumented base-ui convention."
+}
