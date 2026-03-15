@@ -7,9 +7,10 @@
 
 <br/>
 
-[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Run-4285F4?style=flat-square&logo=google-cloud&logoColor=white)](https://cloud.google.com/run)
-[![Gemini](https://img.shields.io/badge/Gemini-Live%20API-8E75B2?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
-[![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-FFCA28?style=flat-square&logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Run-4285F4?style=flat-square&logo=google-cloud&logoColor=white)](https://cloud.google.com/run/docs)
+[![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-Live%20API-8E75B2?style=flat-square&logo=google&logoColor=white)](https://cloud.google.com/vertex-ai/generative-ai/docs/live-api)
+[![GenAI SDK](https://img.shields.io/badge/Google-GenAI%20SDK-EA4335?style=flat-square&logo=google&logoColor=white)](https://cloud.google.com/vertex-ai/generative-ai/docs/sdks/overview)
+[![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-FFCA28?style=flat-square&logo=firebase&logoColor=black)](https://firebase.google.com/docs/auth)
 [![FastAPI](https://img.shields.io/badge/FastAPI-WebSocket-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React_19-Vite_7-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![Tailwind](https://img.shields.io/badge/Tailwind_v4-CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
@@ -36,7 +37,7 @@ Current AI assistants are trapped in text boxes. You type, you wait, you read. B
 
 Voidpilot connects your microphone directly to Gemini Live over WebSocket, creating an **immersive voice-first AI experience** where you can:
 
-- **Talk naturally** with barge-in support — interrupt the AI mid-sentence, just like a real conversation
+- **Talk naturally** — real-time voice streaming with low-latency turn-taking
 - **Generate images and videos** on the fly while talking — say "show me what that looks like" and watch it appear
 - **Build structured artifacts** — documents, plans, creative briefs — all through voice
 - **Share your sessions** with a single link — anyone can view the full conversation and download generated assets
@@ -48,7 +49,7 @@ Voidpilot connects your microphone directly to Gemini Live over WebSocket, creat
 ### Voice Assistant (Live Mode)
 > *Real-time voice conversation with Gemini Live*
 
-The core experience. Low-latency bidirectional audio streaming over WebSocket with real-time transcription. Supports natural turn-taking and barge-in interruption.
+The core experience. Low-latency bidirectional audio streaming over WebSocket with real-time transcription and natural turn-taking.
 
 ### Open Studio (Brainstorm Mode)
 > *Full-featured creative workspace with multi-agent orchestration*
@@ -121,7 +122,7 @@ Embeddable voice overlay for guided experiences. Pass a custom system prompt via
 
 | Layer | Technology |
 |-------|-----------|
-| **AI / LLM** | Gemini 2.0 Flash (Live API), Google GenAI SDK, multi-model delegation |
+| **AI / LLM** | Gemini 2.5 Flash (Live API), Google GenAI SDK, multi-model delegation |
 | **Backend** | FastAPI, Python 3.12+, WebSocket streaming, `pydantic-settings` |
 | **Frontend** | React 19, Vite 7, TypeScript 5.9, Tailwind v4, shadcn/ui, Framer Motion |
 | **Auth & Data** | Firebase Auth (Email + Google), Firestore, Cloud Storage |
@@ -135,11 +136,11 @@ Embeddable voice overlay for guided experiences. Pass a custom system prompt via
 
 | Service | Purpose |
 |---------|---------|
-| **Cloud Run** | Hosts the containerized FastAPI backend + static frontend |
-| **Gemini Live API** | Real-time bidirectional audio/text streaming via `google-genai` SDK |
-| **Firebase Auth** | User authentication (Email/Password + Google Sign-In) |
-| **Firestore** | Session metadata, transcript persistence, artifact records |
-| **Cloud Storage** | Generated image/video/markdown artifact storage |
+| [**Cloud Run**](https://cloud.google.com/run/docs) | Hosts the containerized FastAPI backend + static frontend |
+| [**Gemini Live API**](https://cloud.google.com/vertex-ai/generative-ai/docs/live-api) | Real-time bidirectional audio/text streaming via [`google-genai` SDK](https://cloud.google.com/vertex-ai/generative-ai/docs/sdks/overview) |
+| [**Firebase Auth**](https://firebase.google.com/docs/auth) | User authentication (Email/Password + Google Sign-In) |
+| [**Firestore**](https://firebase.google.com/docs/firestore) | Session metadata, transcript persistence, artifact records |
+| [**Cloud Storage**](https://firebase.google.com/docs/storage) | Generated image/video/markdown artifact storage |
 
 ---
 
@@ -261,7 +262,7 @@ npm run build                    # TypeScript + Vite build
 
 | Criterion | How Voidpilot Delivers |
 |-----------|----------------------|
-| **Beyond Text** | Voice-first interaction with barge-in, real-time image/video generation during conversation |
+| **Beyond Text** | Voice-first interaction, real-time image/video generation during conversation |
 | **Live & Context-Aware** | Bidirectional WebSocket audio streaming, session resumption, context compression |
 | **Multi-Agent** | Gemini Live orchestrates Flash models for parallel artifact generation |
 | **Cloud Native** | Full Google Cloud stack — Cloud Run, Gemini Live API, Firebase Auth/Firestore/Storage |
@@ -274,8 +275,8 @@ npm run build                    # TypeScript + Vite build
 
 **Built with Gemini Live API on Google Cloud**
 
-[![Google Cloud](https://img.shields.io/badge/Powered_by-Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com)
-[![Gemini](https://img.shields.io/badge/Built_with-Gemini_Live-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
+[![Google Cloud](https://img.shields.io/badge/Powered_by-Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com/run/docs)
+[![Gemini](https://img.shields.io/badge/Built_with-Gemini_2.5_Flash_Live-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://cloud.google.com/vertex-ai/generative-ai/docs/live-api)
 
 Made for the [Gemini Live Agent Challenge](https://geminiliveagentchallenge.devpost.com/) | #GeminiLiveAgentChallenge
 
