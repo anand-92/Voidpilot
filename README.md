@@ -1,8 +1,6 @@
 <div align="center">
 
-# VOIDPILOT
-
-### AI that hears your voice and takes the wheel.
+<img src="docs/assets/banner.png" alt="Voidpilot Banner" width="100%" />
 
 [![Live Demo](https://img.shields.io/badge/LIVE_DEMO-hackathon.remembr--ai.com-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://hackathon.remembr-ai.com)
 [![Demo Video](https://img.shields.io/badge/DEMO_VIDEO-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](#demo-video)
