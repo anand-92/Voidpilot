@@ -29,21 +29,21 @@ const indexCards = [
   ...sections.map((section) => ({
     key: section.id,
     label: section.label,
-    subtitle: section.subtitle,
+    subtitle: 'Built for the Gemini Live Agent Challenge — explore the hackathon categories, prizes, and submission details.',
     icon: section.icon,
     color: section.color,
   })),
   {
     key: 'walkthrough' as const,
     label: 'Talk to Voidpilot',
-    subtitle: 'Voice walkthrough agent',
+    subtitle: 'Have a real-time voice conversation with Gemini Live. Low-latency audio streaming with transcription — just press connect and start talking.',
     icon: IconWalkthroughVoid,
     color: 'rose',
   },
   {
     key: 'brainstorm' as const,
     label: 'Brainstorm Mode',
-    subtitle: 'Voice-driven ideation',
+    subtitle: 'A creative workspace where you talk and Gemini generates images, videos, and documents in real time. Choose Open Studio or Creative Spark.',
     icon: IconBrainstorm,
     color: 'stone',
   },
@@ -135,14 +135,14 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
               >
                 <button
                   onClick={handleClick}
-                  className={`group relative flex h-full w-full items-center gap-3 rounded-2xl p-3 text-left transition-all duration-300 md:block md:min-h-[250px] md:p-6`}
+                  className={`group relative flex h-full w-full items-center gap-3 rounded-2xl p-3 text-left transition-all duration-300 md:flex md:flex-col md:items-center md:text-center md:min-h-[280px] md:p-6`}
                 >
-                  <div className={`shrink-0 inline-flex h-9 w-9 md:h-11 md:w-11 md:mb-3 items-center justify-center rounded-xl ${colors?.bg} ${colors?.text}`}>
-                    <Icon className="h-5 w-5 md:h-6 md:w-6" />
+                  <div className={`shrink-0 inline-flex h-12 w-12 md:h-16 md:w-16 md:mb-4 items-center justify-center rounded-2xl ${colors?.bg} ${colors?.text} transition-transform duration-300 group-hover:scale-110`}>
+                    <Icon className="h-6 w-6 md:h-8 md:w-8" />
                   </div>
-                  <div className="min-w-0 flex-1 md:flex md:min-h-[128px] md:flex-col md:justify-between">
-                    <h3 className="text-base font-bold text-white md:mb-1 md:min-h-[56px] md:text-lg">{card.label}</h3>
-                    <p className="text-xs leading-relaxed text-stone-500 md:min-h-[72px] md:text-sm">{card.subtitle}</p>
+                  <div className="min-w-0 flex-1 md:flex md:flex-col md:items-center">
+                    <h3 className="text-base font-bold text-white md:mb-2 md:text-lg">{card.label}</h3>
+                    <p className="text-xs leading-relaxed text-stone-500 md:text-sm">{card.subtitle}</p>
                   </div>
                   <GeminiArrowRight className={`shrink-0 h-5 w-5 ${colors?.text} md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2 opacity-50 md:opacity-0 md:group-hover:opacity-100 md:group-hover:translate-x-1 transition-all`} />
                 </button>
