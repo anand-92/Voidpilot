@@ -10,6 +10,7 @@ import { AgentVisualizer } from './AgentVisualizer'
 import { MasonryGallery } from './MasonryGallery'
 import { DraggableWindow } from './DraggableWindow'
 import { SparkToolbar } from './SparkToolbar'
+import { VoiceSelector } from './VoiceSelector'
 import { DropDownSign } from './DropDownSign'
 
 type WindowId = 'visualizer' | 'output' | 'conversation'
@@ -32,6 +33,8 @@ export function CreativeSparkDesktopLayout({
   isGenerating,
   messagesEndRef,
   sessionTitle,
+  selectedVoice,
+  setSelectedVoice,
   handleConnect,
   stop,
   isMicPaused,
@@ -226,7 +229,17 @@ export function CreativeSparkDesktopLayout({
             onFocus={() => bringToFront('conversation')}
             bounds="#layout-container"
           >
-            <div className="w-full h-full overflow-hidden flex flex-col bg-black/60">
+            <div className="w-full h-full overflow-hidden flex flex-col bg-black">
+              <div className="border-b border-white/[0.06] bg-stone-950/80 px-3 py-2 backdrop-blur-xl">
+                <div className="max-w-sm">
+                  <VoiceSelector
+                    selectedVoice={selectedVoice}
+                    setSelectedVoice={setSelectedVoice}
+                    disabled={isConnected || isStarting}
+                    compact
+                  />
+                </div>
+              </div>
               <ConversationPanel
                 messages={messages}
                 messagesEndRef={messagesEndRef}

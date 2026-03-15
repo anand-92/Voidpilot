@@ -5,13 +5,11 @@ import { GeminiArrowLeft } from '../components/icons/GeminiIcons';
 import { ThreeBackground } from '../components/ThreeBackground';
 import { CustomCursor } from '../components/CustomCursor';
 import { GeminiLiveLogo } from '../components/icons/CustomIcons';
-import WalkthroughModal from '../components/WalkthroughModal';
+import WalkthroughOverlay from '../components/walkthrough/WalkthroughOverlay';
 import { Button } from '@/components/ui/button';
 import { DotPattern } from '@/components/ui/dot-pattern';
 
 import { IndexView } from '../components/landing/IndexView';
-import { HeroSection } from '../components/landing/HeroSection';
-import { CapabilitiesSection } from '../components/landing/CapabilitiesSection';
 import { HackathonSection } from '../components/landing/HackathonSection';
 import { useAnimatedScroll } from '../components/landing/useAnimatedScroll';
 import { SECTION_SCROLL_MAP, type SectionId } from '../components/landing/LandingConstants';
@@ -43,7 +41,6 @@ export default function LandingPage() {
     setIsWalkthroughOpen(false);
   }, []);
 
-  const triggerSuccess = useCallback(() => haptic.trigger('success'), [haptic]);
   const triggerLight = useCallback(() => haptic.trigger('light'), [haptic]);
 
   return (
@@ -100,12 +97,6 @@ export default function LandingPage() {
             {activeSection === 'index' && (
               <IndexView key="index" onNavigate={navigateTo} onWalkthroughOpen={openWalkthrough} />
             )}
-            {activeSection === 'hero' && (
-              <HeroSection key="hero" onLaunch={triggerSuccess} />
-            )}
-            {activeSection === 'capabilities' && (
-              <CapabilitiesSection key="capabilities" onCardTap={triggerLight} />
-            )}
             {activeSection === 'hackathon' && (
               <HackathonSection key="hackathon" onCardTap={triggerLight} />
             )}
@@ -113,7 +104,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      <WalkthroughModal isOpen={isWalkthroughOpen} onClose={closeWalkthrough} />
+      <WalkthroughOverlay isOpen={isWalkthroughOpen} onClose={closeWalkthrough} />
     </main>
   );
 }

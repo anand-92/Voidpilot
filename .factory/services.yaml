@@ -1,21 +1,25 @@
 commands:
-  install: uv sync && cd frontend && npm install
-  typecheck: uv run mypy src/ && cd frontend && npm exec tsc -b --pretty false
-  build: cd frontend && npm run build
-  test: uv run pytest tests/
-  lint: uv run ruff check src/ && cd frontend && npm run lint
+  install: uv sync && npm --prefix frontend install
+  typecheck: uv run mypy src/
+  build: npm --prefix frontend run build
+  test: uv run pytest tests/ -v
+  lint: uv run ruff check src/ && npm --prefix frontend run lint
+  frontend-build: npm --prefix frontend run build
+  frontend-lint: npm --prefix frontend run lint
+  backend-test-walkthrough: uv run pytest tests/test_walkthrough.py -v
+  backend-test-transcripts: uv run pytest tests/test_gemini_audio_sanitization.py -v
 
 services:
   api:
-    start: FIREBASE_PROJECT_ID=gen-lang-client-0579048282 FIREBASE_STORAGE_BUCKET=gen-lang-client-0579048282.firebasestorage.app PORT=8000 uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000
-    stop: lsof -ti :8000 | xargs kill
+    start: uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000
+    stop: pids=$(lsof -ti :8000); [ -z "$pids" ] || kill $pids
     healthcheck: curl -sf http://127.0.0.1:8000/health
     port: 8000
     depends_on: []
 
   web:
-    start: cd frontend && npm run dev -- --host 127.0.0.1 --port 5173
-    stop: lsof -ti :5173 | xargs kill
+    start: npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173 --clearScreen false
+    stop: pids=$(lsof -ti :5173); [ -z "$pids" ] || kill $pids
     healthcheck: curl -sf http://127.0.0.1:5173
     port: 5173
     depends_on: [api]

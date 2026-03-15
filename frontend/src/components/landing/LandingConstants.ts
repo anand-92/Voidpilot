@@ -1,10 +1,8 @@
-export type SectionId = 'index' | 'hero' | 'capabilities' | 'hackathon';
+export type SectionId = 'index' | 'hackathon';
 
 export const SECTION_SCROLL_MAP: Record<SectionId, number> = {
   index: 0,
-  hero: 0,
-  capabilities: 1,
-  hackathon: 2,
+  hackathon: 1,
 };
 
 export const EASE = [0.22, 1, 0.36, 1] as const;

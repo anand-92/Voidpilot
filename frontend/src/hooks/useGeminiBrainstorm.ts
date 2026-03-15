@@ -32,6 +32,43 @@ import {
   type PersistedTurn,
 } from '@/lib/brainstormPersistenceApi'
 
+export const BRAINSTORM_VOICE_OPTIONS = [
+  { value: 'Zephyr', label: 'Zephyr', description: 'Bright' },
+  { value: 'Puck', label: 'Puck', description: 'Upbeat' },
+  { value: 'Charon', label: 'Charon', description: 'Informative' },
+  { value: 'Kore', label: 'Kore', description: 'Firm' },
+  { value: 'Fenrir', label: 'Fenrir', description: 'Excitable' },
+  { value: 'Leda', label: 'Leda', description: 'Youthful' },
+  { value: 'Orus', label: 'Orus', description: 'Firm' },
+  { value: 'Aoede', label: 'Aoede', description: 'Breezy' },
+  { value: 'Callirrhoe', label: 'Callirrhoe', description: 'Easy-going' },
+  { value: 'Autonoe', label: 'Autonoe', description: 'Bright' },
+  { value: 'Enceladus', label: 'Enceladus', description: 'Breathy' },
+  { value: 'Iapetus', label: 'Iapetus', description: 'Clear' },
+  { value: 'Umbriel', label: 'Umbriel', description: 'Easy-going' },
+  { value: 'Algieba', label: 'Algieba', description: 'Smooth' },
+  { value: 'Despina', label: 'Despina', description: 'Smooth' },
+  { value: 'Erinome', label: 'Erinome', description: 'Clear' },
+  { value: 'Algenib', label: 'Algenib', description: 'Gravelly' },
+  { value: 'Rasalgethi', label: 'Rasalgethi', description: 'Informative' },
+  { value: 'Laomedeia', label: 'Laomedeia', description: 'Upbeat' },
+  { value: 'Achernar', label: 'Achernar', description: 'Soft' },
+  { value: 'Alnilam', label: 'Alnilam', description: 'Firm' },
+  { value: 'Schedar', label: 'Schedar', description: 'Even' },
+  { value: 'Gacrux', label: 'Gacrux', description: 'Mature' },
+  { value: 'Pulcherrima', label: 'Pulcherrima', description: 'Forward' },
+  { value: 'Achird', label: 'Achird', description: 'Friendly' },
+  { value: 'Zubenelgenubi', label: 'Zubenelgenubi', description: 'Casual' },
+  { value: 'Vindemiatrix', label: 'Vindemiatrix', description: 'Gentle' },
+  { value: 'Sadachbia', label: 'Sadachbia', description: 'Lively' },
+  { value: 'Sadaltager', label: 'Sadaltager', description: 'Knowledgeable' },
+  { value: 'Sulafat', label: 'Sulafat', description: 'Warm' },
+] as const
+
+export type BrainstormVoice = (typeof BRAINSTORM_VOICE_OPTIONS)[number]['value']
+
+const DEFAULT_BRAINSTORM_VOICE: BrainstormVoice = 'Aoede'
+
 export const BRAINSTORM_FLASH_MODEL_OPTIONS = [
   { value: 'gemini-3.1-flash-lite', label: 'LITE' },
   { value: 'gemini-3-flash', label: 'FLASH' },
@@ -205,6 +242,9 @@ export function useGeminiBrainstorm() {
   const [sessionTitle, setSessionTitle] = useState<string | null>(null)
   const [selectedFlashModel, setSelectedFlashModel] = useState<BrainstormFlashModel>(
     DEFAULT_BRAINSTORM_FLASH_MODEL,
+  )
+  const [selectedVoice, setSelectedVoice] = useState<BrainstormVoice>(
+    DEFAULT_BRAINSTORM_VOICE,
   )
   const [selectedTools, setSelectedTools] = useState<BrainstormToolId[]>(
     DEFAULT_ENABLED_TOOLS,
@@ -755,6 +795,7 @@ export function useGeminiBrainstorm() {
               session_id: activeSessionIdRef.current,
               session_mode: sessionModeRef.current,
               flash_model: selectedFlashModel,
+              voice_name: selectedVoice,
               enabled_tools: selectedTools,
               brainstorm_type: brainstormTypeRef.current,
             }),
@@ -872,7 +913,7 @@ export function useGeminiBrainstorm() {
     } finally {
       setIsStarting(false)
     }
-  }, [addMessage, selectedFlashModel, selectedTools, stop, queueToolResultTurn, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing, persistCurrentTurns, clearScheduledAudioPlayback])
+  }, [addMessage, selectedFlashModel, selectedVoice, selectedTools, stop, queueToolResultTurn, handleArtifactMessage, handleTextMessage, handleAudioMessage, setupAudioProcessing, persistCurrentTurns, clearScheduledAudioPlayback])
 
   const sendText = useCallback(
     (text: string) => {
@@ -910,6 +951,8 @@ export function useGeminiBrainstorm() {
     intensityRef,
     selectedFlashModel,
     setSelectedFlashModel,
+    selectedVoice,
+    setSelectedVoice,
     selectedTools,
     setSelectedTools,
     updateBrainstormType,

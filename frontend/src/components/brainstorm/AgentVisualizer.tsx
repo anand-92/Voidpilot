@@ -94,7 +94,7 @@ function findNearestWalkable(maskData: Uint8ClampedArray, x: number, y: number):
 export function AgentVisualizer({ intensityRef, isGenerating, isConnected, className, style }: AgentVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const geminiRef = useRef(createAgent('Gemini', 'Voice', '#fbbf24', 700, 1200))
-  const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 2300, 1100))
+  const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 850, 1200))
   const spriteImgRef = useRef<HTMLImageElement | null>(null)
   const scanSpriteRef = useRef<HTMLImageElement | null>(null)
   const bgImgRef = useRef<HTMLImageElement | null>(null)

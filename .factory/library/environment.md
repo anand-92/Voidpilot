@@ -2,36 +2,32 @@
 
 Environment variables, external dependencies, and setup notes.
 
-**What belongs here:** Required env vars, external services, setup notes, and deployment/environment facts.
+**What belongs here:** Required env vars, external dependencies, setup notes, and environment facts. Do not put service ports/commands here; those belong in `.factory/services.yaml`.
 
-## Hackathon Mission Notes
+## Mission Notes
 
-- This mission uses the existing Google Cloud project `gen-lang-client-0579048282` in `us-east1`.
-- Firebase Auth, Firestore, and Cloud Storage are the intended persistence services for brainstorm auth/session storage.
-- The current backend hardcodes a Gemini API key fallback. For this mission that behavior is intentional and must be preserved; workers should not remove it.
-- No separate dev/prod Firebase environments are required for this mission.
+- This mission only needs the existing backend + frontend app stack; it does not introduce any new database, cache, or queue dependency.
+- Docker is not required for this mission.
+- Full voice validation needs a local browser session with microphone permission enabled.
 
 ## External Dependencies
 
-- Node.js (project already uses npm + Vite frontend)
-- Python 3.12+
-- `uv` for Python dependency management
-- Google Cloud CLI access is already available in the environment
-- Firebase CLI is currently not installed; prefer GCP/Firebase setup paths that do not depend on it unless a feature explicitly adds it
-
-## Local Runtime
-
-- Backend dev server runs on `127.0.0.1:8000`
-- Frontend dev server runs on `127.0.0.1:5173`
+- Node.js + npm for the Vite frontend
+- Python 3.12+ with `uv`
+- Google Gemini access for the walkthrough backend
 
 ## Required Environment Variables
 
-- There is no new required mission-level environment variable for the Gemini API key because the existing backend fallback must remain in place for this hackathon mission.
-- Brainstorm backend Firebase services now require `FIREBASE_PROJECT_ID` and `FIREBASE_STORAGE_BUCKET` before private brainstorm auth/persistence paths can initialize successfully.
-- `FIREBASE_LOCATION` defaults to `us-east1`, so workers only need to override it if the mission explicitly moves Firebase resources elsewhere.
-- `FIREBASE_CREDENTIALS_JSON` is optional. When it is unset, the backend falls back to Google Application Default Credentials; local validation can use ADC or a service-account JSON payload, but project/bucket settings still need to be present.
-- The mission now has a provisioned default Firestore database in project `gen-lang-client-0579048282` at `us-east1`, so real brainstorm session library CRUD can use Firestore instead of request stubs during local validation.
-- `.factory/services.yaml` now injects `FIREBASE_PROJECT_ID=gen-lang-client-0579048282` and `FIREBASE_STORAGE_BUCKET=gen-lang-client-0579048282.firebasestorage.app` into the local API start command so manifest-based browser validation uses the correct Firebase project settings.
-- When `GOOGLE_APPLICATION_CREDENTIALS` is unset and the machine has exactly one `~/.config/gcloud/legacy_credentials/*/adc.json` file, the backend can reuse that single legacy ADC file for local Firebase access; if there are zero or multiple legacy ADC candidates, workers should set explicit ADC instead of relying on auto-discovery.
-- The brainstorm frontend auth flow uses checked-in public Firebase web config from `frontend/src/lib/firebaseWebConfig.ts`, so this mission does not require additional `VITE_` Firebase env vars for the browser app.
-- Google popup auth depends on the active frontend origin being allowed by Firebase Auth. Local validation should use the standard brainstorm dev origin (`http://127.0.0.1:5173`) unless the Firebase project is updated to allow additional origins.
+- `GOOGLE_API_KEY` is required by backend settings and must be present in the repo root `.env`.
+- `GEMINI_FILE_SEARCH_STORE_ID` is already configured in `src/app/core/config.py` with the current walkthrough project-context store; no new mission-specific env var is required for it.
+
+## Relevant Existing Configuration
+
+- The walkthrough backend uses the configured File Search store to ground project answers through `search_project_context`.
+- The mission does not require additional Firebase or browser `VITE_` configuration changes.
+- If a worker touches unrelated brainstorm/Firebase code during this mission, that should be treated as suspicious unless the walkthrough change truly depends on it.
+
+## Validation Notes
+
+- Browser validation should restart the backend and frontend fresh using `.factory/services.yaml` before checking the walkthrough flow.
+- Browser automation can validate most shell and transcript/tooling UI states, but final microphone-enabled voice checks may require a headed local browser session.

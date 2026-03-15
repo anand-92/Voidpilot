@@ -30,6 +30,8 @@ export function BrainstormMobileLayout({
   sessionTitle,
   selectedFlashModel,
   setSelectedFlashModel,
+  selectedVoice,
+  setSelectedVoice,
   selectedTools,
   setSelectedTools,
   messagesEndRef,
@@ -135,6 +137,8 @@ export function BrainstormMobileLayout({
                 isStarting={isStarting}
                 selectedFlashModel={selectedFlashModel}
                 setSelectedFlashModel={setSelectedFlashModel}
+                selectedVoice={selectedVoice}
+                setSelectedVoice={setSelectedVoice}
                 selectedTools={selectedTools}
                 setSelectedTools={setSelectedTools}
                 inputText={inputText}

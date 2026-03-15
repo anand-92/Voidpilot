@@ -1,63 +1,60 @@
 # Architecture
 
-Use this file for worker-facing architectural guidance for the brainstorm auth/persistence mission.
+Worker-facing architecture notes for the walkthrough revamp mission.
 
-## Mission Architecture
+## Mission Focus
 
-- Brainstorm auth and persistence are scoped to brainstorm only.
-- Frontend owns Firebase Auth UI and auth state.
-- FastAPI owns persistence and access control.
-- Persisted brainstorm data should be written by backend services, not directly from the browser to Firestore.
+- This mission is scoped to the landing-page `Talk to Voidpilot` walkthrough only.
+- Do not redesign brainstorm flows, share pages, or unrelated backend routes unless a walkthrough change genuinely requires a coordinated fix.
 
-## Session Model
+## Walkthrough Request Flow
 
-- Brainstorm sessions have immutable mode semantics for their lifetime:
-  - `guest`
-  - `persisted`
-- Guest sessions stay ephemeral and must never be upgraded into persisted sessions mid-stream.
-- Signed-in users enter brainstorm through a library-first modal flow.
+1. The landing page opens the walkthrough by toggling local overlay state.
+2. The walkthrough frontend connects to the app backend over `/api/v1/live/walkthrough`.
+3. The backend creates a `GeminiLive` session for realtime audio/text interaction.
+4. The live session is configured with:
+   - input audio transcription
+   - output audio transcription
+   - a single walkthrough tool: `search_project_context`
+5. When Gemini Live needs project context, it emits a tool request.
+6. The backend fulfills that tool by calling `search_project_context`, which uses a separate Gemini `generate_content` request backed by the configured File Search store.
+7. The tool result is returned into the live session, which then continues the walkthrough response.
 
-## Persistence Shape
+## Critical Accuracy Rule
 
-- Firestore stores brainstorm session metadata, saved transcript/turn state, share metadata, and library-facing data.
-- Cloud Storage stores persisted artifact bytes for markdown/images/videos.
-- Backend must preserve coherence between transcript state, artifact metadata, and stored artifact files.
-- Delayed tool/artifact completions must still be written back to the originating session.
+- Do not describe this feature as native Gemini Live File Search.
+- The accurate description is: Gemini Live realtime session over the app backend, plus a backend tool call that invokes a separate Gemini request backed by File Search.
 
-## Sharing Model
+## Walkthrough UX Invariants
 
-- Only persisted signed-in sessions can be shared.
-- Public share pages are read-only and must not start live brainstorm websocket/audio sessions.
-- Public share links always reflect the latest persisted session state.
-- Deleting a session must invalidate the share page and previously copied public artifact URLs immediately.
+- The walkthrough remains a no-sign-in landing-page overlay.
+- The transcript is session-only and must clear on close/reopen.
+- Starter prompts, typed fallback, and spoken turns all belong to the same live session flow.
+- The transcript is the primary surface; the audio visualizer/status area is secondary.
+- Off-topic prompts redirect back to Voidpilot/project help instead of turning the walkthrough into a general-purpose assistant.
 
-## UI Shape
+## Frontend Structure Guidance
 
-- `/#/brainstorm` should open into an animated auth-entry modal.
-- Signed-in users see the session library inside that modal.
-- After auth/guest entry, a mode selection screen appears for NEW sessions (not resumed).
-- Two modes: "Open Studio" (existing behavior) and "Creative Spark" (guided inspiration).
-- Guests can continue into brainstorm but receive no persistence.
-- Public share pages should use the brainstorm visual language without reusing interactive workspace controls.
-- Share pages should render in the mode-appropriate layout (masonry gallery for Creative Spark).
+- The most relevant files are:
+  - `frontend/src/components/landing/IndexView.tsx`
+  - `frontend/src/pages/LandingPage.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughOverlay.tsx` (main overlay shell)
+  - `frontend/src/components/walkthrough/WalkthroughTranscript.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughComposer.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughStarterPrompts.tsx`
+  - `frontend/src/components/walkthrough/WalkthroughExplainer.tsx`
+  - `frontend/src/hooks/useWalkthroughAgent.ts`
+  - `frontend/src/types/walkthrough.ts`
+- Reuse the existing landing-page visual language: dark glass surfaces, amber/stone accents, and framer-motion transitions.
+- Reuse existing `frontend/src/components/ui/*` primitives where possible instead of inventing custom structural markup.
 
-## Brainstorm Modes
+## Backend Structure Guidance
 
-### Open Studio (formerly "Brainstorm Mode")
-- User-driven, open-ended creative workspace
-- All 4 tools: save_brainstorm_artifact, generate_brainstorm_image, generate_brainstorm_video, delegate_to_flash
-- Model waits for user to initiate
-- Layout: AgentVisualizer + WorkspacePanel + ConversationPanel + BrainstormControls
-
-### Creative Spark
-- Model-driven guided inspiration mode
-- Only 2 tools: generate_brainstorm_image, generate_brainstorm_video
-- Model auto-starts speaking with a warmup question
-- Layout: Full-screen masonry gallery + collapsible conversation panel + persistent controls
-- No agent visualizer, no tool toggles, no model selector
-
-## brainstorm_type vs mode
-
-- `mode` field on BrainstormSessionRecord = session lifecycle ("guest" | "persisted"). DO NOT repurpose.
-- `brainstorm_type` field = brainstorm mode ("open_studio" | "creative_spark"). NEW field.
-- brainstorm_type defaults to "open_studio" for backward compatibility with legacy sessions.
+- The most relevant backend files are:
+  - `src/app/api/v1/endpoints/walkthrough.py`
+  - `src/app/services/gemini_audio.py`
+  - `src/app/services/ws_manager.py`
+  - `src/app/services/file_search_service.py`
+  - `src/app/services/tool_defs.py`
+- Preserve the walkthrough route path and project-only system prompt semantics unless the feature explicitly requires a coordinated change.
+- If backend behavior changes, add or expand walkthrough-focused pytest coverage before implementation.
