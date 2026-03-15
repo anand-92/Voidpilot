@@ -362,9 +362,10 @@ export default function WalkthroughOverlay({
                       >
                         <Info />
                       </Button>
-                      {/* Retry on error */}
+                      {/* Retry on error / degraded / disconnected */}
                       {(connectionStatus === 'error' ||
-                        connectionStatus === 'disconnected') && (
+                        connectionStatus === 'disconnected' ||
+                        connectionStatus === 'degraded') && (
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -419,6 +420,25 @@ export default function WalkthroughOverlay({
                       />
                     }
                   />
+
+                  {/* Degraded banner */}
+                  {connectionStatus === 'degraded' && (
+                    <div className="flex items-center gap-2 border-t border-yellow-500/10 bg-yellow-500/5 px-4 py-2 text-xs text-yellow-300">
+                      <AlertCircle className="size-3.5 shrink-0" />
+                      <span className="flex-1">
+                        {errorMessage ?? 'Session degraded — you can still type questions'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={handleRetry}
+                        className="shrink-0 text-yellow-300 hover:text-yellow-200"
+                      >
+                        <RefreshCw data-icon="inline-start" />
+                        Retry
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Error banner */}
                   {connectionStatus === 'error' && (

@@ -430,9 +430,15 @@ export function useWalkthroughAgent() {
 
       ws.onclose = () => {
         console.log('Walkthrough WebSocket closed')
-        setConnectionStatus((prev) =>
-          prev === 'error' || prev === 'degraded' ? prev : 'disconnected',
-        )
+        setConnectionStatus((prev) => {
+          // Keep error state as-is (already has retry affordance)
+          if (prev === 'error') return prev
+          // Degraded + WS closed = promote to error so retry shows
+          if (prev === 'degraded') return 'error'
+          return 'disconnected'
+        })
+        // Fill in an error message when the WS close promotes degraded→error
+        setErrorMessage((prev) => prev ?? 'Connection lost')
       }
 
       wsRef.current = ws

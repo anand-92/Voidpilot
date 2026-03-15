@@ -722,3 +722,257 @@ async def test_walkthrough_tool_call_preserves_error_result():
     ]
     assert len(tool_call_events) >= 1
     assert "Error:" in str(tool_call_events[0].get("result", ""))
+
+
+# ---------------------------------------------------------------------------
+# Cross-area flow: sequential grounding (VAL-CROSS-004)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_walkthrough_sequential_grounding_produces_separate_tool_calls():
+    """Two consecutive project questions in the same walkthrough session
+    each trigger a separate tool_call_start → tool_call cycle, proving
+    fresh grounding for later questions (VAL-CROSS-004)."""
+    received_events: list[dict] = []
+
+    mock_settings = MagicMock()
+    mock_settings.GOOGLE_API_KEY = "test_key"
+
+    with (
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.settings",
+            mock_settings,
+        ),
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.GeminiLive",
+        ) as MockGeminiLive,
+    ):
+        mock_gemini_instance = AsyncMock()
+        MockGeminiLive.return_value = mock_gemini_instance
+
+        async def mock_start_session(*args, **kwargs):
+            # First question triggers grounding
+            yield {
+                "type": "tool_call_start",
+                "name": "search_project_context",
+            }
+            yield {
+                "type": "tool_call",
+                "name": "search_project_context",
+                "args": {"query": "websocket architecture"},
+                "result": "The backend uses FastAPI websockets...",
+            }
+            yield {"type": "gemini", "text": "The websocket layer uses..."}
+            yield {"type": "turn_complete"}
+
+            # Second question triggers a fresh grounding cycle
+            yield {
+                "type": "tool_call_start",
+                "name": "search_project_context",
+            }
+            yield {
+                "type": "tool_call",
+                "name": "search_project_context",
+                "args": {"query": "brainstorm mode tools"},
+                "result": "Brainstorm mode provides save_artifact...",
+            }
+            yield {"type": "gemini", "text": "The brainstorm tools include..."}
+            yield {"type": "turn_complete"}
+
+        mock_gemini_instance.start_session = mock_start_session
+
+        client = TestClient(app)
+        with client.websocket_connect(
+            "/api/v1/live/walkthrough"
+        ) as websocket:
+            end_time = time.time() + 4.0
+            while time.time() < end_time:
+                try:
+                    data = websocket.receive_json(mode="text")
+                    received_events.append(data)
+                except Exception:
+                    break
+
+    tool_start_events = [
+        e for e in received_events if e.get("type") == "tool_call_start"
+    ]
+    tool_call_events = [
+        e for e in received_events if e.get("type") == "tool_call"
+    ]
+
+    # At least two separate tool_call_start and tool_call events per run
+    # (the endpoint retries, so events repeat across attempts)
+    assert len(tool_start_events) >= 2
+    assert len(tool_call_events) >= 2
+
+    # Both distinct queries appear across the received tool_call events
+    queries = [e.get("args", {}).get("query") for e in tool_call_events]
+    assert "websocket architecture" in queries
+    assert "brainstorm mode tools" in queries
+
+
+# ---------------------------------------------------------------------------
+# Cross-area flow: grounding failure then successful follow-up (VAL-CROSS-007)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_walkthrough_grounding_failure_then_success_in_same_session():
+    """A grounding no-result/error in one turn does not prevent a later
+    turn in the same session from completing a successful grounding cycle
+    (VAL-CROSS-007)."""
+    received_events: list[dict] = []
+
+    mock_settings = MagicMock()
+    mock_settings.GOOGLE_API_KEY = "test_key"
+
+    with (
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.settings",
+            mock_settings,
+        ),
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.GeminiLive",
+        ) as MockGeminiLive,
+    ):
+        mock_gemini_instance = AsyncMock()
+        MockGeminiLive.return_value = mock_gemini_instance
+
+        async def mock_start_session(*args, **kwargs):
+            # First turn: grounding fails with no results
+            yield {
+                "type": "tool_call_start",
+                "name": "search_project_context",
+            }
+            yield {
+                "type": "tool_call",
+                "name": "search_project_context",
+                "args": {"query": "nonexistent feature xyz"},
+                "result": "No results found.",
+            }
+            yield {
+                "type": "gemini",
+                "text": "I couldn't find information about that.",
+            }
+            yield {"type": "turn_complete"}
+
+            # Second turn: fresh grounding succeeds
+            yield {
+                "type": "tool_call_start",
+                "name": "search_project_context",
+            }
+            yield {
+                "type": "tool_call",
+                "name": "search_project_context",
+                "args": {"query": "walkthrough endpoint"},
+                "result": "The walkthrough WebSocket endpoint handles...",
+            }
+            yield {
+                "type": "gemini",
+                "text": "The walkthrough endpoint is located at...",
+            }
+            yield {"type": "turn_complete"}
+
+        mock_gemini_instance.start_session = mock_start_session
+
+        client = TestClient(app)
+        with client.websocket_connect(
+            "/api/v1/live/walkthrough"
+        ) as websocket:
+            end_time = time.time() + 4.0
+            while time.time() < end_time:
+                try:
+                    data = websocket.receive_json(mode="text")
+                    received_events.append(data)
+                except Exception:
+                    break
+
+    tool_call_events = [
+        e for e in received_events if e.get("type") == "tool_call"
+    ]
+
+    # Both tool calls are forwarded — failure doesn't block later success
+    # (the endpoint retries, so events repeat across attempts)
+    assert len(tool_call_events) >= 2
+
+    # The no-result and the successful result both appear
+    results = [e.get("result", "") for e in tool_call_events]
+    assert any(r == "No results found." for r in results)
+    assert any("walkthrough" in str(r).lower() for r in results)
+
+    # The successful grounding also produced a Gemini response
+    gemini_events = [
+        e
+        for e in received_events
+        if e.get("type") == "text" and e.get("role") == "gemini"
+    ]
+    assert any("walkthrough" in (e.get("content", "")).lower() for e in gemini_events)
+
+
+# ---------------------------------------------------------------------------
+# Cross-area flow: mid-session error recovery (VAL-CROSS-006)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_walkthrough_error_event_does_not_close_websocket():
+    """A session-level error event is forwarded to the client while
+    the WebSocket itself remains open, allowing typed fallback to
+    continue (VAL-CROSS-006)."""
+    received_events: list[dict] = []
+    ws_still_open = False
+
+    mock_settings = MagicMock()
+    mock_settings.GOOGLE_API_KEY = "test_key"
+
+    with (
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.settings",
+            mock_settings,
+        ),
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.GeminiLive",
+        ) as MockGeminiLive,
+    ):
+        mock_gemini_instance = AsyncMock()
+        MockGeminiLive.return_value = mock_gemini_instance
+
+        async def mock_start_session(*args, **kwargs):
+            # Normal turn first
+            yield {"type": "gemini", "text": "Welcome to the walkthrough."}
+            yield {"type": "turn_complete"}
+            # Mid-session error
+            yield {
+                "type": "error",
+                "content": "Transient session error",
+                "error": "Transient session error",
+            }
+
+        mock_gemini_instance.start_session = mock_start_session
+
+        client = TestClient(app)
+        with client.websocket_connect(
+            "/api/v1/live/walkthrough"
+        ) as websocket:
+            end_time = time.time() + 4.0
+            while time.time() < end_time:
+                try:
+                    data = websocket.receive_json(mode="text")
+                    received_events.append(data)
+                except Exception:
+                    break
+
+            # After receiving the error, the WS should still be usable
+            try:
+                websocket.send_text(
+                    json.dumps({"type": "text", "content": "follow up after error"})
+                )
+                ws_still_open = True
+            except Exception:
+                ws_still_open = False
+
+    error_events = [e for e in received_events if e.get("type") == "error"]
+    assert len(error_events) >= 1
+    assert "transient" in error_events[0].get("content", "").lower()
+    assert ws_still_open, "WebSocket should remain open after a session error event"
