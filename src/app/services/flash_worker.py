@@ -15,7 +15,8 @@ FLASH_IMAGE_MODEL = "gemini-3.1-flash-image-preview"
 FLASH_IMAGE_SYSTEM_INSTRUCTION = (
     "You are a creative helper working alongside a voice assistant. "
     "When asked to generate images, create visually appealing images "
-    "with brief explanatory text. Think of yourself as a skilled "
+    "that support the conversation. Return only the generated image "
+    "with no accompanying text. Think of yourself as a skilled "
     "designer creating assets to support the conversation."
 )
 VEO_VIDEO_MODEL = "veo-3.1-fast-generate-preview"
@@ -30,18 +31,6 @@ class FlashTextModelOption:
     label: str
     api_model: str
     supports_grounding: bool = True
-
-
-@dataclass(frozen=True)
-class FlashImageResult:
-    """Result from interleaved image generation containing text and image."""
-    text: str
-    image_bytes: bytes | None
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, (bytes, bytearray)):
-            return self.image_bytes == bytes(other)
-        return super().__eq__(other)
 
 
 FLASH_TEXT_MODEL_OPTIONS = {
@@ -127,18 +116,15 @@ class FlashWorker:
 
         return await self._generate_text(prompt)
 
-    async def generate_image(self, prompt: str) -> FlashImageResult:
-        """Call Flash Image model and extract interleaved text + image bytes.
-
-        Returns FlashImageResult with both text and image data.
-        """
+    async def generate_image(self, prompt: str) -> bytes:
+        """Call Flash Image model and extract image bytes."""
         logger.info("FlashWorker.generate_image: prompt=%r", prompt)
 
         response = await self.client.aio.models.generate_content(
             model=FLASH_IMAGE_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
-                response_modalities=["Text", "Image"],
+                response_modalities=["Image"],
                 system_instruction=FLASH_IMAGE_SYSTEM_INSTRUCTION,
             ),
         )
@@ -153,27 +139,18 @@ class FlashWorker:
         content = getattr(first_candidate, "content", None)
         parts = getattr(content, "parts", []) or []
 
-        text_parts: list[str] = []
         image_data: bytes | None = None
 
         for part in parts:
-            # Extract text content
-            text = getattr(part, "text", None)
-            if isinstance(text, str) and text:
-                text_parts.append(text)
-
-            # Extract image data
             inline_data = getattr(part, "inline_data", None)
             if inline_data and getattr(inline_data, "data", None):
                 image_data = inline_data.data
-
-        combined_text = "\n".join(text_parts)
 
         if not image_data:
             msg = "No image data in Flash Image response"
             raise ValueError(msg)
 
-        return FlashImageResult(text=combined_text, image_bytes=image_data)
+        return image_data
 
     async def delegate_task(
         self,

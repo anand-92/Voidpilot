@@ -92,7 +92,10 @@ async def test_generate_markdown_uses_selected_flash_model(mock_client):
 async def test_generate_markdown_retries_without_grounding(mock_client):
     mock_response = MagicMock()
     mock_response.text = 'Fallback output'
-    mock_client["generate_content"].side_effect = [RuntimeError('google_search unsupported'), mock_response]
+    mock_client["generate_content"].side_effect = [
+        RuntimeError('google_search unsupported'),
+        mock_response,
+    ]
 
     worker = FlashWorker(api_key='test_key', text_model_key='gemini-3.1-pro')
     result = await worker.generate_markdown(title='Ideas', raw_ideas='idea one')
@@ -108,8 +111,7 @@ async def test_generate_markdown_retries_without_grounding(mock_client):
 
 @pytest.mark.asyncio
 async def test_generate_image(mock_client):
-    """Flash Image is called with IMAGE modality,
-    extracts inline_data bytes."""
+    """Flash Image is called with image-only modality and returns bytes."""
     image_bytes = b"\x89PNG\r\n\x1a\nfake_image_data"
 
     mock_inline_data = MagicMock()
@@ -118,11 +120,8 @@ async def test_generate_image(mock_client):
     mock_part_with_image = MagicMock()
     mock_part_with_image.inline_data = mock_inline_data
 
-    mock_part_text = MagicMock()
-    mock_part_text.inline_data = None
-
     mock_content = MagicMock()
-    mock_content.parts = [mock_part_text, mock_part_with_image]
+    mock_content.parts = [mock_part_with_image]
 
     mock_candidate = MagicMock()
     mock_candidate.content = mock_content
@@ -141,8 +140,8 @@ async def test_generate_image(mock_client):
     assert call_args.kwargs["contents"] == "a cat"
 
     config = call_args.kwargs["config"]
-    assert "Image" in config.response_modalities
-    assert "Text" in config.response_modalities
+    assert config.response_modalities == ["Image"]
+    assert "no accompanying text" in config.system_instruction
 
 
 @pytest.mark.asyncio
