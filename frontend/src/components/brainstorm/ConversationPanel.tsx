@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { DotPattern } from '@/components/ui/dot-pattern'
 import type { Message } from '@/types/messages'
 import { GeminiChat } from '../icons/GeminiIcons'
 import { IconBrainstorm } from '../icons/CustomIcons'
@@ -106,12 +105,6 @@ export function ConversationPanel({ messages, messagesEndRef, mobile, sessionTit
               mobile ? 'h-full py-10' : 'h-full',
             )}
           >
-            <DotPattern
-              className="absolute inset-0 text-amber-500/[0.04]"
-              width={20}
-              height={20}
-              cr={0.6}
-            />
             <div className="relative z-10 flex size-20 items-center justify-center rounded-full border border-orange-500/50 bg-orange-500/10 shadow-[0_0_30px_rgba(249,115,22,0.4)] animate-pulse">
               <IconBrainstorm className="size-10 text-orange-500" />
             </div>
