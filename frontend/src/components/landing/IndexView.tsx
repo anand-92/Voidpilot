@@ -90,7 +90,7 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
             <AnimatedTextRoller
               className="max-w-4xl text-center text-3xl font-extrabold tracking-tight leading-tight sm:text-5xl md:text-7xl"
               prefixClassName="font-extrabold tracking-tight text-white drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-              itemClassName="font-extrabold drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]"
+              itemClassName="font-extrabold"
               items={voidpilotHeroItems}
             />
           </div>
