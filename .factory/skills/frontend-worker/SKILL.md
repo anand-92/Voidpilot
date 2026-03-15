@@ -43,7 +43,8 @@ Use this skill for walkthrough features that are primarily frontend/UI work, inc
    - verify transcript-first shell and explainer reachability
    - verify keyboard open/close/focus behavior
    - verify narrow/mobile layout reachability
-11. If required transport state is missing from the backend/hook, return to the orchestrator instead of faking UI behavior.
+11. `agent-browser` does not provide reliable true viewport resizing for final mobile-breakpoint validation. If the feature fulfills narrow/mobile assertions, use a headed local browser responsive mode when available; otherwise document the limitation precisely in the handoff.
+12. If required transport state is missing from the backend/hook, return to the orchestrator instead of faking UI behavior.
 
 ## Example Handoff
 

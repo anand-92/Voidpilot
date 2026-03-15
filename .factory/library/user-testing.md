@@ -6,6 +6,7 @@
 - Use `agent-browser` for walkthrough browser validation.
 - Always restart the backend and frontend fresh via `.factory/services.yaml` before validating the walkthrough surface.
 - Load the landing page at `http://127.0.0.1:5173`, launch `Talk to Voidpilot`, and validate the overlay in place.
+- `agent-browser` is good for shell/transcript/tool-state checks but does not provide reliable true viewport resizing for narrow/mobile validation; use a headed local browser with responsive mode when a validator must visually confirm mobile breakpoints.
 
 ### Browser voice surface
 - Voice-specific walkthrough validation still uses the local browser surface, but requires a headed browser session with microphone permission enabled.
@@ -47,6 +48,7 @@
   - the landing page and walkthrough trigger rendered
   - the walkthrough overlay opened successfully
 - Automated microphone capture failed in browser automation with `NotSupportedError`, so final live-voice verification must use a headed local browser with mic permission enabled.
+- Automated browser tooling also does not provide a trustworthy mobile viewport-resize surface for final responsive checks, so narrow/mobile visual validation may require a headed local browser responsive mode.
 
 ## Evidence Guidance
 
