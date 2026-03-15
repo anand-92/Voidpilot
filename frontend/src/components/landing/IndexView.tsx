@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { BlurFade } from '@/components/ui/blur-fade';
 import { MagicCard } from '@/components/ui/magic-card';
-import { Marquee } from '@/components/ui/marquee';
 import AnimatedTextRoller from '@/components/shadcn-space/animated-text/animated-text-04';
 import { voidpilotHeroItems } from '@/components/shadcn-space/animated-text/constants';
 import { GeminiArrowRight } from '../icons/GeminiIcons';
@@ -55,15 +54,6 @@ const indexCards = [
   },
 ];
 
-const socialProofItems = [
-  'Voice in Real-time',
-  'AI-Powered Assistance',
-  '3D Scene Generation',
-  'Hackathon Ready',
-  'Multimodal Agents',
-  'Built with Google GenAI SDK',
-];
-
 export interface IndexViewProps {
   onNavigate: (section: SectionId) => void;
   onWalkthroughOpen: () => void;
@@ -91,22 +81,14 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
       </BlurFade>
 
       <BlurFade delay={0.15}>
-        <div className="pointer-events-auto">
-          <div className="rounded-[2rem] border border-blue-500/20 bg-black/40 px-5 py-4 shadow-[0_0_60px_rgba(59,130,246,0.15)] backdrop-blur-xl md:px-8 md:py-6">
+        <div className="pointer-events-auto rounded-2xl bg-black/50 px-6 py-4 backdrop-blur-md md:px-10 md:py-6">
             <AnimatedTextRoller
               className="max-w-4xl text-center text-3xl font-extrabold tracking-tight leading-tight sm:text-5xl md:text-7xl"
-              prefixClassName="font-extrabold tracking-tight text-white drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-              itemClassName="font-extrabold drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]"
+              prefixClassName="font-extrabold tracking-tight text-white"
+              itemClassName="font-extrabold"
               items={voidpilotHeroItems}
             />
-          </div>
         </div>
-      </BlurFade>
-
-      <BlurFade delay={0.25}>
-        <p className="mt-2 md:mt-4 max-w-2xl text-center text-sm text-stone-400 sm:text-lg md:text-xl font-light leading-relaxed pointer-events-auto">
-          Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
-        </p>
       </BlurFade>
 
       <div className="mt-4 md:mt-10 grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-5 max-w-5xl w-full pointer-events-auto">
@@ -158,16 +140,12 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
         })}
       </div>
 
-      {/* Subtle marquee for social proof */}
-      <BlurFade delay={0.6} className="w-full max-w-5xl mt-6 md:mt-10 pointer-events-auto">
-        <Marquee pauseOnHover className="[--duration:30s] [--gap:2rem] opacity-40">
-          {socialProofItems.map((item) => (
-            <span key={item} className="text-xs font-medium text-stone-500 uppercase tracking-widest whitespace-nowrap">
-              {item}
-            </span>
-          ))}
-        </Marquee>
+      <BlurFade delay={0.4}>
+        <p className="mt-4 md:mt-8 max-w-2xl text-center text-sm sm:text-lg md:text-xl font-light leading-relaxed pointer-events-auto text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]">
+          Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
+        </p>
       </BlurFade>
+
     </motion.div>
   );
 }

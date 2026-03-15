@@ -15,7 +15,8 @@ const ANIMS = {
   hide: { row: 2, frames: 15, speed: 0.08 },
   hidden: { row: 3, frames: 4, speed: 0.3 },
 } as const
-type AnimKey = keyof typeof ANIMS
+const SCAN_ANIM = { frames: 6, speed: 0.25 }
+type AnimKey = keyof typeof ANIMS | 'scan'
 
 export const IMG_W = 2754
 export const IMG_H = 1536
@@ -50,6 +51,7 @@ interface ToastAgent {
   wanderTimer: number
   bubbleText: string | null
   bubbleTimer: number
+  activeTimer: number
 }
 
 function createAgent(name: string, label: string, color: string, homeX: number, homeY: number): ToastAgent {
@@ -63,6 +65,7 @@ function createAgent(name: string, label: string, color: string, homeX: number, 
     wanderTimer: 0.5 + Math.random() * 1.5,
     bubbleText: null,
     bubbleTimer: Math.random() * 5,
+    activeTimer: 0,
   }
 }
 
@@ -93,6 +96,7 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
   const geminiRef = useRef(createAgent('Gemini', 'Voice', '#fbbf24', 700, 1200))
   const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 2300, 1100))
   const spriteImgRef = useRef<HTMLImageElement | null>(null)
+  const scanSpriteRef = useRef<HTMLImageElement | null>(null)
   const bgImgRef = useRef<HTMLImageElement | null>(null)
   const maskDataRef = useRef<Uint8ClampedArray | null>(null)
   const lastTimeRef = useRef(0)
@@ -102,6 +106,10 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
     const sprite = new Image()
     sprite.src = '/assets/sneaky-toast-clean.png'
     sprite.onload = () => { spriteImgRef.current = sprite }
+
+    const scanSprite = new Image()
+    scanSprite.src = '/assets/toast-scanning-sprite.png'
+    scanSprite.onload = () => { scanSpriteRef.current = scanSprite }
 
     const bg = new Image()
     bg.src = '/assets/cozy-room/background.jpg'
@@ -120,6 +128,7 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
 
     return () => {
       spriteImgRef.current = null
+      scanSpriteRef.current = null
       bgImgRef.current = null
       maskDataRef.current = null
     }
@@ -128,22 +137,36 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
   const updateAgent = useCallback((agent: ToastAgent, dt: number, shouldBeActive: boolean, otherAgent: ToastAgent) => {
     if (shouldBeActive && !agent.isActive) {
       agent.isActive = true
+      agent.activeTimer = 0
       agent.targetX = agent.homeX
       agent.targetY = agent.homeY
       agent.anim = 'walk'
       agent.frame = 0
     } else if (!shouldBeActive && agent.isActive) {
       agent.isActive = false
+      agent.activeTimer = 0
       agent.anim = 'idle'
       agent.frame = 0
       agent.wanderTimer = 0.5 + Math.random() * 1.5
     }
 
-    const animDef = ANIMS[agent.anim]
-    agent.frameTimer += dt
-    if (agent.frameTimer >= animDef.speed) {
-      agent.frameTimer -= animDef.speed
-      agent.frame = (agent.frame + 1) % animDef.frames
+    if (agent.isActive) {
+      agent.activeTimer += dt
+    }
+
+    if (agent.anim === 'scan') {
+      agent.frameTimer += dt
+      if (agent.frameTimer >= SCAN_ANIM.speed) {
+        agent.frameTimer -= SCAN_ANIM.speed
+        agent.frame = (agent.frame + 1) % SCAN_ANIM.frames
+      }
+    } else {
+      const animDef = ANIMS[agent.anim as keyof typeof ANIMS]
+      agent.frameTimer += dt
+      if (agent.frameTimer >= animDef.speed) {
+        agent.frameTimer -= animDef.speed
+        agent.frame = (agent.frame + 1) % animDef.frames
+      }
     }
 
     agent.bubbleTimer -= dt
@@ -199,9 +222,18 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       agent.x = agent.targetX
       agent.y = agent.targetY
       if (agent.isActive) {
-        if (agent.anim !== 'hide') {
-          agent.anim = 'hide'
-          agent.frame = 0
+        const scanDuration = SCAN_ANIM.frames * SCAN_ANIM.speed * 3
+        if (agent.activeTimer < scanDuration) {
+          if (agent.anim !== 'scan') {
+            agent.anim = 'scan'
+            agent.frame = 0
+            agent.frameTimer = 0
+          }
+        } else {
+          if (agent.anim !== 'hide') {
+            agent.anim = 'hide'
+            agent.frame = 0
+          }
         }
       } else {
         if (agent.anim === 'walk') {
@@ -250,25 +282,39 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
     if (!ctx) return
 
     const drawAgent = (agent: ToastAgent, scale: number, ox: number, oy: number, bgDrawH: number) => {
-      const img = spriteImgRef.current
-      if (!img) return
-
-      const animDef = ANIMS[agent.anim]
-      const sx = agent.frame * FRAME_SIZE
-      const sy = animDef.row * FRAME_SIZE
       const drawSize = bgDrawH * SPRITE_FRACTION
       const drawX = ox + agent.x * scale - drawSize / 2
       const drawY = oy + agent.y * scale - drawSize
 
-      ctx.save()
-      if (!agent.facingRight) {
-        ctx.translate(drawX + drawSize / 2, 0)
-        ctx.scale(-1, 1)
-        ctx.drawImage(img, sx, sy, FRAME_SIZE, FRAME_SIZE, -drawSize / 2, drawY, drawSize, drawSize)
+      if (agent.anim === 'scan') {
+        const sImg = scanSpriteRef.current
+        if (!sImg) return
+        const sx = agent.frame * FRAME_SIZE
+        ctx.save()
+        if (!agent.facingRight) {
+          ctx.translate(drawX + drawSize / 2, 0)
+          ctx.scale(-1, 1)
+          ctx.drawImage(sImg, sx, 0, FRAME_SIZE, FRAME_SIZE, -drawSize / 2, drawY, drawSize, drawSize)
+        } else {
+          ctx.drawImage(sImg, sx, 0, FRAME_SIZE, FRAME_SIZE, drawX, drawY, drawSize, drawSize)
+        }
+        ctx.restore()
       } else {
-        ctx.drawImage(img, sx, sy, FRAME_SIZE, FRAME_SIZE, drawX, drawY, drawSize, drawSize)
+        const img = spriteImgRef.current
+        if (!img) return
+        const animDef = ANIMS[agent.anim as keyof typeof ANIMS]
+        const sx = agent.frame * FRAME_SIZE
+        const sy = animDef.row * FRAME_SIZE
+        ctx.save()
+        if (!agent.facingRight) {
+          ctx.translate(drawX + drawSize / 2, 0)
+          ctx.scale(-1, 1)
+          ctx.drawImage(img, sx, sy, FRAME_SIZE, FRAME_SIZE, -drawSize / 2, drawY, drawSize, drawSize)
+        } else {
+          ctx.drawImage(img, sx, sy, FRAME_SIZE, FRAME_SIZE, drawX, drawY, drawSize, drawSize)
+        }
+        ctx.restore()
       }
-      ctx.restore()
 
       const fontSize = Math.max(9, 12 * scale)
       ctx.font = `bold ${fontSize}px monospace`
