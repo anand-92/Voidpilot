@@ -44,7 +44,7 @@ export function VoiceSelector({
         </SelectValue>
       </SelectTrigger>
       <SelectContent
-        className="max-h-64 border-white/[0.1] bg-stone-950/95 text-stone-200 backdrop-blur-xl"
+        className="min-w-[240px] max-h-64 border-white/[0.1] bg-stone-950/95 text-stone-200 backdrop-blur-xl"
         side="top"
         sideOffset={8}
       >
