@@ -36,7 +36,7 @@ const indexCards = [
   {
     key: 'walkthrough' as const,
     label: 'Talk to Voidpilot',
-    subtitle: 'Have a real-time voice conversation with Gemini Live. Low-latency audio streaming with transcription — just press connect and start talking.',
+    subtitle: 'Talk to Voidpilot about itself — ask about the tech stack, architecture, or how any feature works. Gemini Live has full context over the entire codebase.',
     icon: IconWalkthroughVoid,
     color: 'rose',
   },
