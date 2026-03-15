@@ -230,6 +230,16 @@ export function CreativeSparkDesktopLayout({
             bounds="#layout-container"
           >
             <div className="w-full h-full overflow-hidden flex flex-col bg-black">
+              <div className="border-b border-white/[0.06] bg-stone-950/80 px-3 py-2 backdrop-blur-xl">
+                <div className="max-w-sm">
+                  <VoiceSelector
+                    selectedVoice={selectedVoice}
+                    setSelectedVoice={setSelectedVoice}
+                    disabled={isConnected || isStarting}
+                    compact
+                  />
+                </div>
+              </div>
               <ConversationPanel
                 messages={messages}
                 messagesEndRef={messagesEndRef}
