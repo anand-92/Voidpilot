@@ -67,6 +67,14 @@ router = APIRouter()
 
 MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 MAX_RETRIES = 3
+DEFAULT_VOICE = "Aoede"
+ALLOWED_VOICES = frozenset({
+    "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
+    "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",
+    "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar",
+    "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+    "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
+})
 
 # Available tool definitions for brainstorm mode (excluding delegate which is internal)
 AVAILABLE_TOOL_DEFS = [
@@ -821,7 +829,7 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
         api_key=api_key,
         model=MODEL,
         input_sample_rate=16000,
-        voice_name="Aoede",
+        voice_name=DEFAULT_VOICE,
         tools=tool_defs,
         tool_mapping=tool_mapping,
         system_prompt=BRAINSTORM_SYSTEM_PROMPT,
@@ -853,6 +861,12 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 if requested_model_key in FLASH_TEXT_MODEL_OPTIONS
                 else DEFAULT_FLASH_TEXT_MODEL_KEY
             )
+
+            # Apply voice selection
+            requested_voice = payload.get("voice_name")
+            if requested_voice and requested_voice in ALLOWED_VOICES:
+                gemini_client.voice_name = requested_voice
+                logger.info("Brainstorm voice: %s", requested_voice)
 
             # Determine brainstorm_type: 'creative_spark' or default
             brainstorm_type = payload.get("brainstorm_type")
