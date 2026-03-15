@@ -30,7 +30,10 @@ import type {
 } from '../types/walkthrough.ts'
 
 // ---------------------------------------------------------------------------
-// Text-chunk merging (mirrors the backend _merge_live_text logic)
+// Text-chunk merging for live transcriptions.
+// Preserve explicit whitespace from Gemini because transcript chunks can split
+// inside words (for example, "Ge" + "mini"), which makes synthesized spaces
+// much more harmful than occasional missing boundaries.
 // ---------------------------------------------------------------------------
 
 const MESSAGE_OVERLAP_LIMIT = 120
@@ -62,10 +65,7 @@ function needsMessageSeparator(existing: string, next: string): boolean {
   const nxt = next[0]
   if (!prev || !nxt) return false
   if (/\s/u.test(prev) || /\s/u.test(nxt)) return false
-  return (
-    (isWordBoundaryChar(prev) && isWordBoundaryChar(nxt))
-    || (SPACE_PREFIX_CHARS.has(prev) && isWordBoundaryChar(nxt))
-  )
+  return SPACE_PREFIX_CHARS.has(prev) && isWordBoundaryChar(nxt)
 }
 
 function mergeTranscriptContent(existing: string, next: string): string {
