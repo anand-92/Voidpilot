@@ -599,3 +599,126 @@ async def test_gemini_live_skips_empty_transcript_after_sanitization():
     )
 
     assert event_queue.empty()
+
+
+# ---------------------------------------------------------------------------
+# Tool call result forwarding preserves no-result content
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_walkthrough_tool_call_preserves_no_results_content():
+    """The walkthrough endpoint forwards tool_call events with the raw
+    result content so the frontend can detect no-result outcomes
+    ('No results found.') and surface them honestly."""
+    received_events: list[dict] = []
+
+    mock_settings = MagicMock()
+    mock_settings.GOOGLE_API_KEY = "test_key"
+
+    with (
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.settings",
+            mock_settings,
+        ),
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.GeminiLive",
+        ) as MockGeminiLive,
+    ):
+        mock_gemini_instance = AsyncMock()
+        MockGeminiLive.return_value = mock_gemini_instance
+
+        async def mock_start_session(*args, **kwargs):
+            yield {
+                "type": "tool_call_start",
+                "name": "search_project_context",
+            }
+            yield {
+                "type": "tool_call",
+                "name": "search_project_context",
+                "args": {"query": "nonexistent feature xyz"},
+                "result": "No results found.",
+            }
+            yield {
+                "type": "gemini",
+                "text": "I couldn't find information about that.",
+            }
+            yield {"type": "turn_complete"}
+
+        mock_gemini_instance.start_session = mock_start_session
+
+        client = TestClient(app)
+        with client.websocket_connect(
+            "/api/v1/live/walkthrough"
+        ) as websocket:
+            end_time = time.time() + 3.0
+            while time.time() < end_time:
+                try:
+                    data = websocket.receive_json(mode="text")
+                    received_events.append(data)
+                except Exception:
+                    break
+
+    # The tool_call result should be forwarded as-is
+    tool_call_events = [
+        e for e in received_events if e.get("type") == "tool_call"
+    ]
+    assert len(tool_call_events) >= 1
+    assert tool_call_events[0].get("result") == "No results found."
+
+
+@pytest.mark.asyncio
+async def test_walkthrough_tool_call_preserves_error_result():
+    """The walkthrough endpoint forwards tool_call events with error
+    result content so the frontend can detect errors and surface
+    them honestly instead of showing 'Project context retrieved'."""
+    received_events: list[dict] = []
+
+    mock_settings = MagicMock()
+    mock_settings.GOOGLE_API_KEY = "test_key"
+
+    with (
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.settings",
+            mock_settings,
+        ),
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.GeminiLive",
+        ) as MockGeminiLive,
+    ):
+        mock_gemini_instance = AsyncMock()
+        MockGeminiLive.return_value = mock_gemini_instance
+
+        async def mock_start_session(*args, **kwargs):
+            yield {
+                "type": "tool_call_start",
+                "name": "search_project_context",
+            }
+            yield {
+                "type": "tool_call",
+                "name": "search_project_context",
+                "args": {"query": "test"},
+                "result": "Error: Service temporarily unavailable",
+            }
+            yield {"type": "turn_complete"}
+
+        mock_gemini_instance.start_session = mock_start_session
+
+        client = TestClient(app)
+        with client.websocket_connect(
+            "/api/v1/live/walkthrough"
+        ) as websocket:
+            end_time = time.time() + 3.0
+            while time.time() < end_time:
+                try:
+                    data = websocket.receive_json(mode="text")
+                    received_events.append(data)
+                except Exception:
+                    break
+
+    # The tool_call result should be forwarded as-is
+    tool_call_events = [
+        e for e in received_events if e.get("type") == "tool_call"
+    ]
+    assert len(tool_call_events) >= 1
+    assert "Error:" in str(tool_call_events[0].get("result", ""))

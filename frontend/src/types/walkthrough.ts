@@ -16,11 +16,24 @@ export interface WalkthroughTranscriptTurn {
   content: string
 }
 
+/**
+ * An inline tool-activity entry that can appear in the transcript list
+ * between user and Gemini turns so grounding visibility is contextual.
+ */
+export interface WalkthroughToolActivityEntry {
+  role: 'tool_activity'
+  status: WalkthroughToolStatus
+  toolName: string | null
+}
+
+/** A single item in the transcript list — either a speech turn or inline tool activity. */
+export type WalkthroughTranscriptItem = WalkthroughTranscriptTurn | WalkthroughToolActivityEntry
+
 // ---------------------------------------------------------------------------
 // Tool activity
 // ---------------------------------------------------------------------------
 
-export type WalkthroughToolStatus = 'idle' | 'searching' | 'complete' | 'error'
+export type WalkthroughToolStatus = 'idle' | 'searching' | 'complete' | 'no_results' | 'error'
 
 export interface WalkthroughToolActivity {
   status: WalkthroughToolStatus

@@ -18,6 +18,8 @@ import {
 import type {
   WalkthroughConnectionStatus,
   WalkthroughToolActivity,
+  WalkthroughToolStatus,
+  WalkthroughTranscriptItem,
   WalkthroughTranscriptRole,
   WalkthroughTranscriptTurn,
   WalkthroughServerEvent,
@@ -73,6 +75,35 @@ function mergeTranscriptContent(existing: string, next: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Tool result classification
+// ---------------------------------------------------------------------------
+
+const NO_RESULTS_PATTERNS = [
+  'no results found',
+  'no results',
+  'no relevant',
+]
+
+const ERROR_PATTERNS = [
+  'error:',
+  'error executing',
+  'unsupported tool',
+]
+
+function classifyToolResult(result: unknown): WalkthroughToolStatus {
+  const text = typeof result === 'string'
+    ? result
+    : typeof result === 'object' && result !== null && 'result' in result
+      ? String((result as Record<string, unknown>).result)
+      : String(result)
+
+  const lower = text.toLowerCase()
+  if (ERROR_PATTERNS.some((p) => lower.includes(p))) return 'error'
+  if (NO_RESULTS_PATTERNS.some((p) => lower.includes(p))) return 'no_results'
+  return 'complete'
+}
+
+// ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 
@@ -81,8 +112,8 @@ export function useWalkthroughAgent() {
   const [connectionStatus, setConnectionStatus] = useState<WalkthroughConnectionStatus>('disconnected')
 
   // Transcript state (session-only — cleared on close)
-  const [transcript, setTranscript] = useState<WalkthroughTranscriptTurn[]>([])
-  const transcriptRef = useRef<WalkthroughTranscriptTurn[]>([])
+  const [transcript, setTranscript] = useState<WalkthroughTranscriptItem[]>([])
+  const transcriptRef = useRef<WalkthroughTranscriptItem[]>([])
 
   // Tool activity state
   const [toolActivity, setToolActivity] = useState<WalkthroughToolActivity>({
@@ -183,18 +214,44 @@ export function useWalkthroughAgent() {
         turnBoundaryRef.current = false
       }
 
-      // Append to the last turn if same role and not a new turn boundary
+      // Append to the last turn if same role, not a new turn boundary, and last is a speech turn
       const canAppend = !isNewTurn && last?.role === role
 
-      let next: WalkthroughTranscriptTurn[]
+      let next: WalkthroughTranscriptItem[]
       if (canAppend) {
+        const lastTurn = last as WalkthroughTranscriptTurn
         next = [...prev]
-        next[next.length - 1] = { ...last, content: mergeTranscriptContent(last.content, content) }
+        next[next.length - 1] = { ...lastTurn, content: mergeTranscriptContent(lastTurn.content, content) }
       } else {
         next = [...prev, { role, content }]
       }
       transcriptRef.current = next
       return next
+    })
+  }, [])
+
+  /** Insert an inline tool-activity entry into the transcript list. */
+  const addToolActivityEntry = useCallback((status: WalkthroughToolStatus, toolName: string | null) => {
+    setTranscript((prev) => {
+      const next: WalkthroughTranscriptItem[] = [...prev, { role: 'tool_activity', status, toolName }]
+      transcriptRef.current = next
+      return next
+    })
+  }, [])
+
+  /** Update the most recent tool_activity entry in the transcript to a new status. */
+  const updateLastToolActivityEntry = useCallback((status: WalkthroughToolStatus) => {
+    setTranscript((prev) => {
+      // Find the last tool_activity entry
+      for (let i = prev.length - 1; i >= 0; i -= 1) {
+        if (prev[i].role === 'tool_activity') {
+          const next = [...prev]
+          next[i] = { ...prev[i], status } as WalkthroughTranscriptItem
+          transcriptRef.current = next
+          return next
+        }
+      }
+      return prev
     })
   }, [])
 
@@ -226,7 +283,7 @@ export function useWalkthroughAgent() {
     setToolActivity({ status: 'idle', toolName: null })
     setErrorMessage(null)
     setTranscript([])
-    transcriptRef.current = []
+    transcriptRef.current = [] as WalkthroughTranscriptItem[]
     inputIntensityRef.current = 0
     outputIntensityRef.current = 0
     visualIntensityRef.current = 0
@@ -299,11 +356,17 @@ export function useWalkthroughAgent() {
 
           case 'tool_call_start':
             setToolActivity({ status: 'searching', toolName: data.name })
+            // Insert inline tool activity into transcript for contextual grounding
+            addToolActivityEntry('searching', data.name)
             break
 
-          case 'tool_call':
-            setToolActivity({ status: 'complete', toolName: data.name })
+          case 'tool_call': {
+            const resultStatus = classifyToolResult(data.result)
+            setToolActivity({ status: resultStatus, toolName: data.name })
+            // Update the inline tool activity entry to reflect the outcome
+            updateLastToolActivityEntry(resultStatus)
             break
+          }
 
           case 'turn_complete':
             turnBoundaryRef.current = true
@@ -320,6 +383,12 @@ export function useWalkthroughAgent() {
           case 'interrupted':
             clearScheduledAudioPlayback()
             turnBoundaryRef.current = true
+            // Resolve any in-flight tool activity on interrupt
+            setToolActivity((prev) =>
+              prev.status === 'searching'
+                ? { status: 'idle', toolName: null }
+                : prev,
+            )
             break
 
           case 'error': {
@@ -331,6 +400,19 @@ export function useWalkthroughAgent() {
                 ? { status: 'error', toolName: prev.toolName }
                 : prev,
             )
+            // Update inline tool activity if a search was in progress
+            setTranscript((prev) => {
+              for (let i = prev.length - 1; i >= 0; i -= 1) {
+                const item = prev[i]
+                if (item.role === 'tool_activity' && item.status === 'searching') {
+                  const next = [...prev]
+                  next[i] = { ...item, status: 'error' } as WalkthroughTranscriptItem
+                  transcriptRef.current = next
+                  return next
+                }
+              }
+              return prev
+            })
             break
           }
 
@@ -407,7 +489,7 @@ export function useWalkthroughAgent() {
       stop()
       throw error
     }
-  }, [stop, addTranscriptTurn, clearScheduledAudioPlayback])
+  }, [stop, addTranscriptTurn, addToolActivityEntry, updateLastToolActivityEntry, clearScheduledAudioPlayback])
 
   useEffect(() => {
     return () => {

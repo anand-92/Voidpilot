@@ -1,21 +1,21 @@
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, Loader2, AlertCircle } from 'lucide-react'
+import { Search, Loader2, AlertCircle, SearchX } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type {
+  WalkthroughTranscriptItem,
   WalkthroughTranscriptTurn,
+  WalkthroughToolActivityEntry,
   WalkthroughToolActivity,
 } from '@/types/walkthrough'
 
 interface WalkthroughTranscriptProps {
-  turns: WalkthroughTranscriptTurn[]
+  turns: WalkthroughTranscriptItem[]
   toolActivity: WalkthroughToolActivity
   emptyState: React.ReactNode
 }
 
-function ToolActivityIndicator({ activity }: { activity: WalkthroughToolActivity }) {
-  if (activity.status === 'idle') return null
-
+function InlineToolActivity({ entry }: { entry: WalkthroughToolActivityEntry }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
@@ -24,19 +24,25 @@ function ToolActivityIndicator({ activity }: { activity: WalkthroughToolActivity
       className="flex items-center gap-2 px-4 py-2"
     >
       <div className="flex items-center gap-2 rounded-lg border border-amber-500/15 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-300">
-        {activity.status === 'searching' && (
+        {entry.status === 'searching' && (
           <>
             <Loader2 className="size-3 animate-spin" />
             <span>Looking up project context…</span>
           </>
         )}
-        {activity.status === 'complete' && (
+        {entry.status === 'complete' && (
           <>
             <Search className="size-3" />
             <span>Project context retrieved</span>
           </>
         )}
-        {activity.status === 'error' && (
+        {entry.status === 'no_results' && (
+          <>
+            <SearchX className="size-3 text-yellow-400" />
+            <span className="text-yellow-300">No matching project context found</span>
+          </>
+        )}
+        {entry.status === 'error' && (
           <>
             <AlertCircle className="size-3 text-red-400" />
             <span className="text-red-300">Context lookup failed</span>
@@ -73,6 +79,13 @@ function TranscriptTurn({ turn }: { turn: WalkthroughTranscriptTurn }) {
   )
 }
 
+function TranscriptItem({ item }: { item: WalkthroughTranscriptItem }) {
+  if (item.role === 'tool_activity') {
+    return <InlineToolActivity entry={item} />
+  }
+  return <TranscriptTurn turn={item} />
+}
+
 export function WalkthroughTranscript({
   turns,
   toolActivity,
@@ -96,13 +109,9 @@ export function WalkthroughTranscript({
         ) : (
           <div className="flex flex-1 flex-col gap-1 py-3">
             <AnimatePresence mode="popLayout">
-              {turns.map((turn, i) => (
-                <TranscriptTurn key={`${turn.role}-${i}`} turn={turn} />
+              {turns.map((item, i) => (
+                <TranscriptItem key={`${item.role}-${i}`} item={item} />
               ))}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              <ToolActivityIndicator activity={toolActivity} />
             </AnimatePresence>
           </div>
         )}
