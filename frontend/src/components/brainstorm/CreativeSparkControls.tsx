@@ -110,7 +110,7 @@ export function CreativeSparkControls({
       </Button>
 
       {layout === 'desktop' && onResetLayout ? (
-        <SparkToolbar onGoBack={onGoBack} onResetLayout={onResetLayout} onCreateShare={onCreateShare} compact />
+        <SparkToolbar onGoBack={onGoBack} onResetLayout={onResetLayout} onCreateShare={onCreateShare} />
       ) : null}
     </div>
   )
