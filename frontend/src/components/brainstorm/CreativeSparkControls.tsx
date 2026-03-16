@@ -54,7 +54,7 @@ export function CreativeSparkControls({
   const isDisabled = isConnected || isStarting
 
   return (
-    <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/60 p-1.5 shadow-2xl backdrop-blur-2xl">
+    <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/60 p-1.5 pr-3 shadow-2xl backdrop-blur-2xl">
       {/* Voice selector */}
       <VoiceSelector
         selectedVoice={selectedVoice}
@@ -110,7 +110,9 @@ export function CreativeSparkControls({
       </Button>
 
       {layout === 'desktop' && onResetLayout ? (
-        <SparkToolbar onGoBack={onGoBack} onResetLayout={onResetLayout} onCreateShare={onCreateShare} />
+        <div className="pl-2">
+          <SparkToolbar onGoBack={onGoBack} onResetLayout={onResetLayout} onCreateShare={onCreateShare} />
+        </div>
       ) : null}
     </div>
   )

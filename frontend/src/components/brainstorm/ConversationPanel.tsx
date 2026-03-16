@@ -236,7 +236,7 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
 
       <div
         className={cn(
-          'min-h-0 flex-1 overflow-y-auto',
+          'min-h-0 flex-1 overflow-y-auto overscroll-contain',
           mobile ? 'px-4 py-4' : 'px-5 py-4',
         )}
       >
@@ -265,7 +265,7 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-h-full flex-col gap-3">
             {transcriptItems.map((item, index) => {
               const isLatest = index === transcriptItems.length - 1
               return (
