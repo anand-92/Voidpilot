@@ -12,6 +12,7 @@ import { CreativeSparkControls } from './CreativeSparkControls'
 import { DraggableWindow } from './DraggableWindow'
 import { VoiceSelector } from './VoiceSelector'
 import { DropDownSign } from './DropDownSign'
+import { FlappyToast } from './FlappyToast'
 
 type WindowId = 'visualizer' | 'output' | 'conversation'
 
@@ -109,6 +110,7 @@ export function CreativeSparkDesktopLayout({
 
   const [windows, setWindows] = useState<Record<WindowId, WindowState>>(() => getInitialWindows())
   const [showSign, setShowSign] = useState(true)
+  const [showMiniGame, setShowMiniGame] = useState(false)
   const windowBoundsInset = {
     top: DESKTOP_WINDOW_PADDING,
     right: DESKTOP_WINDOW_PADDING,
@@ -176,6 +178,8 @@ export function CreativeSparkDesktopLayout({
 
       <DropDownSign show={showSign} onComplete={() => setShowSign(false)} />
 
+      {showMiniGame && <FlappyToast onClose={() => setShowMiniGame(false)} />}
+
       {/* Minimized Dock */}
       <div className="absolute bottom-32 left-4 z-[100] flex flex-col-reverse gap-2">
         <AnimatePresence>
@@ -221,6 +225,7 @@ export function CreativeSparkDesktopLayout({
                 isGenerating={isGenerating}
                 isConnected={isConnected}
                 className="w-full rounded-xl overflow-hidden"
+                onMonitorClick={() => setShowMiniGame(true)}
               />
             </div>
           </DraggableWindow>
