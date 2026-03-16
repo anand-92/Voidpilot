@@ -59,7 +59,7 @@ export function CapabilitiesSection({ onCardTap }: { onCardTap: () => void }) {
                   gradientOpacity={0.5}
                 >
                   <article onTouchStart={onCardTap} className="group relative overflow-hidden p-4 md:p-8 transition-all duration-300 h-full flex items-start gap-3 md:block">
-                    <div className="shrink-0 inline-flex h-10 w-10 md:h-14 md:w-14 md:mb-6 items-center justify-center rounded-xl md:rounded-2xl bg-amber-500/10 text-amber-400 group-hover:bg-amber-500 group-hover:text-stone-950 transition-colors duration-300">
+                    <div className="shrink-0 inline-flex h-10 w-10 md:h-14 md:w-14 md:mb-6 items-center justify-center rounded-xl md:rounded-2xl bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-stone-950 transition-colors duration-300">
                       <Icon className="h-5 w-5 md:h-7 md:w-7" />
                     </div>
                     <div className="min-w-0 flex-1 md:flex-none">

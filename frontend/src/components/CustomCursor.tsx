@@ -50,7 +50,7 @@ export function CustomCursor() {
                     y: cursorY,
                     translateX: '-50%',
                     translateY: '-50%',
-                    boxShadow: '0 0 8px 1px rgba(217,119,6,0.6)',
+                    boxShadow: '0 0 8px 1px rgba(37,99,235,0.6)',
                 }}
                 animate={{
                     scale: isHovered ? 0 : 1,
@@ -67,12 +67,12 @@ export function CustomCursor() {
                     y: cursorYSpring,
                     translateX: '-50%',
                     translateY: '-50%',
-                    border: '1px solid rgba(217,119,6,0.25)',
+                    border: '1px solid rgba(37,99,235,0.25)',
                 }}
                 animate={{
                     scale: isHovered ? 2.2 : 1,
-                    borderColor: isHovered ? 'rgba(217,119,6,0.5)' : 'rgba(217,119,6,0.25)',
-                    backgroundColor: isHovered ? 'rgba(217,119,6,0.08)' : 'rgba(217,119,6,0.02)',
+                    borderColor: isHovered ? 'rgba(37,99,235,0.5)' : 'rgba(37,99,235,0.25)',
+                    backgroundColor: isHovered ? 'rgba(37,99,235,0.08)' : 'rgba(37,99,235,0.02)',
                 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
             />

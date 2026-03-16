@@ -45,12 +45,12 @@ export default function LandingPage() {
 
   return (
     <main
-      className={`${isWalkthroughOpen ? '' : 'custom-cursor '}relative h-screen w-full overflow-hidden bg-black font-sans text-stone-100 selection:bg-amber-500/30`}
+      className={`${isWalkthroughOpen ? '' : 'custom-cursor '}relative h-screen w-full overflow-hidden bg-black font-sans text-stone-100 selection:bg-blue-500/30`}
     >
       <div className="fixed top-0 left-0 w-full h-screen overflow-hidden">
         <ThreeBackground scrollProgress={scrollProgress} />
         <DotPattern
-          className="absolute inset-0 z-[1] text-amber-500/[0.04]"
+          className="absolute inset-0 z-[1] text-blue-500/[0.04]"
           width={24}
           height={24}
           cr={0.8}
@@ -82,8 +82,8 @@ export default function LandingPage() {
                 )}
               </AnimatePresence>
               <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-white">
-                <GeminiLiveLogo className="h-6 w-6 text-amber-500" />
-                <span className="pointer-events-auto">Void<span className="text-amber-400">pilot</span></span>
+                <GeminiLiveLogo className="h-6 w-6 text-blue-500" />
+                <span className="pointer-events-auto">Void<span className="text-blue-400">pilot</span></span>
               </div>
             </div>
 

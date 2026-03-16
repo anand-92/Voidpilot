@@ -103,13 +103,24 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
 
   return (
     <>
-      <div ref={toolbarRef} className="absolute bottom-6 right-4 z-[100] flex items-center">
+      <div ref={toolbarRef} className="absolute top-4 left-4 z-[100] flex items-center gap-2">
+        {onGoBack && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onGoBack}
+            className="shrink-0 size-11 rounded-2xl border border-white/[0.12] bg-black/80 backdrop-blur-xl shadow-2xl shadow-orange-500/5 text-stone-300 hover:text-white hover:bg-white/[0.08] transition-colors"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="size-5" />
+          </Button>
+        )}
+
         <motion.div
           layout
           className="flex items-center gap-2 rounded-2xl border border-white/[0.12] bg-black/80 backdrop-blur-xl shadow-2xl shadow-orange-500/5 overflow-hidden p-1"
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         >
-          {/* Toggle button */}
           <Button
             variant="ghost"
             size="icon"
@@ -129,16 +140,6 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 className="flex items-center gap-1 overflow-hidden pr-1"
               >
-                {onGoBack && (
-                  <Button
-                    variant="ghost"
-                    onClick={onGoBack}
-                    className="gap-2 rounded-xl text-stone-300 hover:text-white hover:bg-white/[0.08] whitespace-nowrap text-sm h-10 px-3"
-                  >
-                    <ArrowLeft className="size-4" />
-                    Back
-                  </Button>
-                )}
                 <Button
                   variant="ghost"
                   onClick={onResetLayout}
@@ -192,7 +193,7 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-red-600">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-700">
                 <Sparkles className="size-3.5 text-white" />
               </div>
               Getting the most out of Creative Spark

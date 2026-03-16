@@ -19,9 +19,9 @@ const sections = [
 ];
 
 const COLOR_MAP: Record<string, { bg: string; border: string; text: string; glow: string }> = {
-  yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400', glow: 'shadow-yellow-500/20' },
-  rose: { bg: 'bg-rose-500/10', border: 'border-rose-500/20', text: 'text-rose-400', glow: 'shadow-rose-500/20' },
-  stone: { bg: 'bg-stone-500/10', border: 'border-stone-500/20', text: 'text-stone-400', glow: 'shadow-stone-500/20' },
+  yellow: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400', glow: 'shadow-blue-500/20' },
+  rose: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400', glow: 'shadow-blue-500/20' },
+  stone: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400', glow: 'shadow-blue-500/20' },
 };
 
 const indexCards = [
@@ -66,7 +66,7 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
         <div className="mb-2 md:mb-4 pointer-events-auto">
           <Badge
             variant="outline"
-            className="h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-3 md:px-5 py-1.5 md:py-2 text-[10px] md:text-xs font-medium tracking-widest text-amber-200 uppercase"
+            className="h-auto gap-2 rounded-full border-blue-500/20 bg-blue-500/10 px-3 md:px-5 py-1.5 md:py-2 text-[10px] md:text-xs font-medium tracking-widest text-blue-200 uppercase"
           >
             <PulseDot />
             Voidpilot — Live AI Desktop Agent
@@ -75,20 +75,14 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
       </BlurFade>
 
       <BlurFade delay={0.15}>
-        <div className="pointer-events-auto rounded-2xl bg-black/50 px-6 py-4 backdrop-blur-md md:px-10 md:py-6">
+        <div className="pointer-events-auto rounded-[2rem] border border-blue-500/20 bg-black/40 px-5 py-4 shadow-[0_0_60px_rgba(59,130,246,0.15)] backdrop-blur-xl md:px-8 md:py-6">
             <AnimatedTextRoller
               className="max-w-4xl text-center text-3xl font-extrabold tracking-tight leading-tight sm:text-5xl md:text-7xl"
-              prefixClassName="font-extrabold tracking-tight text-white drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-              itemClassName="font-extrabold drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]"
+              prefixClassName="font-extrabold tracking-tight text-white"
+              itemClassName="font-extrabold"
               items={voidpilotHeroItems}
             />
         </div>
-      </BlurFade>
-
-      <BlurFade delay={0.25}>
-        <p className="mt-2 md:mt-4 max-w-2xl text-center text-sm text-stone-400 sm:text-lg md:text-xl font-light leading-relaxed pointer-events-auto">
-          Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
-        </p>
       </BlurFade>
 
       <div className="mt-4 md:mt-10 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5 max-w-3xl w-full pointer-events-auto">

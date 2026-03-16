@@ -15,24 +15,26 @@ type MasonryGalleryProps = {
 
 function EmptyState() {
   return (
-    <div className="flex h-full flex-col items-center justify-center px-6 text-center absolute inset-0">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="flex flex-col items-center gap-6"
-      >
-        <div className="relative z-10 flex size-20 items-center justify-center rounded-full border border-orange-500/50 bg-orange-500/10 shadow-[0_0_30px_rgba(249,115,22,0.4)] animate-pulse">
-          <Sparkles className="size-10 text-orange-500" />
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center z-10"
+    >
+      <div className="flex flex-col items-center gap-6">
+        <div className="relative flex size-24 items-center justify-center rounded-[2rem] border border-white/[0.08] bg-stone-900/60 shadow-2xl backdrop-blur-xl">
+          <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-orange-500/10 to-transparent" />
+          <Sparkles className="size-10 text-orange-500/40" />
         </div>
-        <div className="max-w-sm space-y-3 relative z-10">
-          <h2 className="text-2xl font-bold text-white">Creative Spark</h2>
-          <p className="text-sm leading-relaxed text-stone-400">
-            Start talking — visuals will appear here
+        <div>
+          <p className="text-lg font-semibold text-stone-200 tracking-tight">Your Gallery is Empty</p>
+          <p className="mt-2 text-sm text-stone-500 max-w-xs mx-auto">
+            Start talking with Gemini. Any images or videos generated will appear here in your gallery.
           </p>
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   )
 }
 
@@ -227,7 +229,7 @@ export function MasonryGallery({
   const hasMedia = mediaArtifacts.length > 0
 
   return (
-    <div className="flex h-full w-full flex-col bg-black overflow-hidden relative font-sans">
+    <div className="flex h-full w-full flex-col overflow-hidden relative font-sans">
       {hasMedia && !isGenerating && (
         <div className="absolute top-4 right-4 z-30">
           <Button

@@ -11,7 +11,7 @@ export function ArtifactPreview({ artifact }: { artifact: BrainstormArtifact }) 
     return (
       <div className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-stone-950/60 p-2">
         <ShineBorder
-          shineColor={['#d97706', '#fbbf24', '#92400e']}
+          shineColor={['#2563eb', '#3b82f6', '#1e3a8a']}
           borderWidth={1}
           duration={12}
         />

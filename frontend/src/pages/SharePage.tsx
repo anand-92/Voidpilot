@@ -88,7 +88,7 @@ export default function SharePage() {
 
   return (
     <main className="relative flex h-screen w-full flex-col overflow-hidden bg-[#0a0a0a] font-sans text-stone-100">
-      <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={80} color="#fbbf24" refresh />
+      <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={80} color="#3b82f6" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-40" width={32} height={32} cx={16} cy={16} cr={1} />
 
       {/* Header */}
@@ -274,7 +274,7 @@ function CreativeSparkShareLayout({
 
   return (
     <main className="relative flex h-screen w-full flex-col overflow-hidden bg-[#0a0a0a] font-sans text-stone-100">
-      <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={100} color="#f97316" refresh />
+      <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={100} color="#3b82f6" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-40" width={24} height={24} cx={12} cy={12} cr={0.8} />
 
       {/* Header */}
@@ -654,7 +654,7 @@ function PublicVideoTile({
 function ShareLoadingState() {
   return (
     <main className="relative flex h-screen w-full flex-col items-center justify-center bg-[#0a0a0a] font-sans text-stone-100">
-      <Particles className="absolute inset-0 z-0 opacity-20" quantity={60} ease={80} color="#fbbf24" refresh />
+      <Particles className="absolute inset-0 z-0 opacity-20" quantity={60} ease={80} color="#3b82f6" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-30" width={32} height={32} cx={16} cy={16} cr={1} />
 
       <div className="relative z-10 flex flex-col items-center gap-6">
@@ -674,7 +674,7 @@ function ShareLoadingState() {
 function ShareErrorState({ message }: { message: string }) {
   return (
     <main className="relative flex h-screen w-full flex-col items-center justify-center bg-[#0a0a0a] font-sans text-stone-100">
-      <Particles className="absolute inset-0 z-0 opacity-20" quantity={60} ease={80} color="#fbbf24" refresh />
+      <Particles className="absolute inset-0 z-0 opacity-20" quantity={60} ease={80} color="#3b82f6" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-30" width={32} height={32} cx={16} cy={16} cr={1} />
 
       <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
@@ -815,7 +815,7 @@ function PublicArtifactCard({
       className={cn(
         'group flex cursor-pointer flex-col overflow-hidden rounded-2xl border transition-all duration-300',
         isSelected
-          ? 'border-amber-500/40 bg-amber-500/[0.08] shadow-[0_0_30px_rgba(217,119,6,0.1)]'
+          ? 'border-amber-500/40 bg-amber-500/[0.08] shadow-[0_0_30px_rgba(37,99,235,0.1)]'
           : 'border-white/[0.06] bg-black/40 hover:border-amber-500/30 hover:bg-amber-500/[0.05]',
       )}
       onClick={onSelect}
@@ -945,7 +945,7 @@ function PublicArtifactPreview({
         {isImage && content.data ? (
           <div className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-stone-950/60 p-2">
             <ShineBorder
-              shineColor={['#d97706', '#fbbf24', '#92400e']}
+              shineColor={['#2563eb', '#3b82f6', '#1e3a8a']}
               borderWidth={1}
               duration={12}
             />

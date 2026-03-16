@@ -20,22 +20,22 @@ const MODE_OPTIONS = [
     title: 'Open Studio',
     description: 'Open-ended creative workspace with full tools — artifacts, images, video, and Flash delegation.',
     icon: Palette,
-    gradientFrom: '#f59e0b',
+    gradientFrom: '#3b82f6',
     gradientTo: '#b45309',
     iconBg: 'bg-amber-500/10',
     iconColor: 'text-amber-400',
-    hoverGlow: 'group-hover:shadow-[0_0_40px_rgba(245,158,11,0.15)]',
+    hoverGlow: 'group-hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]',
   },
   {
     id: 'creative_spark' as const,
     title: 'Creative Spark',
     description: 'Guided inspiration mode — the AI leads with questions, spins your answers into wild ideas, and generates images & video.',
     icon: Sparkles,
-    gradientFrom: '#f97316',
-    gradientTo: '#c2410c',
+    gradientFrom: '#3b82f6',
+    gradientTo: '#1e40af',
     iconBg: 'bg-orange-500/10',
     iconColor: 'text-orange-400',
-    hoverGlow: 'group-hover:shadow-[0_0_40px_rgba(249,115,22,0.15)]',
+    hoverGlow: 'group-hover:shadow-[0_0_40px_rgba(59,130,246,0.15)]',
   },
 ] as const
 
@@ -69,7 +69,7 @@ export function ModeSelectionScreen({ onSelectMode }: ModeSelectionScreenProps) 
         </BlurFade>
 
         <BlurFade delay={0.15}>
-          <div className="rounded-[2rem] border border-white/10 bg-white/5 px-6 py-4 md:px-10 md:py-5 shadow-[0_0_60px_rgba(245,158,11,0.08)] backdrop-blur-xl text-center">
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 px-6 py-4 md:px-10 md:py-5 shadow-[0_0_60px_rgba(59,130,246,0.08)] backdrop-blur-xl text-center">
             <h1 className="max-w-4xl text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight text-white">
               How do you want to <span className="text-amber-500">create?</span>
             </h1>

@@ -94,7 +94,7 @@ function ModelToggle({
   const textClass = cn(
     "flex items-center justify-center cursor-pointer text-xs font-bold tracking-wider outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 relative z-10",
     model === 'gemini-3.1-pro' && "text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]",
-    model === 'gemini-3-flash' && "text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]",
+    model === 'gemini-3-flash' && "text-amber-400 drop-shadow-[0_0_5px_rgba(59,130,246,0.5)]",
     model === 'gemini-3.1-flash-lite' && "text-stone-400 font-medium hover:bg-white/[0.04]"
   )
 
@@ -139,9 +139,9 @@ function ConnectionButton({
       <ShimmerButton
         onClick={onConnect}
         disabled={isStarting}
-        shimmerColor="#fbbf24"
+        shimmerColor="#3b82f6"
         shimmerDuration="2.5s"
-        background="linear-gradient(135deg, #d97706, #b45309)"
+        background="linear-gradient(135deg, #2563eb, #b45309)"
         borderRadius="16px"
         className={cn(
           "flex items-center justify-center gap-2 text-sm font-bold text-stone-950 shadow-lg disabled:cursor-not-allowed disabled:opacity-40",
@@ -316,12 +316,6 @@ export function BrainstormControls({
       <ToolSelector
         selectedTools={selectedTools}
         onToggle={handleToolToggle}
-        disabled={isDisabled}
-      />
-
-      <VoiceSelector
-        selectedVoice={selectedVoice}
-        setSelectedVoice={setSelectedVoice}
         disabled={isDisabled}
       />
 

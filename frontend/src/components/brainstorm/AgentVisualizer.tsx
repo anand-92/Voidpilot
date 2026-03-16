@@ -20,7 +20,7 @@ type AnimKey = keyof typeof ANIMS | 'scan'
 
 export const IMG_W = 2754
 export const IMG_H = 1536
-const SPRITE_FRACTION = 0.07
+const SPRITE_FRACTION = 0.105
 
 const AGENT_DIALOGUE = {
   Gemini: {
@@ -32,6 +32,14 @@ const AGENT_DIALOGUE = {
     idle: ["Waiting for task", "Need anything?", "Taking a break", "All caught up", "Standing by"]
   }
 } as const
+
+const LANDMARKS = {
+  rug: { cx: 820, cy: 1150, rx: 250, ry: 120 },
+  deskChair: { x: 420, y: 960 },
+  cat: { x: 780, y: 1000, stopRadius: 140 },
+} as const
+
+type IdleBehavior = 'none' | 'wander_rug' | 'sleeping' | 'think_desk' | 'thinking' | 'visit_cat' | 'admiring_cat'
 
 interface ToastAgent {
   name: string
@@ -52,6 +60,8 @@ interface ToastAgent {
   bubbleText: string | null
   bubbleTimer: number
   activeTimer: number
+  idleBehavior: IdleBehavior
+  behaviorTimer: number
 }
 
 function createAgent(name: string, label: string, color: string, homeX: number, homeY: number): ToastAgent {
@@ -66,7 +76,39 @@ function createAgent(name: string, label: string, color: string, homeX: number, 
     bubbleText: null,
     bubbleTimer: Math.random() * 5,
     activeTimer: 0,
+    idleBehavior: 'none',
+    behaviorTimer: 0,
   }
+}
+
+function pickRugSpot(mask: Uint8ClampedArray | null): { x: number; y: number } {
+  const { cx, cy, rx, ry } = LANDMARKS.rug
+  for (let i = 0; i < 30; i++) {
+    const angle = Math.random() * Math.PI * 2
+    const r = Math.sqrt(Math.random())
+    const tx = cx + Math.cos(angle) * rx * r
+    const ty = cy + Math.sin(angle) * ry * r
+    if (isWalkable(mask, tx, ty)) return { x: tx, y: ty }
+  }
+  return { x: cx, y: cy + ry }
+}
+
+function pickCatEdge(mask: Uint8ClampedArray | null): { x: number; y: number } {
+  const { x: catX, y: catY, stopRadius } = LANDMARKS.cat
+  for (let i = 0; i < 20; i++) {
+    const angle = Math.random() * Math.PI * 2
+    const tx = catX + Math.cos(angle) * stopRadius
+    const ty = catY + Math.sin(angle) * stopRadius
+    if (isWalkable(mask, tx, ty)) return { x: tx, y: ty }
+  }
+  return { x: catX + stopRadius, y: catY }
+}
+
+function pickWeightedBehavior(): 'wander_rug' | 'think_desk' | 'visit_cat' {
+  const roll = Math.random()
+  if (roll < 0.7) return 'wander_rug'
+  if (roll < 0.9) return 'think_desk'
+  return 'visit_cat'
 }
 
 function isWalkable(maskData: Uint8ClampedArray | null, x: number, y: number): boolean {
@@ -93,8 +135,8 @@ function findNearestWalkable(maskData: Uint8ClampedArray, x: number, y: number):
 
 export function AgentVisualizer({ intensityRef, isGenerating, isConnected, className, style }: AgentVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const geminiRef = useRef(createAgent('Gemini', 'Voice', '#fbbf24', 700, 1200))
-  const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 850, 1200))
+  const geminiRef = useRef(createAgent('Gemini', 'Voice', '#3b82f6', 600, 1200))
+  const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 1000, 1200))
   const spriteImgRef = useRef<HTMLImageElement | null>(null)
   const scanSpriteRef = useRef<HTMLImageElement | null>(null)
   const bgImgRef = useRef<HTMLImageElement | null>(null)
@@ -147,6 +189,8 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       agent.activeTimer = 0
       agent.anim = 'idle'
       agent.frame = 0
+      agent.idleBehavior = 'none'
+      agent.behaviorTimer = 0
       agent.wanderTimer = 0.5 + Math.random() * 1.5
     }
 
@@ -169,20 +213,23 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       }
     }
 
-    agent.bubbleTimer -= dt
-    if (agent.bubbleTimer <= 0) {
-      if (agent.bubbleText) {
-        agent.bubbleText = null
-        agent.bubbleTimer = 2 + Math.random() * 5
-      } else {
-        const dialogMap = AGENT_DIALOGUE[agent.name as keyof typeof AGENT_DIALOGUE]
-        if (dialogMap) {
-          const list = shouldBeActive ? dialogMap.active : dialogMap.idle
-          if (shouldBeActive || Math.random() > 0.6) {
-            agent.bubbleText = list[Math.floor(Math.random() * list.length)]
-            agent.bubbleTimer = 3 + Math.random() * 3
-          } else {
-            agent.bubbleTimer = 3 + Math.random() * 5
+    const inBehavior = !agent.isActive && agent.idleBehavior !== 'none'
+    if (!inBehavior) {
+      agent.bubbleTimer -= dt
+      if (agent.bubbleTimer <= 0) {
+        if (agent.bubbleText) {
+          agent.bubbleText = null
+          agent.bubbleTimer = 2 + Math.random() * 5
+        } else {
+          const dialogMap = AGENT_DIALOGUE[agent.name as keyof typeof AGENT_DIALOGUE]
+          if (dialogMap) {
+            const list = shouldBeActive ? dialogMap.active : dialogMap.idle
+            if (shouldBeActive || Math.random() > 0.6) {
+              agent.bubbleText = list[Math.floor(Math.random() * list.length)]
+              agent.bubbleTimer = 3 + Math.random() * 3
+            } else {
+              agent.bubbleTimer = 3 + Math.random() * 5
+            }
           }
         }
       }
@@ -210,6 +257,10 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       } else {
         agent.targetX = agent.x
         agent.targetY = agent.y
+        if (!agent.isActive) {
+          agent.idleBehavior = 'none'
+          agent.bubbleText = null
+        }
         agent.wanderTimer = 0.5
       }
 
@@ -219,8 +270,10 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
         agent.frame = 0
       }
     } else {
-      agent.x = agent.targetX
-      agent.y = agent.targetY
+      if (isWalkable(mask, agent.targetX, agent.targetY)) {
+        agent.x = agent.targetX
+        agent.y = agent.targetY
+      }
       if (agent.isActive) {
         const scanDuration = SCAN_ANIM.frames * SCAN_ANIM.speed * 3
         if (agent.activeTimer < scanDuration) {
@@ -236,22 +289,86 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
           }
         }
       } else {
-        if (agent.anim === 'walk') {
-          agent.anim = 'idle'
-          agent.frame = 0
-        }
-        agent.wanderTimer -= dt
-        if (agent.wanderTimer <= 0) {
-          for (let attempt = 0; attempt < 20; attempt++) {
-            const tx = agent.x + (Math.random() * 1600 - 800)
-            const ty = agent.y + (Math.random() * 800 - 400)
-            if (isWalkable(mask, tx, ty)) {
-              agent.targetX = tx
-              agent.targetY = ty
-              break
-            }
+        const b = agent.idleBehavior
+
+        if (b === 'sleeping') {
+          agent.behaviorTimer -= dt
+          if (agent.anim !== 'hidden') {
+            agent.anim = 'hidden'
+            agent.frame = 0
+            agent.bubbleText = 'zzzzz'
+            agent.bubbleTimer = agent.behaviorTimer + 1
           }
-          agent.wanderTimer = 0.5 + Math.random() * 2
+          if (agent.behaviorTimer <= 0) {
+            agent.idleBehavior = 'none'
+            agent.anim = 'idle'
+            agent.frame = 0
+            agent.bubbleText = null
+            agent.wanderTimer = 1 + Math.random() * 2
+          }
+        } else if (b === 'thinking') {
+          agent.behaviorTimer -= dt
+          if (agent.anim !== 'scan') {
+            agent.anim = 'scan'
+            agent.frame = 0
+            agent.frameTimer = 0
+            agent.bubbleText = 'hmmmm'
+            agent.bubbleTimer = agent.behaviorTimer + 1
+          }
+          if (agent.behaviorTimer <= 0) {
+            agent.idleBehavior = 'none'
+            agent.anim = 'idle'
+            agent.frame = 0
+            agent.bubbleText = null
+            agent.wanderTimer = 1 + Math.random() * 2
+          }
+        } else if (b === 'admiring_cat') {
+          agent.behaviorTimer -= dt
+          if (!agent.bubbleText) {
+            agent.anim = 'idle'
+            agent.bubbleText = 'the cat is so cute'
+            agent.bubbleTimer = agent.behaviorTimer + 1
+            agent.facingRight = LANDMARKS.cat.x > agent.x
+          }
+          if (agent.behaviorTimer <= 0) {
+            agent.idleBehavior = 'none'
+            agent.bubbleText = null
+            agent.wanderTimer = 1 + Math.random() * 2
+          }
+        } else if (b === 'wander_rug') {
+          agent.idleBehavior = 'sleeping'
+          agent.behaviorTimer = 4 + Math.random() * 4
+        } else if (b === 'think_desk') {
+          agent.idleBehavior = 'thinking'
+          agent.behaviorTimer = 3 + Math.random() * 3
+        } else if (b === 'visit_cat') {
+          agent.idleBehavior = 'admiring_cat'
+          agent.behaviorTimer = 3 + Math.random() * 2
+        } else {
+          if (agent.anim === 'walk') {
+            agent.anim = 'idle'
+            agent.frame = 0
+          }
+          agent.wanderTimer -= dt
+          if (agent.wanderTimer <= 0) {
+            const nextBehavior = pickWeightedBehavior()
+            agent.idleBehavior = nextBehavior
+            if (nextBehavior === 'wander_rug') {
+              const spot = pickRugSpot(mask)
+              agent.targetX = spot.x
+              agent.targetY = spot.y
+            } else if (nextBehavior === 'think_desk') {
+              const { x, y } = LANDMARKS.deskChair
+              const safe = mask ? findNearestWalkable(mask, x, y) : { x, y }
+              agent.targetX = safe.x
+              agent.targetY = safe.y
+            } else {
+              const spot = pickCatEdge(mask)
+              agent.targetX = spot.x
+              agent.targetY = spot.y
+            }
+            agent.wanderTimer = 99
+          }
         }
       }
     }
@@ -259,19 +376,26 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
     const adx = agent.x - otherAgent.x
     const ady = agent.y - otherAgent.y
     const adist = Math.sqrt(adx * adx + ady * ady)
-    const minDist = 60
+    const minDist = 90
     if (adist > 0 && adist < minDist) {
       const push = (minDist - adist) / 2
-      agent.x += (adx / adist) * push
-      agent.y += (ady / adist) * push
+      const pushX = (adx / adist) * push
+      const pushY = (ady / adist) * push
+      const newX = agent.x + pushX
+      const newY = agent.y + pushY
+      if (isWalkable(mask, newX, newY)) {
+        agent.x = newX
+        agent.y = newY
+      }
     }
+
+    agent.x = Math.max(0, Math.min(agent.x, IMG_W - 1))
+    agent.y = Math.max(0, Math.min(agent.y, IMG_H - 1))
 
     if (mask && !isWalkable(mask, agent.x, agent.y)) {
       const safe = findNearestWalkable(mask, agent.x, agent.y)
       agent.x = safe.x
       agent.y = safe.y
-      agent.targetX = safe.x
-      agent.targetY = safe.y
     }
   }, [])
 
@@ -326,22 +450,22 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       ctx.fillText(agent.label, ox + agent.x * scale, oy + agent.y * scale + drawSize * 0.25 + fontSize * 1.2)
 
       if (agent.bubbleText) {
-        const bFontSize = Math.max(8, 10 * scale)
+        const bFontSize = Math.max(12, 18 * scale)
         ctx.font = `bold ${bFontSize}px monospace`
         const metrics = ctx.measureText(agent.bubbleText)
-        const padX = 8 * scale
-        const padY = 6 * scale
+        const padX = 14 * scale
+        const padY = 10 * scale
         const bw = metrics.width + padX * 2
         const bh = bFontSize + padY * 2
         const bx = ox + agent.x * scale - bw / 2
-        const by = drawY - bh - 8 * scale
+        const by = drawY - bh - 12 * scale
 
         ctx.save()
-        ctx.fillStyle = 'rgba(20, 20, 30, 0.85)'
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
-        ctx.lineWidth = scale
+        ctx.fillStyle = 'rgba(10, 10, 20, 0.92)'
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
+        ctx.lineWidth = 1.5 * scale
 
-        const radius = 6 * scale
+        const radius = 8 * scale
         ctx.beginPath()
         ctx.moveTo(bx + radius, by)
         ctx.lineTo(bx + bw - radius, by)
@@ -349,9 +473,9 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
         ctx.lineTo(bx + bw, by + bh - radius)
         ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - radius, by + bh)
         const tx = bx + bw / 2
-        ctx.lineTo(tx + 4 * scale, by + bh)
-        ctx.lineTo(tx, by + bh + 4 * scale)
-        ctx.lineTo(tx - 4 * scale, by + bh)
+        ctx.lineTo(tx + 6 * scale, by + bh)
+        ctx.lineTo(tx, by + bh + 6 * scale)
+        ctx.lineTo(tx - 6 * scale, by + bh)
         ctx.lineTo(bx + radius, by + bh)
         ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - radius)
         ctx.lineTo(bx, by + radius)

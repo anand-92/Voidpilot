@@ -107,7 +107,7 @@ export function renderScene(
     const labelY = offsetY + (ch.y + sittingOffset) * zoom + 4 * zoom
     ctx.font = `bold ${Math.max(8, zoom * 3)}px monospace`
     ctx.textAlign = 'center'
-    ctx.fillStyle = ch.palette === 0 || ch.palette === 1 ? '#fbbf24' : '#60a5fa'
+    ctx.fillStyle = ch.palette === 0 || ch.palette === 1 ? '#3b82f6' : '#60a5fa'
     ctx.fillText(ch.name, labelX, labelY)
     ctx.font = `${Math.max(6, zoom * 2.5)}px monospace`
     ctx.fillStyle = '#888'

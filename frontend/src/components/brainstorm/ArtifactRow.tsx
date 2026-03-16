@@ -29,7 +29,7 @@ export function ArtifactRow({
       className={cn(
         'group flex flex-col cursor-pointer overflow-hidden rounded-2xl border transition-all duration-300',
         isSelected
-          ? 'border-amber-500/40 bg-amber-500/[0.08] shadow-[0_0_30px_rgba(217,119,6,0.1)]'
+          ? 'border-amber-500/40 bg-amber-500/[0.08] shadow-[0_0_30px_rgba(37,99,235,0.1)]'
           : 'border-white/[0.06] bg-black/40 hover:border-amber-500/30 hover:bg-amber-500/[0.05]',
       )}
       onClick={onSelect}

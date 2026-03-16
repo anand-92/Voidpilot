@@ -106,7 +106,7 @@ function LoadingState() {
           <PulseDot />
           PREPARING WORKSPACE
         </Badge>
-        <div className="rounded-[2rem] border border-white/10 bg-white/5 px-8 py-6 shadow-[0_0_60px_rgba(245,158,11,0.08)] backdrop-blur-xl">
+        <div className="rounded-[2rem] border border-white/10 bg-white/5 px-8 py-6 shadow-[0_0_60px_rgba(59,130,246,0.08)] backdrop-blur-xl">
           <h1 className="flex items-center gap-4 text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white">
             Syncing <span className="text-amber-500">artifacts...</span>
             <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
@@ -275,7 +275,7 @@ function LibraryState({
         </BlurFade>
 
         <BlurFade delay={0.15}>
-          <div className="rounded-[2rem] border border-white/10 bg-white/5 px-6 py-5 md:px-10 md:py-6 shadow-[0_0_60px_rgba(245,158,11,0.08)] backdrop-blur-xl">
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 px-6 py-5 md:px-10 md:py-6 shadow-[0_0_60px_rgba(59,130,246,0.08)] backdrop-blur-xl">
             <h1 className="max-w-4xl text-center text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-tight text-white">
               Your <span className="text-amber-500">creative archives.</span>
             </h1>
@@ -293,7 +293,7 @@ function LibraryState({
             {/* New Session Card */}
             <MagicCard
               gradientColor="#1c1917"
-              gradientFrom="#f59e0b"
+              gradientFrom="#3b82f6"
               gradientTo="#b45309"
               gradientOpacity={0.6}
               className="col-span-1 h-full rounded-[2rem]"
@@ -332,8 +332,8 @@ function LibraryState({
                   <MagicCard
                     key={session.id}
                     gradientColor="#1c1917"
-                    gradientFrom="#d97706"
-                    gradientTo="#92400e"
+                    gradientFrom="#2563eb"
+                    gradientTo="#1e3a8a"
                     gradientOpacity={0.6}
                     className="col-span-1 h-full rounded-[2rem]"
                   >
@@ -519,7 +519,7 @@ export function BrainstormEntryModal({
         </BlurFade>
 
         <BlurFade delay={0.15}>
-          <div className="rounded-[2rem] border border-white/10 bg-white/5 px-6 py-4 md:px-10 md:py-5 shadow-[0_0_60px_rgba(245,158,11,0.08)] backdrop-blur-xl text-center">
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 px-6 py-4 md:px-10 md:py-5 shadow-[0_0_60px_rgba(59,130,246,0.08)] backdrop-blur-xl text-center">
             <h1 className="max-w-4xl text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight text-white">
               AI that <span className="text-amber-500">hears your voice.</span>
             </h1>
@@ -617,7 +617,7 @@ export function BrainstormEntryModal({
               <Button
                 onClick={() => void handleSubmit()}
                 disabled={isSubmitting}
-                className="mt-4 h-11 w-full rounded-xl bg-amber-500 text-stone-950 font-bold text-base transition-all hover:bg-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.2)]"
+                className="mt-4 h-11 w-full rounded-xl bg-amber-500 text-stone-950 font-bold text-base transition-all hover:bg-amber-400 shadow-[0_0_30px_rgba(59,130,246,0.2)]"
               >
                 {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
                 {authMode === 'sign_up' ? 'Create Account' : 'Sign In'}
@@ -629,8 +629,8 @@ export function BrainstormEntryModal({
               <MagicCard
                 className="flex-1 rounded-[2rem]"
                 gradientColor="#1c1917"
-                gradientFrom="#d97706"
-                gradientTo="#92400e"
+                gradientFrom="#2563eb"
+                gradientTo="#1e3a8a"
                 gradientOpacity={0.6}
               >
                 <button

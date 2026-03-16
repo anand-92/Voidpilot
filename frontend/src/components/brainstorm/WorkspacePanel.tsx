@@ -135,7 +135,7 @@ export function WorkspacePanel({
     <div className="flex flex-col h-full w-full">
       {/* Empty State */}
       {artifactList.length === 0 && (
-        <div className="flex h-full flex-col items-center justify-center gap-6 text-center animate-in fade-in zoom-in duration-700">
+        <div className="flex h-full flex-col items-center justify-center gap-6 text-center animate-in fade-in zoom-in duration-700 pt-6">
           <div className="relative flex size-24 items-center justify-center rounded-[2rem] border border-white/[0.08] bg-stone-900/60 shadow-2xl backdrop-blur-xl">
             <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-br from-amber-500/10 to-transparent" />
             <GeminiStar className="size-10 text-amber-500/40" />
@@ -167,8 +167,8 @@ export function WorkspacePanel({
                     <MagicCard
                       className="rounded-2xl cursor-pointer shadow-lg"
                       gradientColor="#1c1917"
-                      gradientFrom="#d97706"
-                      gradientTo="#92400e"
+                      gradientFrom="#2563eb"
+                      gradientTo="#1e3a8a"
                       gradientOpacity={0.4}
                       gradientSize={150}
                     >

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react'
 import {
   AlertCircle,
   Check,
@@ -38,6 +38,7 @@ type ConversationPanelProps = {
   handleConnect?: () => Promise<void>
   stop?: () => void
   toggleMicPause?: () => void
+  headerExtra?: ReactNode
 }
 
 function getToolDescriptor(toolName: string | null) {
@@ -119,7 +120,7 @@ function InlineToolActivity({ entry }: { entry: ConversationToolActivityEntry })
   )
 }
 
-export function ConversationPanel({ messages, toolActivityEntries = [], messagesEndRef, mobile, sessionTitle, onCreateShare, isConnected, isStarting, isMicPaused, handleConnect, stop, toggleMicPause }: ConversationPanelProps) {
+export function ConversationPanel({ messages, toolActivityEntries = [], messagesEndRef, mobile, sessionTitle, onCreateShare, isConnected, isStarting, isMicPaused, handleConnect, stop, toggleMicPause, headerExtra }: ConversationPanelProps) {
   const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
 
   const transcriptItems = useMemo(() => {
@@ -209,6 +210,7 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
             )}
           </Button>
         )}
+        {headerExtra && <div className="ml-1 shrink-0">{headerExtra}</div>}
         <Badge
           variant="outline"
           className="ml-auto shrink-0 border-transparent bg-transparent px-0 text-[10px] font-medium uppercase tracking-widest text-stone-600"
@@ -232,7 +234,7 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
               mobile ? 'h-full py-10' : 'h-full',
             )}
           >
-            <div className="relative z-10 flex size-20 items-center justify-center rounded-full border border-orange-500/50 bg-orange-500/10 shadow-[0_0_30px_rgba(249,115,22,0.4)] animate-pulse">
+            <div className="relative z-10 flex size-20 items-center justify-center rounded-full border border-orange-500/50 bg-orange-500/10 shadow-[0_0_30px_rgba(59,130,246,0.4)] animate-pulse">
               <IconBrainstorm className="size-10 text-orange-500" />
             </div>
             <div className="relative z-10">
@@ -315,7 +317,7 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
                   'relative flex items-center gap-2.5 rounded-full px-6 py-3 text-sm font-bold transition-all',
                   isMicPaused
                     ? 'bg-blue-600/20 border border-blue-500/40 text-blue-300 shadow-[0_0_30px_rgba(59,130,246,0.4)] hover:bg-blue-600/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.5)]'
-                    : 'bg-amber-600/20 border border-amber-500/40 text-amber-300 shadow-[0_0_30px_rgba(245,158,11,0.4)] hover:bg-amber-600/30 hover:shadow-[0_0_40px_rgba(245,158,11,0.5)]',
+                    : 'bg-amber-600/20 border border-amber-500/40 text-amber-300 shadow-[0_0_30px_rgba(59,130,246,0.4)] hover:bg-amber-600/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.5)]',
                   'active:scale-95',
                 )}
               >

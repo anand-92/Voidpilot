@@ -39,9 +39,9 @@ const hackathonCards = [
 ];
 
 const HACKATHON_COLOR_MAP: Record<string, { hover: string; hoverBorder: string; text: string; bg: string }> = {
-  amber: { hover: 'hover:bg-amber-500/5', hoverBorder: 'hover:border-amber-500/20', text: 'text-amber-400', bg: 'bg-amber-500/10' },
-  orange: { hover: 'hover:bg-orange-500/5', hoverBorder: 'hover:border-orange-500/20', text: 'text-orange-400', bg: 'bg-orange-500/10' },
-  yellow: { hover: 'hover:bg-yellow-500/5', hoverBorder: 'hover:border-yellow-500/20', text: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+  amber: { hover: 'hover:bg-blue-500/5', hoverBorder: 'hover:border-blue-500/20', text: 'text-blue-400', bg: 'bg-blue-500/10' },
+  orange: { hover: 'hover:bg-blue-500/5', hoverBorder: 'hover:border-blue-500/20', text: 'text-blue-400', bg: 'bg-blue-500/10' },
+  yellow: { hover: 'hover:bg-blue-500/5', hoverBorder: 'hover:border-blue-500/20', text: 'text-blue-400', bg: 'bg-blue-500/10' },
 };
 
 export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
@@ -62,7 +62,7 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
               <div>
                 <Badge
                   variant="outline"
-                  className="mb-4 h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-4 py-1.5 text-sm font-semibold text-amber-300"
+                  className="mb-4 h-auto gap-2 rounded-full border-blue-500/20 bg-blue-500/10 px-4 py-1.5 text-sm font-semibold text-blue-300"
                 >
                   <CustomIconTrophy className="size-4" /> Global Challenge
                 </Badge>
@@ -75,7 +75,7 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
                 <Button
                   variant="outline"
                   render={<a href="https://geminiliveagentchallenge.devpost.com" target="_blank" rel="noreferrer" />}
-                  className="h-auto gap-2 rounded-full border-amber-500/20 bg-amber-500/10 px-6 py-3 font-semibold text-amber-400 hover:text-amber-300 w-full md:w-auto"
+                  className="h-auto gap-2 rounded-full border-blue-500/20 bg-blue-500/10 px-6 py-3 font-semibold text-blue-400 hover:text-blue-300 w-full md:w-auto"
                 >
                   Register on Devpost <GeminiArrowRight className="size-4" />
                 </Button>
@@ -121,7 +121,7 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
             <BlurFade delay={0.4}>
               <div className="rounded-xl bg-stone-900/60 p-6 border border-white/[0.04]">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <CustomIconCode className="text-amber-400 h-5 w-5" /> Submission Requirements
+                  <CustomIconCode className="text-blue-400 h-5 w-5" /> Submission Requirements
                 </h3>
                 <ul className="list-inside list-disc space-y-2 text-sm text-stone-400">
                   <li><strong className="text-stone-200">New Projects Only:</strong> Must be newly created during the contest period.</li>
@@ -135,7 +135,7 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
             <BlurFade delay={0.5}>
               <div className="rounded-xl bg-stone-900/60 p-6 border border-white/[0.04]">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <CustomIconTrophy className="text-amber-400 h-5 w-5" /> Prizes & Dates
+                  <CustomIconTrophy className="text-blue-400 h-5 w-5" /> Prizes & Dates
                 </h3>
                 <ul className="list-inside list-disc space-y-3 text-sm text-stone-400">
                   <li><strong className="text-stone-200">Dates:</strong> Feb 16 - Mar 16, 2026. Winners announced at Google NEXT.</li>

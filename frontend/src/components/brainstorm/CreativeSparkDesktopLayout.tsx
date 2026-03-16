@@ -55,21 +55,22 @@ export function CreativeSparkDesktopLayout({
     const iw = isClient ? window.innerWidth : 1024
     const ih = isClient ? window.innerHeight : 768
 
-    // The output container takes up half of the page in width
-    const rightWidth = Math.round(iw * 0.5)
-    const leftWidth = iw - rightWidth
-    
-    const outputWidth = rightWidth
-    const outputHeight = ih
+    const pad = 24
+    const gap = 16
+    const usableW = iw - pad * 2
+    const usableH = ih - pad * 2
 
-    // Agent visualizer aspect ratio is 2754/1536 ≈ 1.793
-    // We calculate height to exactly preserve this ratio without being cut off
-    const visualizerWidth = leftWidth
-    const visualizerHeight = Math.round(visualizerWidth * (1536 / 2754))
-    
-    // Conversation takes the remaining height on the left
-    const conversationWidth = leftWidth
-    const conversationHeight = ih - visualizerHeight
+    // Left column ~48%, right column ~48%, gap in between
+    const leftW = Math.round((usableW - gap) * 0.48)
+    const rightW = usableW - leftW - gap
+
+    const titleBar = 36
+    const vizContentH = Math.round(leftW * (1536 / 2754))
+    const vizH = Math.min(
+      vizContentH + titleBar,
+      Math.round(usableH * 0.55),
+    )
+    const bottomH = usableH - vizH - gap
 
     return {
       visualizer: {
@@ -78,7 +79,7 @@ export function CreativeSparkDesktopLayout({
         isMinimized: false,
         isMaximized: false,
         zIndex: 3,
-        defaultState: { x: 0, y: 0, w: visualizerWidth, h: visualizerHeight }
+        defaultState: { x: pad, y: pad, w: leftW, h: vizH },
       },
       output: {
         id: 'output',
@@ -86,8 +87,7 @@ export function CreativeSparkDesktopLayout({
         isMinimized: false,
         isMaximized: false,
         zIndex: 1,
-        // Positioned on the right
-        defaultState: { x: leftWidth, y: 0, w: outputWidth, h: outputHeight }
+        defaultState: { x: pad, y: pad + vizH + gap, w: leftW, h: bottomH },
       },
       conversation: {
         id: 'conversation',
@@ -95,9 +95,8 @@ export function CreativeSparkDesktopLayout({
         isMinimized: false,
         isMaximized: false,
         zIndex: 2,
-        // Positioned on the bottom left
-        defaultState: { x: 0, y: visualizerHeight, w: conversationWidth, h: conversationHeight }
-      }
+        defaultState: { x: pad + leftW + gap, y: pad, w: rightW, h: usableH },
+      },
     }
   }
 
@@ -136,7 +135,7 @@ export function CreativeSparkDesktopLayout({
 
   return (
     <main className="relative flex h-screen w-full overflow-hidden bg-[#0a0a0a] text-stone-100 font-sans" id="layout-container">
-      <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={100} color="#f97316" refresh />
+      <Particles className="absolute inset-0 z-0 opacity-30" quantity={80} ease={100} color="#3b82f6" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-40" width={24} height={24} cx={12} cy={12} cr={0.8} />
 
       <DropDownSign show={showSign} onComplete={() => setShowSign(false)} />
@@ -181,15 +180,13 @@ export function CreativeSparkDesktopLayout({
             onRestore={() => toggleMaximize('visualizer')}
             zIndex={windows.visualizer.zIndex}
             onFocus={() => bringToFront('visualizer')}
-            bounds="#layout-container"
           >
-            <div className="w-full h-full p-1 bg-black/20">
+            <div className="w-full h-full overflow-hidden flex items-center justify-center bg-black/20 p-1">
               <AgentVisualizer
                 intensityRef={intensityRef}
                 isGenerating={isGenerating}
                 isConnected={isConnected}
-                className="w-full h-full rounded-xl object-cover"
-                style={{ width: '100%', height: '100%' }}
+                className="w-full rounded-xl overflow-hidden"
               />
             </div>
           </DraggableWindow>
@@ -205,15 +202,18 @@ export function CreativeSparkDesktopLayout({
             onRestore={() => toggleMaximize('output')}
             zIndex={windows.output.zIndex}
             onFocus={() => bringToFront('output')}
-            bounds="#layout-container"
           >
-            <div className="w-full h-full overflow-hidden flex flex-col bg-black/40">
-              <MasonryGallery
-                artifactList={artifactList}
-                isGenerating={isGenerating}
-                downloadArtifact={downloadArtifact}
-                downloadAllArtifacts={downloadAllArtifacts}
-              />
+            <div className="relative w-full h-full overflow-hidden flex flex-col bg-[#0a0a0a]">
+              <Particles className="absolute inset-0 z-0 opacity-40" quantity={120} ease={80} color="#3b82f6" refresh />
+              <DotPattern className="absolute inset-0 z-0 opacity-50" width={32} height={32} cx={16} cy={16} cr={1} />
+              <div className="relative z-10 flex-1 min-h-0">
+                <MasonryGallery
+                  artifactList={artifactList}
+                  isGenerating={isGenerating}
+                  downloadArtifact={downloadArtifact}
+                  downloadAllArtifacts={downloadAllArtifacts}
+                />
+              </div>
             </div>
           </DraggableWindow>
 
@@ -228,19 +228,8 @@ export function CreativeSparkDesktopLayout({
             onRestore={() => toggleMaximize('conversation')}
             zIndex={windows.conversation.zIndex}
             onFocus={() => bringToFront('conversation')}
-            bounds="#layout-container"
           >
             <div className="w-full h-full overflow-hidden flex flex-col bg-black">
-              <div className="border-b border-white/[0.06] bg-stone-950/80 px-3 py-2 backdrop-blur-xl">
-                <div className="max-w-sm">
-                  <VoiceSelector
-                    selectedVoice={selectedVoice}
-                    setSelectedVoice={setSelectedVoice}
-                    disabled={isConnected || isStarting}
-                    compact
-                  />
-                </div>
-              </div>
               <ConversationPanel
                 messages={messages}
                 toolActivityEntries={toolActivityEntries}
@@ -253,6 +242,14 @@ export function CreativeSparkDesktopLayout({
                 handleConnect={handleConnect}
                 stop={stop}
                 toggleMicPause={toggleMicPause}
+                headerExtra={
+                  <VoiceSelector
+                    selectedVoice={selectedVoice}
+                    setSelectedVoice={setSelectedVoice}
+                    disabled={isConnected || isStarting}
+                    compact
+                  />
+                }
               />
             </div>
           </DraggableWindow>
@@ -304,7 +301,7 @@ export function CreativeSparkDesktopLayout({
                     clearAutoStartError?.()
                     void handleConnect()
                   }}
-                  className="flex-1 gap-2 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 py-3 text-sm font-bold text-stone-950 shadow-lg hover:from-orange-400 hover:to-red-500"
+                  className="flex-1 gap-2 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 py-3 text-sm font-bold text-stone-950 shadow-lg hover:from-orange-400 hover:to-blue-600"
                 >
                   <RefreshCw className="size-4" />
                   Try Again

@@ -76,7 +76,7 @@ export function CreativeSparkMobileLayout({
 
   return (
     <main className="relative flex h-dvh flex-col bg-[#0a0a0a] text-stone-100 font-sans">
-      <Particles className="absolute inset-0 z-0 opacity-30" quantity={40} ease={100} color="#f97316" refresh />
+      <Particles className="absolute inset-0 z-0 opacity-30" quantity={40} ease={100} color="#3b82f6" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-20" width={24} height={24} cx={12} cy={12} cr={0.8} />
 
       <DropDownSign show={showSign} onComplete={() => setShowSign(false)} />
@@ -88,11 +88,11 @@ export function CreativeSparkMobileLayout({
       )}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-red-600 shadow-[0_12px_32px_rgba(249,115,22,0.25)]">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-[0_12px_32px_rgba(59,130,246,0.25)]">
               <Sparkles className="size-4 text-white" />
             </div>
             <div className="min-w-0">
-              <AnimatedGradientText colorFrom="#f97316" colorTo="#fb923c" className="text-[10px] font-semibold uppercase tracking-[0.24em]">
+              <AnimatedGradientText colorFrom="#3b82f6" colorTo="#60a5fa" className="text-[10px] font-semibold uppercase tracking-[0.24em]">
                 Creative Spark
               </AnimatedGradientText>
               <h1 className="truncate text-sm font-semibold text-white">Inspiration mode</h1>
@@ -332,7 +332,7 @@ export function CreativeSparkMobileLayout({
                     clearAutoStartError?.()
                     void handleConnect()
                   }}
-                  className="min-h-12 flex-1 gap-2 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 text-sm font-bold text-stone-950 shadow-lg hover:from-orange-400 hover:to-red-500"
+                  className="min-h-12 flex-1 gap-2 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-bold text-stone-950 shadow-lg hover:from-orange-400 hover:to-blue-600"
                 >
                   <RefreshCw className="size-4" />
                   Retry

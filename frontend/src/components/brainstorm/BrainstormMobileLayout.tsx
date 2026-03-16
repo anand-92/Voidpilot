@@ -55,7 +55,7 @@ export function BrainstormMobileLayout({
 
   return (
     <main className="relative flex min-h-dvh flex-col bg-[#0a0a0a] text-stone-100 font-sans">
-      <Particles className="absolute inset-0 z-0 opacity-40" quantity={60} ease={80} color="#fbbf24" refresh />
+      <Particles className="absolute inset-0 z-0 opacity-40" quantity={60} ease={80} color="#3b82f6" refresh />
       <DotPattern className="absolute inset-0 z-0 opacity-30" width={32} height={32} cx={16} cy={16} cr={1} />
 
       <FloatingAgentWindow
@@ -68,11 +68,11 @@ export function BrainstormMobileLayout({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-[0_12px_32px_rgba(217,119,6,0.25)]">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-[0_12px_32px_rgba(37,99,235,0.25)]">
                 <IconBrainstorm className="size-5 text-white" />
               </div>
               <div className="min-w-0">
-                <AnimatedGradientText colorFrom="#d97706" colorTo="#fbbf24" className="text-xs font-semibold uppercase tracking-[0.24em]">
+                <AnimatedGradientText colorFrom="#2563eb" colorTo="#3b82f6" className="text-xs font-semibold uppercase tracking-[0.24em]">
                   Brainstorm
                 </AnimatedGradientText>
                 <h1 className="truncate text-lg font-semibold text-white">Mobile workspace</h1>

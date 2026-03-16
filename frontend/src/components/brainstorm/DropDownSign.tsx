@@ -81,7 +81,7 @@ export function DropDownSign({ show, onComplete }: DropDownSignProps) {
                   <img
                     src="/assets/brainstorm/toast-mascot.png"
                     alt=""
-                    className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0 mt-0.5"
+                    className="w-[84px] h-[84px] md:w-24 md:h-24 flex-shrink-0 mt-0.5"
                     style={{
                       imageRendering: "pixelated",
                       filter: "drop-shadow(0 0 6px rgba(34,211,238,0.3))",

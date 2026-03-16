@@ -60,9 +60,9 @@ export function CreativeSparkControls({
         <ShimmerButton
           onClick={handleConnect}
           disabled={isStarting}
-          shimmerColor="#fb923c"
+          shimmerColor="#60a5fa"
           shimmerDuration="2.5s"
-          background="linear-gradient(135deg, #f97316, #c2410c)"
+          background="linear-gradient(135deg, #3b82f6, #1e40af)"
           borderRadius="9999px"
           className="flex shrink-0 items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-stone-950 shadow-lg disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -96,7 +96,7 @@ export function CreativeSparkControls({
         onClick={handleSend}
         disabled={!isConnected || isToolRunning || !inputText.trim()}
         aria-label="Send message"
-        className="shrink-0 cursor-pointer rounded-full bg-gradient-to-br from-orange-500 to-red-600 text-stone-950 shadow-md transition-transform size-9 hover:scale-105 hover:from-orange-400 hover:to-red-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+        className="shrink-0 cursor-pointer rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-stone-950 shadow-md transition-transform size-9 hover:scale-105 hover:from-orange-400 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
       >
         <GeminiSend className="size-4" />
       </Button>
