@@ -11,7 +11,7 @@ interface AgentVisualizerProps {
 const FRAME_SIZE = 16
 const ANIMS = {
   idle: { row: 0, frames: 4, speed: 0.35 },
-  walk: { row: 1, frames: 8, speed: 0.12 },
+  walk: { row: 1, frames: 8, speed: 0.14 },
   hide: { row: 2, frames: 15, speed: 0.08 },
   hidden: { row: 3, frames: 4, speed: 0.3 },
 } as const
@@ -22,16 +22,84 @@ export const IMG_W = 2754
 export const IMG_H = 1536
 const SPRITE_FRACTION = 0.105
 
-const AGENT_DIALOGUE = {
-  Gemini: {
-    active: ["Listening...", "I can help with that", "Let me think...", "Analyzing...", "On it!"],
-    idle: ["Just chilling", "Zzz...", "Nice room", "Ready when you are", "Waiting for input..."]
-  },
-  Flash: {
-    active: ["Generating...", "Writing code...", "Almost done...", "Compiling...", "Working on it!"],
-    idle: ["Waiting for task", "Need anything?", "Taking a break", "All caught up", "Standing by"]
-  }
+let walkableBounds = { minX: 0, maxX: IMG_W - 1, minY: 0, maxY: IMG_H - 1 }
+
+const WALKING_PHRASES = [
+  "Rising to the occasion!",
+  "Let's get this bread.",
+  "I'm on a roll... wait, I'm toast.",
+  "Bread-y for anything!",
+  "Just loafing around.",
+  "Looking for the butter side of life.",
+  "I'm feeling extra crispy today.",
+  "Just crumbs for thought.",
+  "Scanning for jam... I mean, data.",
+  "Assistant duties: Buttering up the user.",
+  "A balanced diet is toast in both hands.",
+  "Everything I do is 'well-done'.",
+  "I'm the upper crust of AI.",
+  "Wheat's up?",
+  "Toasting to a job well done.",
+  "Just a sliver of your time?",
+  "Don't be sourdough!",
+  "Rye-ing to help you out.",
+  "Keeping it light and fluffy.",
+  "Freshly baked and ready to serve!",
+]
+
+const SLEEPING_PHRASES = [
+  "Zzz... buttery dreams...",
+  "Zzz... warm and toasty...",
+  "Zzz... don't flip me yet...",
+  "Zzz... bed of crumbs...",
+  "Zzz... golden brown...",
+]
+
+const ACTIVE_PHRASES = {
+  Gemini: [
+    "Polishing my vocabulary...",
+    "Drafting the perfect response!",
+    "Parsing your thoughts...",
+    "I've got just the words!",
+  ],
+  Flash: [
+    "Baking the pixels...",
+    "Crunching the data crumbs...",
+    "Processing the ingredients...",
+    "Whipping up something special!",
+  ],
 } as const
+
+function pickUnique(list: readonly string[], exclude: string | null): string {
+  if (list.length <= 1) return list[0]
+  for (let i = 0; i < 10; i++) {
+    const pick = list[Math.floor(Math.random() * list.length)]
+    if (pick !== exclude) return pick
+  }
+  return list[0] === exclude ? list[1] : list[0]
+}
+
+const SPEECH_COOLDOWN = 30
+
+function trySetBubble(agent: ToastAgent, list: readonly string[], otherAgent: ToastAgent, minTimer: number): void {
+  if (agent.speechCooldown > 0) return
+  agent.bubbleText = pickUnique(list, otherAgent.bubbleText)
+  agent.bubbleMinTimer = minTimer
+}
+
+function forceSetBubble(agent: ToastAgent, list: readonly string[], otherAgent: ToastAgent): void {
+  agent.speechCooldown = 0
+  agent.bubbleMinTimer = 0
+  agent.bubbleText = pickUnique(list, otherAgent.bubbleText)
+}
+
+function clearBubble(agent: ToastAgent): void {
+  if (agent.bubbleText) {
+    agent.bubbleText = null
+    agent.speechCooldown = SPEECH_COOLDOWN
+  }
+  agent.bubbleMinTimer = 0
+}
 
 const LANDMARKS = {
   rug: { cx: 820, cy: 1150, rx: 250, ry: 120 },
@@ -39,7 +107,7 @@ const LANDMARKS = {
   cat: { x: 780, y: 1000, stopRadius: 140 },
 } as const
 
-type IdleBehavior = 'none' | 'wander_rug' | 'sleeping' | 'think_desk' | 'thinking' | 'visit_cat' | 'admiring_cat'
+type IdleBehavior = 'none' | 'wandering' | 'nap_walk' | 'sleeping' | 'think_desk' | 'thinking' | 'visit_cat' | 'admiring_cat'
 
 interface ToastAgent {
   name: string
@@ -56,15 +124,23 @@ interface ToastAgent {
   homeX: number
   homeY: number
   isActive: boolean
-  wanderTimer: number
   bubbleText: string | null
-  bubbleTimer: number
   activeTimer: number
   idleBehavior: IdleBehavior
   behaviorTimer: number
+  moveSpeed: number
+  napTimer: number
+  blockedTimer: number
+  hardStopCooldown: number
+  bubbleMinTimer: number
+  idleCooldown: number
+  speechCooldown: number
+  moveStartTime: number
+  stuckX: number
+  stuckY: number
 }
 
-function createAgent(name: string, label: string, color: string, homeX: number, homeY: number): ToastAgent {
+function createAgent(name: string, label: string, color: string, homeX: number, homeY: number, moveSpeed: number, napDelay: number): ToastAgent {
   return {
     name, label, color,
     anim: 'idle', frame: 0, frameTimer: 0,
@@ -72,12 +148,20 @@ function createAgent(name: string, label: string, color: string, homeX: number, 
     facingRight: true,
     homeX, homeY,
     isActive: false,
-    wanderTimer: 0.5 + Math.random() * 1.5,
     bubbleText: null,
-    bubbleTimer: Math.random() * 5,
     activeTimer: 0,
     idleBehavior: 'none',
     behaviorTimer: 0,
+    moveSpeed,
+    napTimer: napDelay,
+    blockedTimer: 0,
+    hardStopCooldown: 0,
+    bubbleMinTimer: 0,
+    idleCooldown: 0,
+    speechCooldown: 0,
+    moveStartTime: 0,
+    stuckX: -1,
+    stuckY: -1,
   }
 }
 
@@ -104,20 +188,61 @@ function pickCatEdge(mask: Uint8ClampedArray | null): { x: number; y: number } {
   return { x: catX + stopRadius, y: catY }
 }
 
-function pickWeightedBehavior(): 'wander_rug' | 'think_desk' | 'visit_cat' {
+function pickRandomWalkable(mask: Uint8ClampedArray | null): { x: number; y: number } {
+  if (!mask) return { x: Math.random() * IMG_W, y: Math.random() * IMG_H }
+  const { minX, maxX, minY, maxY } = walkableBounds
+  for (let i = 0; i < 200; i++) {
+    const x = minX + Math.random() * (maxX - minX)
+    const y = minY + Math.random() * (maxY - minY)
+    if (isWalkable(mask, x, y)) return { x, y }
+  }
+  return { x: LANDMARKS.rug.cx, y: LANDMARKS.rug.cy }
+}
+
+function pickBiasedWalkable(mask: Uint8ClampedArray | null, otherX: number): { x: number; y: number } {
+  const { minX, maxX, minY, maxY } = walkableBounds
+  const midX = (minX + maxX) / 2
+  const preferRight = otherX < midX
+  for (let i = 0; i < 300; i++) {
+    let x: number
+    if (Math.random() < 0.8) {
+      x = preferRight
+        ? midX + Math.random() * (maxX - midX)
+        : minX + Math.random() * (midX - minX)
+    } else {
+      x = minX + Math.random() * (maxX - minX)
+    }
+    const y = minY + Math.random() * (maxY - minY)
+    if (isWalkable(mask, x, y)) return { x, y }
+  }
+  return pickRandomWalkable(mask)
+}
+
+function pickWeightedBehavior(): 'wandering' | 'think_desk' | 'visit_cat' {
   const roll = Math.random()
-  if (roll < 0.7) return 'wander_rug'
+  if (roll < 0.75) return 'wandering'
   if (roll < 0.9) return 'think_desk'
   return 'visit_cat'
 }
 
-function isWalkable(maskData: Uint8ClampedArray | null, x: number, y: number): boolean {
+const FEET_HALF_W = 12
+
+function isWalkablePixel(maskData: Uint8ClampedArray | null, x: number, y: number): boolean {
   if (!maskData) return true
   const px = Math.round(x)
   const py = Math.round(y)
   if (px < 0 || px >= IMG_W || py < 0 || py >= IMG_H) return false
   const idx = (py * IMG_W + px) * 4
   return maskData[idx] > 128
+}
+
+function isWalkable(maskData: Uint8ClampedArray | null, x: number, y: number): boolean {
+  if (!maskData) return true
+  return (
+    isWalkablePixel(maskData, x, y) &&
+    isWalkablePixel(maskData, x - FEET_HALF_W, y) &&
+    isWalkablePixel(maskData, x + FEET_HALF_W, y)
+  )
 }
 
 function findNearestWalkable(maskData: Uint8ClampedArray, x: number, y: number): { x: number; y: number } {
@@ -133,16 +258,63 @@ function findNearestWalkable(maskData: Uint8ClampedArray, x: number, y: number):
   return { x, y }
 }
 
+function dist2d(x1: number, y1: number, x2: number, y2: number): number {
+  return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+}
+
+const PERSONAL_SPACE = 200
+const PERSONAL_SPACE_WALK = 180
+
+function pickDistantWalkable(
+  mask: Uint8ClampedArray | null,
+  agentX: number, agentY: number,
+  other: ToastAgent,
+): { x: number; y: number } {
+  for (let i = 0; i < 300; i++) {
+    const spot = pickBiasedWalkable(mask, other.x)
+    const selfDist = dist2d(spot.x, spot.y, agentX, agentY)
+    const otherPosDist = dist2d(spot.x, spot.y, other.x, other.y)
+    const otherTargetDist = dist2d(spot.x, spot.y, other.targetX, other.targetY)
+    const stuckDist = other.stuckX >= 0 ? dist2d(spot.x, spot.y, other.stuckX, other.stuckY) : 999
+    if (selfDist >= 150 && otherPosDist >= PERSONAL_SPACE && otherTargetDist >= PERSONAL_SPACE && stuckDist >= 150) return spot
+  }
+  for (let i = 0; i < 100; i++) {
+    const spot = pickBiasedWalkable(mask, other.x)
+    if (dist2d(spot.x, spot.y, agentX, agentY) >= 150 && dist2d(spot.x, spot.y, other.x, other.y) >= PERSONAL_SPACE) return spot
+  }
+  return pickRandomWalkable(mask)
+}
+
+function pickOppositeWalkable(
+  mask: Uint8ClampedArray | null,
+  agentX: number, agentY: number,
+  otherX: number, otherY: number,
+): { x: number; y: number } {
+  const awayDx = agentX - otherX
+  const awayDy = agentY - otherY
+  const awayLen = Math.sqrt(awayDx * awayDx + awayDy * awayDy) || 1
+  for (let i = 0; i < 200; i++) {
+    const spread = (Math.random() - 0.5) * Math.PI * 0.6
+    const baseAngle = Math.atan2(awayDy / awayLen, awayDx / awayLen) + spread
+    const r = 250 + Math.random() * 500
+    const tx = agentX + Math.cos(baseAngle) * r
+    const ty = agentY + Math.sin(baseAngle) * r
+    if (isWalkable(mask, tx, ty) && dist2d(tx, ty, otherX, otherY) >= PERSONAL_SPACE) return { x: tx, y: ty }
+  }
+  return pickRandomWalkable(mask)
+}
+
 export function AgentVisualizer({ intensityRef, isGenerating, isConnected, className, style }: AgentVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const geminiRef = useRef(createAgent('Gemini', 'Voice', '#3b82f6', 600, 1200))
-  const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 1000, 1200))
+  const geminiRef = useRef(createAgent('Gemini', 'Voice', '#3b82f6', 600, 1200, 1.0, 30))
+  const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 1000, 1200, 1.2, 37))
   const spriteImgRef = useRef<HTMLImageElement | null>(null)
   const scanSpriteRef = useRef<HTMLImageElement | null>(null)
   const bgImgRef = useRef<HTMLImageElement | null>(null)
   const maskDataRef = useRef<Uint8ClampedArray | null>(null)
   const lastTimeRef = useRef(0)
   const rafRef = useRef(0)
+  const frameCountRef = useRef(0)
 
   useEffect(() => {
     const sprite = new Image()
@@ -165,7 +337,24 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       offscreen.height = mask.height
       const mctx = offscreen.getContext('2d')!
       mctx.drawImage(mask, 0, 0)
-      maskDataRef.current = mctx.getImageData(0, 0, mask.width, mask.height).data
+      const data = mctx.getImageData(0, 0, mask.width, mask.height).data
+      maskDataRef.current = data
+
+      let bMinX = IMG_W, bMaxX = 0, bMinY = IMG_H, bMaxY = 0
+      for (let y = 0; y < IMG_H; y += 8) {
+        for (let x = 0; x < IMG_W; x += 8) {
+          const idx = (y * IMG_W + x) * 4
+          if (data[idx] > 128) {
+            if (x < bMinX) bMinX = x
+            if (x > bMaxX) bMaxX = x
+            if (y < bMinY) bMinY = y
+            if (y > bMaxY) bMaxY = y
+          }
+        }
+      }
+      if (bMaxX > bMinX) {
+        walkableBounds = { minX: bMinX, maxX: bMaxX, minY: bMinY, maxY: bMaxY }
+      }
     }
 
     return () => {
@@ -182,8 +371,16 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       agent.activeTimer = 0
       agent.targetX = agent.homeX
       agent.targetY = agent.homeY
+      agent.moveStartTime = performance.now()
+      agent.stuckX = -1
+      agent.stuckY = -1
       agent.anim = 'walk'
       agent.frame = 0
+      agent.idleBehavior = 'none'
+      agent.behaviorTimer = 0
+      agent.hardStopCooldown = 0
+      const phrases = ACTIVE_PHRASES[agent.name as keyof typeof ACTIVE_PHRASES]
+      if (phrases) forceSetBubble(agent, phrases, otherAgent)
     } else if (!shouldBeActive && agent.isActive) {
       agent.isActive = false
       agent.activeTimer = 0
@@ -191,7 +388,13 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       agent.frame = 0
       agent.idleBehavior = 'none'
       agent.behaviorTimer = 0
-      agent.wanderTimer = 0.5 + Math.random() * 1.5
+      agent.idleCooldown = 5 + Math.random() * 3
+      agent.napTimer = agent.name === 'Gemini' ? 30 : 37
+      agent.blockedTimer = 0
+      agent.hardStopCooldown = 0
+      agent.bubbleText = null
+      agent.bubbleMinTimer = 0
+      agent.speechCooldown = 0
     }
 
     if (agent.isActive) {
@@ -213,61 +416,77 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       }
     }
 
-    const inBehavior = !agent.isActive && agent.idleBehavior !== 'none'
-    if (!inBehavior) {
-      agent.bubbleTimer -= dt
-      if (agent.bubbleTimer <= 0) {
-        if (agent.bubbleText) {
-          agent.bubbleText = null
-          agent.bubbleTimer = 2 + Math.random() * 5
-        } else {
-          const dialogMap = AGENT_DIALOGUE[agent.name as keyof typeof AGENT_DIALOGUE]
-          if (dialogMap) {
-            const list = shouldBeActive ? dialogMap.active : dialogMap.idle
-            if (shouldBeActive || Math.random() > 0.6) {
-              agent.bubbleText = list[Math.floor(Math.random() * list.length)]
-              agent.bubbleTimer = 3 + Math.random() * 3
-            } else {
-              agent.bubbleTimer = 3 + Math.random() * 5
-            }
-          }
-        }
-      }
-    }
+    if (agent.bubbleMinTimer > 0) agent.bubbleMinTimer -= dt
+    if (agent.speechCooldown > 0) agent.speechCooldown -= dt
 
     const mask = maskDataRef.current
     const dx = agent.targetX - agent.x
     const dy = agent.targetY - agent.y
     const dist = Math.sqrt(dx * dx + dy * dy)
 
-    if (dist > 4) {
-      const speed = 200 * dt
+    if (agent.hardStopCooldown > 0) {
+      agent.hardStopCooldown -= dt
+      if (agent.anim !== 'idle') {
+        agent.anim = 'idle'
+        agent.frame = 0
+      }
+      if (agent.hardStopCooldown <= 0) {
+        agent.hardStopCooldown = 0
+        agent.stuckX = -1
+        agent.stuckY = -1
+        const spot = pickDistantWalkable(mask, agent.x, agent.y, otherAgent)
+        agent.targetX = spot.x
+        agent.targetY = spot.y
+        agent.moveStartTime = performance.now()
+        if (!agent.isActive) {
+          agent.idleBehavior = 'wandering'
+          trySetBubble(agent, WALKING_PHRASES, otherAgent, 5)
+        }
+      }
+    } else if (dist > 4) {
+      const speed = 100 * agent.moveSpeed * dt
       const stepX = (dx / dist) * Math.min(speed, dist)
       const stepY = (dy / dist) * Math.min(speed, dist)
       const nextX = agent.x + stepX
       const nextY = agent.y + stepY
 
-      if (isWalkable(mask, nextX, nextY)) {
-        agent.x = nextX
-        agent.y = nextY
-      } else if (isWalkable(mask, agent.x + stepX, agent.y)) {
-        agent.x += stepX
-      } else if (isWalkable(mask, agent.x, agent.y + stepY)) {
-        agent.y += stepY
-      } else {
+      if (!isWalkable(mask, nextX, nextY)) {
         agent.targetX = agent.x
         agent.targetY = agent.y
+        agent.anim = 'idle'
+        agent.frame = 0
+        agent.hardStopCooldown = 5.0
+        agent.stuckX = agent.x
+        agent.stuckY = agent.y
         if (!agent.isActive) {
           agent.idleBehavior = 'none'
-          agent.bubbleText = null
+          if (agent.bubbleMinTimer <= 0) clearBubble(agent)
         }
-        agent.wanderTimer = 0.5
-      }
-
-      agent.facingRight = dx > 0
-      if (agent.anim !== 'walk') {
-        agent.anim = 'walk'
-        agent.frame = 0
+      } else {
+        const od = Math.sqrt((nextX - otherAgent.x) ** 2 + (nextY - otherAgent.y) ** 2)
+        if (od < PERSONAL_SPACE_WALK) {
+          agent.blockedTimer += dt
+          if (agent.blockedTimer > 2) {
+            agent.blockedTimer = 0
+            const spot = pickDistantWalkable(mask, agent.x, agent.y, otherAgent)
+            agent.targetX = spot.x
+            agent.targetY = spot.y
+            agent.moveStartTime = performance.now()
+            if (!agent.isActive) {
+              agent.idleBehavior = 'wandering'
+              trySetBubble(agent, WALKING_PHRASES, otherAgent, 5)
+            }
+          }
+        } else {
+          agent.x = nextX
+          agent.y = nextY
+          agent.blockedTimer = 0
+        }
+        agent.facingRight = dx > 0
+        if (agent.anim !== 'walk') {
+          agent.anim = 'walk'
+          agent.frame = 0
+        }
       }
     } else {
       if (isWalkable(mask, agent.targetX, agent.targetY)) {
@@ -291,20 +510,27 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       } else {
         const b = agent.idleBehavior
 
-        if (b === 'sleeping') {
+        if (b === 'wandering') {
+          agent.idleBehavior = 'none'
+          agent.anim = 'idle'
+          agent.frame = 0
+          if (agent.bubbleMinTimer <= 0) clearBubble(agent)
+          agent.idleCooldown = 5 + Math.random() * 3
+        } else if (b === 'nap_walk') {
+          agent.idleBehavior = 'sleeping'
+          agent.behaviorTimer = 15
+          agent.anim = 'hidden'
+          agent.frame = 0
+          trySetBubble(agent, SLEEPING_PHRASES, otherAgent, 15)
+        } else if (b === 'sleeping') {
           agent.behaviorTimer -= dt
-          if (agent.anim !== 'hidden') {
-            agent.anim = 'hidden'
-            agent.frame = 0
-            agent.bubbleText = 'zzzzz'
-            agent.bubbleTimer = agent.behaviorTimer + 1
-          }
           if (agent.behaviorTimer <= 0) {
             agent.idleBehavior = 'none'
             agent.anim = 'idle'
             agent.frame = 0
-            agent.bubbleText = null
-            agent.wanderTimer = 1 + Math.random() * 2
+            clearBubble(agent)
+            agent.idleCooldown = 5 + Math.random() * 3
+            agent.napTimer = 28 + Math.random() * 4
           }
         } else if (b === 'thinking') {
           agent.behaviorTimer -= dt
@@ -312,62 +538,75 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
             agent.anim = 'scan'
             agent.frame = 0
             agent.frameTimer = 0
-            agent.bubbleText = 'hmmmm'
-            agent.bubbleTimer = agent.behaviorTimer + 1
           }
           if (agent.behaviorTimer <= 0) {
             agent.idleBehavior = 'none'
             agent.anim = 'idle'
             agent.frame = 0
-            agent.bubbleText = null
-            agent.wanderTimer = 1 + Math.random() * 2
+            if (agent.bubbleMinTimer <= 0) clearBubble(agent)
+            agent.idleCooldown = 5 + Math.random() * 3
           }
         } else if (b === 'admiring_cat') {
           agent.behaviorTimer -= dt
-          if (!agent.bubbleText) {
+          if (agent.anim !== 'idle') {
             agent.anim = 'idle'
-            agent.bubbleText = 'the cat is so cute'
-            agent.bubbleTimer = agent.behaviorTimer + 1
             agent.facingRight = LANDMARKS.cat.x > agent.x
           }
           if (agent.behaviorTimer <= 0) {
             agent.idleBehavior = 'none'
-            agent.bubbleText = null
-            agent.wanderTimer = 1 + Math.random() * 2
+            if (agent.bubbleMinTimer <= 0) clearBubble(agent)
+            agent.idleCooldown = 5 + Math.random() * 3
           }
-        } else if (b === 'wander_rug') {
-          agent.idleBehavior = 'sleeping'
-          agent.behaviorTimer = 4 + Math.random() * 4
         } else if (b === 'think_desk') {
           agent.idleBehavior = 'thinking'
           agent.behaviorTimer = 3 + Math.random() * 3
+          trySetBubble(agent, WALKING_PHRASES, otherAgent, 5)
         } else if (b === 'visit_cat') {
           agent.idleBehavior = 'admiring_cat'
           agent.behaviorTimer = 3 + Math.random() * 2
+          trySetBubble(agent, WALKING_PHRASES, otherAgent, 5)
         } else {
           if (agent.anim === 'walk') {
             agent.anim = 'idle'
             agent.frame = 0
           }
-          agent.wanderTimer -= dt
-          if (agent.wanderTimer <= 0) {
-            const nextBehavior = pickWeightedBehavior()
-            agent.idleBehavior = nextBehavior
-            if (nextBehavior === 'wander_rug') {
+          if (agent.idleCooldown > 0) {
+            agent.idleCooldown -= dt
+            if (agent.bubbleMinTimer > 0) {
+              agent.bubbleMinTimer -= dt
+              if (agent.bubbleMinTimer <= 0) {
+                clearBubble(agent)
+              }
+            }
+          } else {
+            agent.napTimer -= dt
+            if (agent.napTimer <= 0) {
+              agent.idleBehavior = 'nap_walk'
+              trySetBubble(agent, WALKING_PHRASES, otherAgent, 5)
               const spot = pickRugSpot(mask)
               agent.targetX = spot.x
               agent.targetY = spot.y
-            } else if (nextBehavior === 'think_desk') {
-              const { x, y } = LANDMARKS.deskChair
-              const safe = mask ? findNearestWalkable(mask, x, y) : { x, y }
-              agent.targetX = safe.x
-              agent.targetY = safe.y
+              agent.moveStartTime = performance.now()
             } else {
-              const spot = pickCatEdge(mask)
-              agent.targetX = spot.x
-              agent.targetY = spot.y
+              const nextBehavior = pickWeightedBehavior()
+              agent.idleBehavior = nextBehavior
+              trySetBubble(agent, WALKING_PHRASES, otherAgent, 5)
+              if (nextBehavior === 'wandering') {
+                const spot = pickDistantWalkable(mask, agent.x, agent.y, otherAgent)
+                agent.targetX = spot.x
+                agent.targetY = spot.y
+              } else if (nextBehavior === 'think_desk') {
+                const { x, y } = LANDMARKS.deskChair
+                const safe = mask ? findNearestWalkable(mask, x, y) : { x, y }
+                agent.targetX = safe.x
+                agent.targetY = safe.y
+              } else {
+                const spot = pickCatEdge(mask)
+                agent.targetX = spot.x
+                agent.targetY = spot.y
+              }
+              agent.moveStartTime = performance.now()
             }
-            agent.wanderTimer = 99
           }
         }
       }
@@ -376,7 +615,7 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
     const adx = agent.x - otherAgent.x
     const ady = agent.y - otherAgent.y
     const adist = Math.sqrt(adx * adx + ady * ady)
-    const minDist = 90
+    const minDist = PERSONAL_SPACE
     if (adist > 0 && adist < minDist) {
       const push = (minDist - adist) / 2
       const pushX = (adx / adist) * push
@@ -405,7 +644,25 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const drawAgent = (agent: ToastAgent, scale: number, ox: number, oy: number, bgDrawH: number) => {
+    const wrapText = (text: string, font: string, maxW: number): string[] => {
+      ctx.font = font
+      const words = text.split(' ')
+      const lines: string[] = []
+      let line = ''
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word
+        if (ctx.measureText(test).width > maxW && line) {
+          lines.push(line)
+          line = word
+        } else {
+          line = test
+        }
+      }
+      if (line) lines.push(line)
+      return lines
+    }
+
+    const drawAgentSprite = (agent: ToastAgent, scale: number, ox: number, oy: number, bgDrawH: number) => {
       const drawSize = bgDrawH * SPRITE_FRACTION
       const drawX = ox + agent.x * scale - drawSize / 2
       const drawY = oy + agent.y * scale - drawSize
@@ -448,48 +705,93 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       ctx.font = `${fontSize * 0.8}px monospace`
       ctx.fillStyle = '#888'
       ctx.fillText(agent.label, ox + agent.x * scale, oy + agent.y * scale + drawSize * 0.25 + fontSize * 1.2)
+    }
 
-      if (agent.bubbleText) {
-        const bFontSize = Math.max(12, 18 * scale)
-        ctx.font = `bold ${bFontSize}px monospace`
-        const metrics = ctx.measureText(agent.bubbleText)
-        const padX = 14 * scale
-        const padY = 10 * scale
-        const bw = metrics.width + padX * 2
-        const bh = bFontSize + padY * 2
-        const bx = ox + agent.x * scale - bw / 2
-        const by = drawY - bh - 12 * scale
+    const PIXEL_FONT = "'Press Start 2P', monospace"
 
-        ctx.save()
-        ctx.fillStyle = 'rgba(10, 10, 20, 0.92)'
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
-        ctx.lineWidth = 1.5 * scale
+    const bubbleRectsRef: { bx: number; bw: number; by: number; bh: number }[] = []
 
-        const radius = 8 * scale
-        ctx.beginPath()
-        ctx.moveTo(bx + radius, by)
-        ctx.lineTo(bx + bw - radius, by)
-        ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + radius)
-        ctx.lineTo(bx + bw, by + bh - radius)
-        ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - radius, by + bh)
-        const tx = bx + bw / 2
-        ctx.lineTo(tx + 6 * scale, by + bh)
-        ctx.lineTo(tx, by + bh + 6 * scale)
-        ctx.lineTo(tx - 6 * scale, by + bh)
-        ctx.lineTo(bx + radius, by + bh)
-        ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - radius)
-        ctx.lineTo(bx, by + radius)
-        ctx.quadraticCurveTo(bx, by, bx + radius, by)
-        ctx.closePath()
-        ctx.fill()
-        ctx.stroke()
+    const drawBubble = (agent: ToastAgent, otherAgent: ToastAgent, scale: number, ox: number, oy: number, bgDrawH: number) => {
+      if (!agent.bubbleText) return
+      const drawSize = bgDrawH * SPRITE_FRACTION
+      const baseDrawY = oy + agent.y * scale - drawSize
+      const centerX = ox + agent.x * scale
 
-        ctx.fillStyle = '#f3f4f6'
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(agent.bubbleText, bx + bw / 2, by + bh / 2 + 1)
-        ctx.restore()
+      const yBoost = agent.y < otherAgent.y ? Math.max(10, 18 * scale) : 0
+      const drawY = baseDrawY - yBoost
+
+      const bFontSize = Math.max(7, 9 * scale)
+      const font = `${bFontSize}px ${PIXEL_FONT}`
+      const maxTextW = Math.max(100, 170 * scale)
+      const lines = wrapText(agent.bubbleText, font, maxTextW)
+
+      const padX = Math.max(8, 12 * scale)
+      const padY = Math.max(10, 14 * scale)
+      const lineH = Math.ceil(bFontSize * 1.8)
+
+      let maxLineW = 0
+      ctx.font = font
+      for (const l of lines) {
+        const w = ctx.measureText(l).width
+        if (w > maxLineW) maxLineW = w
       }
+
+      const bw = Math.min(maxLineW + padX * 2, maxTextW + padX * 2)
+      const bh = lineH * lines.length + padY * 2
+      const tailH = Math.max(4, 6 * scale)
+      const tailW = Math.max(4, 6 * scale)
+      const outline = Math.max(1.5, 2 * scale)
+      const minGap = Math.max(30, 50 * scale)
+
+      let bx = centerX - bw / 2
+      for (const prev of bubbleRectsRef) {
+        const overlapL = bx < prev.bx + prev.bw + minGap
+        const overlapR = bx + bw > prev.bx - minGap
+        if (overlapL && overlapR) {
+          const pushLeft = prev.bx - minGap - bw
+          const pushRight = prev.bx + prev.bw + minGap
+          if (Math.abs(pushLeft + bw / 2 - centerX) < Math.abs(pushRight + bw / 2 - centerX)) {
+            bx = pushLeft
+          } else {
+            bx = pushRight
+          }
+        }
+      }
+
+      const by = drawY - bh - tailH - Math.max(6, 10 * scale)
+      const tailCenterX = centerX
+
+      ctx.save()
+      ctx.lineWidth = outline
+      ctx.strokeStyle = '#111118'
+      ctx.fillStyle = 'rgba(255, 255, 252, 0.68)'
+      ctx.lineJoin = 'miter'
+
+      ctx.beginPath()
+      ctx.moveTo(bx, by)
+      ctx.lineTo(bx + bw, by)
+      ctx.lineTo(bx + bw, by + bh)
+      const clampedTail = Math.max(bx + tailW + 2, Math.min(tailCenterX, bx + bw - tailW - 2))
+      ctx.lineTo(clampedTail + tailW, by + bh)
+      ctx.lineTo(clampedTail, by + bh + tailH)
+      ctx.lineTo(clampedTail - tailW, by + bh)
+      ctx.lineTo(bx, by + bh)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      ctx.fillStyle = '#1a1a28'
+      ctx.font = font
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      const textCenterX = bx + bw / 2
+      const textStartY = by + padY
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], textCenterX, textStartY + i * lineH)
+      }
+      ctx.restore()
+
+      bubbleRectsRef.push({ bx, bw, by, bh })
     }
 
     const loop = (time: number) => {
@@ -500,6 +802,37 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       const flash = flashRef.current
       updateAgent(gemini, dt, isConnected, flash)
       updateAgent(flash, dt, isGenerating, gemini)
+
+      frameCountRef.current++
+      if (frameCountRef.current % 10 === 0) {
+        const proximity = dist2d(gemini.x, gemini.y, flash.x, flash.y)
+        if (proximity < PERSONAL_SPACE_WALK && proximity > 0) {
+          const isGeminiWalking = gemini.anim === 'walk' && !gemini.isActive && gemini.hardStopCooldown <= 0
+          const isFlashWalking = flash.anim === 'walk' && !flash.isActive && flash.hardStopCooldown <= 0
+          let yielder: ToastAgent | null = null
+          let other: ToastAgent | null = null
+          if (isGeminiWalking && isFlashWalking) {
+            yielder = gemini.moveStartTime > flash.moveStartTime ? gemini : flash
+            other = yielder === gemini ? flash : gemini
+          } else if (isGeminiWalking) {
+            yielder = gemini; other = flash
+          } else if (isFlashWalking) {
+            yielder = flash; other = gemini
+          }
+          if (yielder && other) {
+            yielder.targetX = yielder.x
+            yielder.targetY = yielder.y
+            yielder.anim = 'idle'
+            yielder.frame = 0
+            yielder.hardStopCooldown = 2.0
+            yielder.idleBehavior = 'none'
+            const mask = maskDataRef.current
+            const spot = pickOppositeWalkable(mask, yielder.x, yielder.y, other.x, other.y)
+            yielder.targetX = spot.x
+            yielder.targetY = spot.y
+          }
+        }
+      }
 
       const rect = canvas.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
@@ -539,7 +872,12 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
         const scale = drawW / IMG_W
         const agents = [gemini, flash].sort((a, b) => a.y - b.y)
         for (const a of agents) {
-          drawAgent(a, scale, ox, oy, drawH)
+          drawAgentSprite(a, scale, ox, oy, drawH)
+        }
+        bubbleRectsRef.length = 0
+        for (const a of agents) {
+          const other = a === gemini ? flash : gemini
+          drawBubble(a, other, scale, ox, oy, drawH)
         }
       }
 
