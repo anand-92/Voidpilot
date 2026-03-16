@@ -4,6 +4,14 @@ import { AlertCircle, ArrowLeft, Check, Link as LinkIcon, MessageSquareText, Mor
 import { cn } from '@/lib/utils'
 import { AnimatedGradientText } from '@/components/ui/animated-gradient-text'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Particles } from '@/components/ui/particles'
 import { DotPattern } from '@/components/ui/dot-pattern'
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +66,8 @@ export function CreativeSparkMobileLayout({
   const [showSign, setShowSign] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareMessage, setShareMessage] = useState('')
 
   const handleShare = useCallback(async () => {
     if (!onCreateShare || shareState === 'loading') return
@@ -65,7 +75,10 @@ export function CreativeSparkMobileLayout({
     try {
       const shareUrl = await onCreateShare()
       if (shareUrl) {
-        await navigator.clipboard.writeText(shareUrl)
+        const message = `Hey checkout my creative brainstorm I did with Voidpilot! ${shareUrl}`
+        await navigator.clipboard.writeText(message)
+        setShareMessage(message)
+        setShareOpen(true)
         setShareState('copied')
         setTimeout(() => setShareState('idle'), 2500)
       } else {
@@ -346,6 +359,18 @@ export function CreativeSparkMobileLayout({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="border-white/[0.08] bg-stone-950/95 text-white backdrop-blur-3xl sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">Copied to clipboard</DialogTitle>
+            <DialogDescription className="text-stone-400">
+              Your share message is ready to paste.
+            </DialogDescription>
+          </DialogHeader>
+          <Input value={shareMessage} readOnly className="h-24 rounded-xl border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm leading-relaxed text-stone-200" />
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

@@ -99,6 +99,20 @@ VIDEO_TOOL_DEF = {
                 "type": "string",
                 "description": ("Short label describing what the video shows"),
             },
+            "aspect_ratio": {
+                "type": "string",
+                "enum": ["16:9", "9:16"],
+                "description": "Optional Veo aspect ratio hint.",
+            },
+            "duration_seconds": {
+                "type": "integer",
+                "enum": [4, 6, 8],
+                "description": "Optional Veo clip length hint in seconds.",
+            },
+            "audio_guidance": {
+                "type": "string",
+                "description": "Optional dialogue, SFX, or ambient audio guidance.",
+            },
         },
         "required": ["prompt", "label"],
     },

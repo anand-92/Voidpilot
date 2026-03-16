@@ -317,11 +317,12 @@ def _make_tool_handlers(  # noqa: C901
         result_type: str,
         file_ext: str,
         scheduling: str,
+        **kwargs: Any,
     ) -> dict:
         """Generic handler for image/video generation via FlashWorker."""
         method = getattr(flash, flash_method)
         try:
-            data_bytes = await method(prompt=prompt)
+            data_bytes = await method(prompt=prompt, **kwargs)
             b64_data = base64.b64encode(data_bytes).decode("utf-8")
             filename = label.lower().replace(" ", "_") + "." + file_ext
             await send_client_event(
@@ -367,10 +368,24 @@ def _make_tool_handlers(  # noqa: C901
             logger.error("generate_image failed: %s", e)
             return {"result": f"Error generating image: {e}", "scheduling": "SILENT"}
 
-    async def handle_generate_video(prompt: str, label: str) -> dict:
+    async def handle_generate_video(
+        prompt: str,
+        label: str,
+        aspect_ratio: str | None = None,
+        duration_seconds: int | None = None,
+        audio_guidance: str | None = None,
+    ) -> dict:
         """Generate video via FlashWorker and push to client."""
         return await handle_generate_media(
-            "generate_video", prompt, label, "brainstorm_video", "mp4", "SILENT"
+            "generate_video",
+            prompt,
+            label,
+            "brainstorm_video",
+            "mp4",
+            "SILENT",
+            aspect_ratio=aspect_ratio,
+            duration_seconds=duration_seconds,
+            audio_guidance=audio_guidance,
         )
 
     async def handle_delegate(

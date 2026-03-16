@@ -8,8 +8,8 @@ import type { BrainstormLayoutProps } from './BrainstormLayouts'
 import { ConversationPanel } from './ConversationPanel'
 import { AgentVisualizer } from './AgentVisualizer'
 import { MasonryGallery } from './MasonryGallery'
+import { CreativeSparkControls } from './CreativeSparkControls'
 import { DraggableWindow } from './DraggableWindow'
-import { SparkToolbar } from './SparkToolbar'
 import { VoiceSelector } from './VoiceSelector'
 import { DropDownSign } from './DropDownSign'
 
@@ -32,10 +32,13 @@ export function CreativeSparkDesktopLayout({
   toolActivityEntries,
   artifactList,
   isGenerating,
+  inputText,
   messagesEndRef,
   sessionTitle,
   selectedVoice,
   setSelectedVoice,
+  setInputText,
+  handleSend,
   handleConnect,
   stop,
   isMuted,
@@ -139,9 +142,6 @@ export function CreativeSparkDesktopLayout({
       <DotPattern className="absolute inset-0 z-0 opacity-40" width={24} height={24} cx={12} cy={12} cr={0.8} />
 
       <DropDownSign show={showSign} onComplete={() => setShowSign(false)} />
-
-      {/* Top Left Toolbar: Back, Reset Layout, Help */}
-      <SparkToolbar onGoBack={onGoBack} onResetLayout={resetLayout} onCreateShare={onCreateShare} />
 
       {/* Minimized Dock */}
       <div className="absolute bottom-24 left-4 z-[100] flex flex-col-reverse gap-2">
@@ -253,6 +253,27 @@ export function CreativeSparkDesktopLayout({
               />
             </div>
           </DraggableWindow>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[120] flex justify-center px-4">
+        <div className="pointer-events-auto w-full max-w-3xl">
+          <CreativeSparkControls
+            isConnected={isConnected}
+            isStarting={isStarting}
+            isToolRunning={isGenerating}
+            selectedVoice={selectedVoice}
+            setSelectedVoice={setSelectedVoice}
+            inputText={inputText}
+            setInputText={setInputText}
+            handleSend={handleSend}
+            handleConnect={handleConnect}
+            stop={stop}
+            layout="desktop"
+            onResetLayout={resetLayout}
+            onCreateShare={onCreateShare}
+            onGoBack={onGoBack}
+          />
         </div>
       </div>
 

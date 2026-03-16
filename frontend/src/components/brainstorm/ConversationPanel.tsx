@@ -19,6 +19,14 @@ import {
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import type { ConversationToolActivityEntry, Message } from '@/types/messages'
 import { GeminiChat } from '../icons/GeminiIcons'
@@ -122,6 +130,8 @@ function InlineToolActivity({ entry }: { entry: ConversationToolActivityEntry })
 
 export function ConversationPanel({ messages, toolActivityEntries = [], messagesEndRef, mobile, sessionTitle, onCreateShare, isConnected, isStarting, isMuted, handleConnect, stop, toggleMute, headerExtra }: ConversationPanelProps) {
   const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [shareMessage, setShareMessage] = useState('')
 
   const transcriptItems = useMemo(() => {
     const entriesByIndex = new Map<number, ConversationToolActivityEntry[]>()
@@ -164,7 +174,10 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
     try {
       const shareUrl = await onCreateShare()
       if (shareUrl) {
-        await navigator.clipboard.writeText(shareUrl)
+        const message = `Hey checkout my creative brainstorm I did with Voidpilot! ${shareUrl}`
+        await navigator.clipboard.writeText(message)
+        setShareMessage(message)
+        setShareModalOpen(true)
         setShareState('copied')
         setTimeout(() => setShareState('idle'), 2500)
       } else {
@@ -255,18 +268,10 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
           <div className="flex flex-col gap-3">
             {transcriptItems.map((item, index) => {
               const isLatest = index === transcriptItems.length - 1
-              const isSecondLast = index === transcriptItems.length - 2
               return (
                 <div
                   key={`${item.type}-${index}`}
-                  className={cn(
-                    'transition-opacity duration-500',
-                    isLatest
-                      ? 'opacity-100'
-                      : isSecondLast
-                        ? 'opacity-30'
-                        : 'opacity-10',
-                  )}
+                  className="transition-opacity duration-500 opacity-100"
                 >
                   {item.type === 'message' ? (
                     <MessageBubble
@@ -344,6 +349,17 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
           )}
         </div>
       )}
+      <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
+        <DialogContent className="border-white/[0.08] bg-stone-950/95 text-white backdrop-blur-3xl sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">Copied to clipboard</DialogTitle>
+            <DialogDescription className="text-stone-400">
+              Your share message is ready to paste anywhere.
+            </DialogDescription>
+          </DialogHeader>
+          <Input value={shareMessage} readOnly className="h-24 rounded-xl border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm leading-relaxed text-stone-200" />
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

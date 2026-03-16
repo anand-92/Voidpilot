@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { PulsatingButton } from '@/components/ui/pulsating-button'
 import type { BrainstormVoice } from '@/hooks/useGeminiBrainstorm'
+import { SparkToolbar } from './SparkToolbar'
 import {
   GeminiMicOff,
   GeminiMicOn,
@@ -23,6 +24,9 @@ type CreativeSparkControlsProps = {
   handleConnect: () => Promise<void>
   stop: () => void
   layout: 'desktop' | 'mobile'
+  onResetLayout?: () => void
+  onCreateShare?: () => Promise<string | null>
+  onGoBack?: () => void
 }
 
 /**
@@ -42,6 +46,10 @@ export function CreativeSparkControls({
   handleSend,
   handleConnect,
   stop,
+  layout,
+  onResetLayout,
+  onCreateShare,
+  onGoBack,
 }: CreativeSparkControlsProps) {
   const isDisabled = isConnected || isStarting
 
@@ -100,6 +108,10 @@ export function CreativeSparkControls({
       >
         <GeminiSend className="size-4" />
       </Button>
+
+      {layout === 'desktop' && onResetLayout ? (
+        <SparkToolbar onGoBack={onGoBack} onResetLayout={onResetLayout} onCreateShare={onCreateShare} />
+      ) : null}
     </div>
   )
 }
