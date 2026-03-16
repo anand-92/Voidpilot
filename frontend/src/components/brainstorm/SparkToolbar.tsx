@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
   Check,
+  Gift,
   HelpCircle,
   LayoutTemplate,
   Link as LinkIcon,
@@ -67,6 +68,7 @@ const helpTips = [
 export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkToolbarProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [eggOpen, setEggOpen] = useState(false)
   const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
   const [shareOpen, setShareOpen] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
@@ -185,6 +187,17 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
                   <HelpCircle className="size-4" />
                   Help
                 </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setEggOpen(true)
+                    setIsExpanded(false)
+                  }}
+                  className="h-10 gap-2 whitespace-nowrap rounded-xl px-3 text-sm text-stone-300 hover:bg-white/[0.08] hover:text-white"
+                >
+                  <Gift className="size-4" />
+                  Easter Egg
+                </Button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -227,6 +240,33 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
                 </div>
               </div>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={eggOpen} onOpenChange={setEggOpen}>
+        <DialogContent
+          className="!max-w-sm border-white/[0.08] bg-stone-950/95 backdrop-blur-3xl text-white"
+          showCloseButton
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <span className="text-2xl" style={{ fontFamily: "'Press Start 2P', monospace" }}>🍞</span>
+              Psst... a secret!
+            </DialogTitle>
+            <DialogDescription className="text-stone-400">
+              A little birdie told us there is something hidden in the room...
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+            <p className="text-sm leading-relaxed text-stone-200">
+              Getting bored or want to play a game? 🎮
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-stone-400">
+              Hover over the <span className="font-semibold text-blue-400">monitor</span> on
+              the agent visualizer for a sweet surprise!
+            </p>
           </div>
         </DialogContent>
       </Dialog>

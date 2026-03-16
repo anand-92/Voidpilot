@@ -6,7 +6,11 @@ interface AgentVisualizerProps {
   isConnected: boolean
   className?: string
   style?: React.CSSProperties
+  onMonitorClick?: () => void
 }
+
+const MONITOR_ZONE = { x: 300, y: 350, w: 210, h: 132 }
+const DEBUG_MONITOR = false
 
 const FRAME_SIZE = 16
 const ANIMS = {
@@ -304,8 +308,9 @@ function pickOppositeWalkable(
   return pickRandomWalkable(mask)
 }
 
-export function AgentVisualizer({ intensityRef, isGenerating, isConnected, className, style }: AgentVisualizerProps) {
+export function AgentVisualizer({ intensityRef, isGenerating, isConnected, className, style, onMonitorClick }: AgentVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const geminiRef = useRef(createAgent('Gemini', 'Voice', '#3b82f6', 600, 1200, 1.0, 30))
   const flashRef = useRef(createAgent('Flash', 'Worker', '#60a5fa', 1000, 1200, 1.2, 37))
   const spriteImgRef = useRef<HTMLImageElement | null>(null)
@@ -315,6 +320,13 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
   const lastTimeRef = useRef(0)
   const rafRef = useRef(0)
   const frameCountRef = useRef(0)
+  const monitorHoverRef = useRef(false)
+  const monitorFadeRef = useRef(0)
+  const onMonitorClickRef = useRef(onMonitorClick)
+
+  useEffect(() => {
+    onMonitorClickRef.current = onMonitorClick
+  }, [onMonitorClick])
 
   useEffect(() => {
     const sprite = new Image()
@@ -362,6 +374,69 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
       scanSpriteRef.current = null
       bgImgRef.current = null
       maskDataRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    function mouseToImg(e: MouseEvent): { ix: number; iy: number } | null {
+      const rect = container!.getBoundingClientRect()
+      const mx = e.clientX - rect.left
+      const my = e.clientY - rect.top
+      const imgAspect = IMG_W / IMG_H
+      const containerAspect = rect.width / rect.height
+      let drawW: number, drawH: number, ox: number, oy: number
+      if (containerAspect > imgAspect) {
+        drawW = rect.width
+        drawH = rect.width / imgAspect
+        ox = 0
+        oy = (rect.height - drawH) / 2
+      } else {
+        drawH = rect.height
+        drawW = rect.height * imgAspect
+        ox = (rect.width - drawW) / 2
+        oy = 0
+      }
+      const scale = drawW / IMG_W
+      const ix = (mx - ox) / scale
+      const iy = (my - oy) / scale
+      if (ix < 0 || ix > IMG_W || iy < 0 || iy > IMG_H) return null
+      return { ix, iy }
+    }
+
+    function isInMonitor(ix: number, iy: number): boolean {
+      return ix >= MONITOR_ZONE.x && ix <= MONITOR_ZONE.x + MONITOR_ZONE.w
+          && iy >= MONITOR_ZONE.y && iy <= MONITOR_ZONE.y + MONITOR_ZONE.h
+    }
+
+    function onMove(e: MouseEvent) {
+      const pt = mouseToImg(e)
+      const hover = pt !== null && isInMonitor(pt.ix, pt.iy) && !!onMonitorClickRef.current
+      monitorHoverRef.current = hover
+      container!.style.cursor = hover ? 'pointer' : ''
+    }
+
+    function onClick(e: MouseEvent) {
+      const pt = mouseToImg(e)
+      if (pt && isInMonitor(pt.ix, pt.iy) && onMonitorClickRef.current) {
+        onMonitorClickRef.current()
+      }
+    }
+
+    function onLeave() {
+      monitorHoverRef.current = false
+      container!.style.cursor = ''
+    }
+
+    container.addEventListener('mousemove', onMove)
+    container.addEventListener('click', onClick)
+    container.addEventListener('mouseleave', onLeave)
+    return () => {
+      container.removeEventListener('mousemove', onMove)
+      container.removeEventListener('click', onClick)
+      container.removeEventListener('mouseleave', onLeave)
     }
   }, [])
 
@@ -879,6 +954,91 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
           const other = a === gemini ? flash : gemini
           drawBubble(a, other, scale, ox, oy, drawH)
         }
+
+        // Monitor easter-egg: pulsing glow + "Play!" button
+        if (onMonitorClickRef.current) {
+          const fadeSpeed = 1 / 0.3
+          if (monitorHoverRef.current) {
+            monitorFadeRef.current = Math.min(1, monitorFadeRef.current + dt * fadeSpeed)
+          } else {
+            monitorFadeRef.current = Math.max(0, monitorFadeRef.current - dt * fadeSpeed)
+          }
+
+          const fade = monitorFadeRef.current
+          if (fade > 0) {
+            const mz = MONITOR_ZONE
+            const rx = ox + mz.x * scale
+            const ry = oy + mz.y * scale
+            const rw = mz.w * scale
+            const rh = mz.h * scale
+            const cx = rx + rw / 2
+            const cy = ry + rh / 2
+
+            ctx.save()
+
+            // Pulsing screen glow (20%-50% opacity on 2s cycle)
+            const pulse = 0.2 + 0.3 * (0.5 + 0.5 * Math.sin(performance.now() * Math.PI / 1000))
+            ctx.globalCompositeOperation = 'screen'
+            ctx.globalAlpha = pulse * fade
+            ctx.fillStyle = '#38bdf8'
+            ctx.fillRect(rx, ry, rw, rh)
+            ctx.globalCompositeOperation = 'source-over'
+
+            // "Play!" pill button
+            ctx.globalAlpha = fade
+            const fontSize = Math.max(8, 11 * scale)
+            ctx.font = `${fontSize}px 'Press Start 2P', monospace`
+            const textW = ctx.measureText('Play!').width
+            const padX = fontSize * 0.8
+            const padY = fontSize * 0.5
+            const pillW = textW + padX * 2
+            const pillH = fontSize + padY * 2
+            const pillX = cx - pillW / 2
+            const pillY = cy - pillH / 2
+
+            // Pill background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'
+            ctx.beginPath()
+            const r = pillH / 2
+            ctx.moveTo(pillX + r, pillY)
+            ctx.lineTo(pillX + pillW - r, pillY)
+            ctx.arc(pillX + pillW - r, pillY + r, r, -Math.PI / 2, Math.PI / 2)
+            ctx.lineTo(pillX + r, pillY + pillH)
+            ctx.arc(pillX + r, pillY + r, r, Math.PI / 2, -Math.PI / 2)
+            ctx.closePath()
+            ctx.fill()
+
+            // Pill outline
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)'
+            ctx.lineWidth = Math.max(1, 1.5 * scale)
+            ctx.stroke()
+
+            // Text
+            ctx.fillStyle = '#fff'
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText('Play!', cx, cy + 1)
+
+            ctx.restore()
+          }
+        }
+
+        // Debug: draw monitor hitbox
+        if (DEBUG_MONITOR) {
+          const mz = MONITOR_ZONE
+          ctx.save()
+          ctx.fillStyle = 'rgba(255, 0, 0, 0.25)'
+          ctx.fillRect(ox + mz.x * scale, oy + mz.y * scale, mz.w * scale, mz.h * scale)
+          ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)'
+          ctx.lineWidth = Math.max(1, 2 * scale)
+          ctx.strokeRect(ox + mz.x * scale, oy + mz.y * scale, mz.w * scale, mz.h * scale)
+          ctx.fillStyle = '#ff0'
+          ctx.font = `${Math.max(8, 10 * scale)}px monospace`
+          ctx.textAlign = 'left'
+          ctx.textBaseline = 'top'
+          ctx.fillText(`${mz.x},${mz.y} ${mz.w}x${mz.h}`, ox + mz.x * scale, oy + (mz.y - 14) * scale)
+          ctx.restore()
+        }
       }
 
       ctx.restore()
@@ -890,8 +1050,11 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
   }, [isConnected, isGenerating, intensityRef, updateAgent])
 
   return (
-    <div className={className || "relative w-full rounded-2xl border border-white/[0.06] bg-black/40 backdrop-blur-sm overflow-hidden"}
-      style={style || { aspectRatio: `${IMG_W}/${IMG_H}` }}>
+    <div
+      ref={containerRef}
+      className={className || "relative w-full rounded-2xl border border-white/[0.06] bg-black/40 backdrop-blur-sm overflow-hidden"}
+      style={style || { aspectRatio: `${IMG_W}/${IMG_H}` }}
+    >
       <canvas
         ref={canvasRef}
         className="w-full h-full"
