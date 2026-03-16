@@ -117,12 +117,23 @@ export default function BrainstormPage() {
     void ensureArtifactContent(selectedArtifact)
   }, [ensureArtifactContent, selectedArtifact])
 
-  const handleSend = useCallback(() => {
-    if (inputText.trim()) {
-      sendText(inputText)
-      setInputText('')
+  const handleSend = useCallback(async () => {
+    const trimmedInput = inputText.trim()
+    if (!trimmedInput || isStarting) {
+      return
     }
-  }, [inputText, sendText])
+
+    if (!isConnected) {
+      try {
+        await start()
+      } catch {
+        return
+      }
+    }
+
+    sendText(trimmedInput)
+    setInputText('')
+  }, [inputText, isConnected, isStarting, sendText, start])
 
   const handleConnect = useCallback(async () => {
     try {
