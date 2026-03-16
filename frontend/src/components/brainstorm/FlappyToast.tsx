@@ -18,6 +18,8 @@ const GRAVITY = 0.4
 const JUMP_VEL = -6
 const TERMINAL_VEL = 6
 const FPS = 60
+const FRAME_TIME = 1 / FPS
+const MAX_DT = 0.05
 
 const LEVEL_THRESHOLD = 10
 const LEVEL_ANNOUNCE_DURATION = 2.0
@@ -209,11 +211,13 @@ export function FlappyToast({ onClose }: { onClose: () => void }) {
       bx: number, by: number, bw: number, bh: number,
     ) => ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
 
-    const loop = () => {
+    const loop = (time: number) => {
       const g = gameRef.current
       g.frameId = requestAnimationFrame(loop)
 
-      const now = performance.now()
+      const now = time
+      const actualDt = Math.min((now - g.lastTime) / 1000, MAX_DT)
+      g.lastTime = now
       if (!g.started || g.gameOver) {
         g.lastTime = now
       }
@@ -223,7 +227,7 @@ export function FlappyToast({ onClose }: { onClose: () => void }) {
       // Galaxy starfield background
       ctx.fillStyle = '#020617'
       ctx.fillRect(0, 0, BOARD_W, BOARD_H)
-      if (g.started && !g.gameOver) g.starOffset += STAR_PARALLAX
+      if (g.started && !g.gameOver) g.starOffset += STAR_PARALLAX * (actualDt / FRAME_TIME)
       for (const s of g.stars) {
         const sx = ((s.x - g.starOffset * s.speed) % BOARD_W + BOARD_W) % BOARD_W
         ctx.beginPath()
@@ -233,14 +237,14 @@ export function FlappyToast({ onClose }: { onClose: () => void }) {
       }
 
       if (g.started && !g.gameOver) {
-        const dt = 1 / FPS
+        const dt = actualDt > 0 ? actualDt : FRAME_TIME
         const nextLevel = getLevelIndex(Math.floor(g.score))
         const activeCfg = getLevelConfig(g.level)
 
         // Toast physics always active
-        g.velY += GRAVITY
+        g.velY += GRAVITY * (dt / FRAME_TIME)
         if (g.velY > TERMINAL_VEL) g.velY = TERMINAL_VEL
-        g.toastY += g.velY
+        g.toastY += g.velY * (dt / FRAME_TIME)
         g.toastY = Math.max(g.toastY, 0)
         if (g.toastY > BOARD_H) g.gameOver = true
 
@@ -255,7 +259,7 @@ export function FlappyToast({ onClose }: { onClose: () => void }) {
           // Keep moving existing pipes at old speed, no new spawns
           for (let i = g.pipes.length - 1; i >= 0; i--) {
             const p = g.pipes[i]
-            p.x += g.drainSpeed
+            p.x += g.drainSpeed * (dt / FRAME_TIME)
 
             if (!p.passed && TOAST_X > p.x + p.width) {
               p.passed = true
@@ -284,7 +288,7 @@ export function FlappyToast({ onClose }: { onClose: () => void }) {
           }
         } else {
           // Normal gameplay
-          g.pipeTimer += 1000 / FPS
+          g.pipeTimer += dt * 1000
           if (g.pipeTimer >= activeCfg.interval) {
             g.pipeTimer -= activeCfg.interval
             placePipes()
@@ -292,7 +296,7 @@ export function FlappyToast({ onClose }: { onClose: () => void }) {
 
           for (let i = g.pipes.length - 1; i >= 0; i--) {
             const p = g.pipes[i]
-            p.x += activeCfg.speed
+            p.x += activeCfg.speed * (dt / FRAME_TIME)
 
             if (!p.passed && TOAST_X > p.x + p.width) {
               p.passed = true
