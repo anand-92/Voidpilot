@@ -36,6 +36,7 @@ export default function BrainstormPage() {
     brainstormType,
     prepareGuestWorkspace,
     preparePersistedWorkspace,
+    restartPersistedWorkspace,
     updateBrainstormType,
     ensureArtifactContent,
     downloadArtifact,
@@ -189,6 +190,13 @@ export default function BrainstormPage() {
   }, [clearEntryError, deleteSession])
 
   const handleSelectMode = useCallback(async (mode: BrainstormType) => {
+    const isSwitchingPersistedMode = (
+      sessionMode === 'persisted'
+      && activeSessionId !== null
+      && brainstormType !== null
+      && brainstormType !== mode
+    )
+
     updateBrainstormType(mode)
 
     // For signed-in users with a pending new session, create it now with the chosen mode
@@ -205,10 +213,14 @@ export default function BrainstormPage() {
         restoreTurns: false,
         brainstormType: mode,
       })
+    } else if (isSwitchingPersistedMode && activeSessionId) {
+      await restartPersistedWorkspace(activeSessionId, {
+        brainstormType: mode,
+      })
     }
 
     setShowModeSelection(false)
-  }, [pendingNewSession, createSession, preparePersistedWorkspace, updateBrainstormType])
+  }, [activeSessionId, brainstormType, pendingNewSession, createSession, preparePersistedWorkspace, restartPersistedWorkspace, sessionMode, updateBrainstormType])
 
   const handleGoBackToModeSelection = useCallback(() => {
     stop()

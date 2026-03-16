@@ -16,6 +16,7 @@ import {
   Mic,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ interface SparkToolbarProps {
   onGoBack?: () => void
   onResetLayout: () => void
   onCreateShare?: () => Promise<string | null>
+  compact?: boolean
 }
 
 const helpTips = [
@@ -67,6 +69,8 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
   const [isExpanded, setIsExpanded] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareMessage, setShareMessage] = useState('')
   const toolbarRef = useRef<HTMLDivElement>(null)
 
   const handleShare = useCallback(async () => {
@@ -75,7 +79,10 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
     try {
       const shareUrl = await onCreateShare()
       if (shareUrl) {
-        await navigator.clipboard.writeText(shareUrl)
+        const message = `Hey checkout my creative brainstorm I did with Voidpilot! ${shareUrl}`
+        await navigator.clipboard.writeText(message)
+        setShareMessage(message)
+        setShareOpen(true)
         setShareState('copied')
         setTimeout(() => setShareState('idle'), 2500)
       } else {
@@ -103,13 +110,13 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
 
   return (
     <>
-      <div ref={toolbarRef} className="absolute top-4 left-4 z-[100] flex items-center gap-2">
+      <div ref={toolbarRef} className="flex items-center gap-2">
         {onGoBack && (
           <Button
             variant="ghost"
             size="icon"
             onClick={onGoBack}
-            className="shrink-0 size-11 rounded-2xl border border-white/[0.12] bg-black/80 backdrop-blur-xl shadow-2xl shadow-orange-500/5 text-stone-300 hover:text-white hover:bg-white/[0.08] transition-colors"
+            className="shrink-0 size-11 rounded-2xl border border-white/[0.12] bg-black/80 text-stone-300 shadow-2xl shadow-orange-500/5 backdrop-blur-xl transition-colors hover:bg-white/[0.08] hover:text-white"
             aria-label="Go back"
           >
             <ArrowLeft className="size-5" />
@@ -118,14 +125,14 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
 
         <motion.div
           layout
-          className="flex items-center gap-2 rounded-2xl border border-white/[0.12] bg-black/80 backdrop-blur-xl shadow-2xl shadow-orange-500/5 overflow-hidden p-1"
+          className="flex items-center gap-2 overflow-hidden rounded-2xl border border-white/[0.12] bg-black/80 p-1 shadow-2xl shadow-orange-500/5 backdrop-blur-xl"
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         >
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsExpanded((v) => !v)}
-            className="shrink-0 size-11 rounded-xl text-orange-400 hover:text-orange-300 hover:bg-orange-500/[0.1] transition-colors"
+            className="shrink-0 size-11 rounded-xl text-orange-400 transition-colors hover:bg-orange-500/[0.1] hover:text-orange-300"
             aria-label={isExpanded ? 'Collapse toolbar' : 'Expand toolbar'}
           >
             {isExpanded ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -143,7 +150,7 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
                 <Button
                   variant="ghost"
                   onClick={onResetLayout}
-                  className="gap-2 rounded-xl text-stone-300 hover:text-white hover:bg-white/[0.08] whitespace-nowrap text-sm h-10 px-3"
+                  className="h-10 gap-2 whitespace-nowrap rounded-xl px-3 text-sm text-stone-300 hover:bg-white/[0.08] hover:text-white"
                 >
                   <LayoutTemplate className="size-4" />
                   Reset
@@ -156,7 +163,7 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
                       setIsExpanded(false)
                     }}
                     disabled={shareState === 'loading'}
-                    className="gap-2 rounded-xl text-stone-300 hover:text-white hover:bg-white/[0.08] whitespace-nowrap text-sm h-10 px-3"
+                    className="h-10 gap-2 whitespace-nowrap rounded-xl px-3 text-sm text-stone-300 hover:bg-white/[0.08] hover:text-white"
                   >
                     {shareState === 'copied' ? (
                       <Check className="size-4 text-emerald-400" />
@@ -174,7 +181,7 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
                     setHelpOpen(true)
                     setIsExpanded(false)
                   }}
-                  className="gap-2 rounded-xl text-orange-400 hover:text-orange-300 hover:bg-orange-500/[0.1] whitespace-nowrap text-sm h-10 px-3"
+                  className="h-10 gap-2 whitespace-nowrap rounded-xl px-3 text-sm text-orange-400 hover:bg-orange-500/[0.1] hover:text-orange-300"
                 >
                   <HelpCircle className="size-4" />
                   Help
@@ -222,6 +229,22 @@ export function SparkToolbar({ onGoBack, onResetLayout, onCreateShare }: SparkTo
               </div>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent
+          className="!max-w-lg border-white/[0.08] bg-stone-950/95 backdrop-blur-3xl text-white"
+          showCloseButton
+        >
+          <DialogHeader>
+            <DialogTitle className="text-white">Copied to clipboard</DialogTitle>
+            <DialogDescription className="text-stone-400">
+              Your share message is ready to paste.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Input value={shareMessage} readOnly className="h-24 rounded-xl border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm leading-relaxed text-stone-200" />
         </DialogContent>
       </Dialog>
     </>

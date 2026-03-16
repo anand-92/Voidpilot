@@ -589,16 +589,38 @@ export function useGeminiBrainstorm() {
       const metadataList = await loadBrainstormArtifacts(sessionId)
       if (metadataList.length === 0) return new Map()
 
+      const previewableArtifacts = metadataList.filter(
+        (meta) => meta.mimeType.startsWith('image/') || meta.mimeType.startsWith('video/'),
+      )
+      const previewContentById = new Map<string, { content: string; mimeType: string; sizeBytes?: number }>()
+
+      await Promise.all(
+        previewableArtifacts.map(async (meta) => {
+          try {
+            const { blob, mimeType } = await downloadBrainstormArtifact(sessionId, meta.artifactId)
+            const content = await blobToArtifactContent(blob, mimeType)
+            previewContentById.set(meta.artifactId, {
+              content,
+              mimeType,
+              sizeBytes: blob.size,
+            })
+          } catch (error) {
+            console.error(`Failed to preload artifact preview for ${meta.filename}:`, error)
+          }
+        }),
+      )
+
       const restoredArtifacts = new Map<string, BrainstormArtifact>()
 
       metadataList.forEach((meta: PersistedArtifactMetadata) => {
+        const previewContent = previewContentById.get(meta.artifactId)
         const artifact: BrainstormArtifact = {
           artifactId: meta.artifactId,
           sessionId,
           filename: meta.filename,
-          content: null,
-          mimeType: meta.mimeType,
-          sizeBytes: meta.sizeBytes ?? undefined,
+          content: previewContent?.content ?? null,
+          mimeType: previewContent?.mimeType ?? meta.mimeType,
+          sizeBytes: previewContent?.sizeBytes ?? meta.sizeBytes ?? undefined,
           label: meta.label ?? undefined,
           updatedAt: meta.createdAt,
           text: meta.text ?? undefined,
@@ -779,6 +801,31 @@ export function useGeminiBrainstorm() {
     setActiveSessionId(null)
     setSessionMode('guest')
   }, [resetWorkspaceState, stop])
+
+  const restartPersistedWorkspace = useCallback(
+    async (
+      sessionId: string,
+      options?: { title?: string; brainstormType?: BrainstormType },
+    ) => {
+      stop()
+      resetWorkspaceState()
+      activeSessionIdRef.current = sessionId
+      sessionModeRef.current = 'persisted'
+      setActiveSessionId(sessionId)
+      setSessionMode('persisted')
+
+      if (options?.brainstormType) {
+        brainstormTypeRef.current = options.brainstormType
+        setBrainstormType(options.brainstormType)
+      }
+
+      if (options?.title && options.title !== 'Untitled session') {
+        setSessionTitle(options.title)
+        titleSavedRef.current = true
+      }
+    },
+    [resetWorkspaceState, stop],
+  )
 
   const preparePersistedWorkspace = useCallback(
     async (
@@ -1080,6 +1127,7 @@ export function useGeminiBrainstorm() {
     updateBrainstormType,
     prepareGuestWorkspace,
     preparePersistedWorkspace,
+    restartPersistedWorkspace,
     ensureArtifactContent,
     downloadArtifact,
     downloadAllArtifacts,
