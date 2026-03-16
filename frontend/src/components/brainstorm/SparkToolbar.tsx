@@ -29,7 +29,6 @@ interface SparkToolbarProps {
   onGoBack?: () => void
   onResetLayout: () => void
   onCreateShare?: () => Promise<string | null>
-  compact?: boolean
 }
 
 const helpTips = [
