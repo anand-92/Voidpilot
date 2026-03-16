@@ -53,7 +53,7 @@ from src.app.services.flash_worker import (
     FlashWorker,
     resolve_flash_text_model,
 )
-from src.app.services.gemini_audio import GeminiLive
+from src.app.services.gemini_audio import GeminiLive, build_live_history_turns
 from src.app.services.tool_defs import (
     DELEGATE_TOOL_DEF,
     IMAGE_TOOL_DEF,
@@ -67,7 +67,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
-MAX_RETRIES = 3
 DEFAULT_VOICE = "Aoede"
 ALLOWED_VOICES = frozenset({
     "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
@@ -897,6 +896,11 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 gemini_client.session_resumption_handle = handle
                 logger.info("Brainstorm received resumption handle")
 
+            history_turns = build_live_history_turns(
+                payload.get("conversation_history")
+            )
+            gemini_client.history_turns = history_turns
+
             # Resolve and select the flash model
             requested_model_key = payload.get("flash_model")
             resolved_model = resolve_flash_text_model(requested_model_key)
@@ -920,9 +924,12 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                 gemini_client.system_prompt = (
                     build_creative_spark_system_prompt()
                 )
-                gemini_client.auto_start = True
+                gemini_client.auto_start = not history_turns
                 gemini_client.max_tool_calls_per_turn = 1
-                logger.info("Brainstorm mode: creative_spark (auto-start)")
+                logger.info(
+                    "Brainstorm mode: creative_spark (%s)",
+                    "auto-start" if gemini_client.auto_start else "resume",
+                )
             else:
                 gemini_client.system_prompt = BRAINSTORM_SYSTEM_PROMPT
                 gemini_client.auto_start = False
@@ -961,7 +968,8 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
 
         return False
 
-    async def run_session() -> None:
+    async def run_session() -> bool:
+        should_reconnect = False
         try:
             try:
                 await asyncio.wait_for(
@@ -986,6 +994,9 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
                         and event.get("handle")
                     ):
                         gemini_client.session_resumption_handle = event["handle"]
+                    if event.get("type") == "session_dead":
+                        should_reconnect = True
+                        continue
                     logger.debug("Brainstorm event: %s", event["type"])
                     await manager.forward_gemini_event(event)
             logger.info("Brainstorm session ended normally")
@@ -993,23 +1004,20 @@ async def brainstorm_ws(websocket: WebSocket):  # noqa: C901
             logger.error("Brainstorm session error: %s", e)
             logger.error(traceback.format_exc())
             await manager.send_to_client({"type": "error", "content": str(e)})
+        return should_reconnect
 
     receive_task = asyncio.create_task(
         manager.receive_from_client(handle_client_message)
     )
     try:
-        for attempt in range(MAX_RETRIES):
-            await run_session()
+        while websocket.client_state == WebSocketState.CONNECTED:
+            should_reconnect = await run_session()
             if websocket.client_state != WebSocketState.CONNECTED:
                 break
-            if attempt >= MAX_RETRIES - 1:
+            if not should_reconnect:
                 break
-            logger.info(
-                "Brainstorm session retry (%d/%d)...",
-                attempt + 1,
-                MAX_RETRIES,
-            )
-            await asyncio.sleep(1)
+            logger.info("Brainstorm live session reconnecting...")
+            await asyncio.sleep(0.25)
     finally:
         logger.info("Cleaning up brainstorm WebSocket...")
         receive_task.cancel()

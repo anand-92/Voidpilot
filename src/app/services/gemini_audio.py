@@ -5,6 +5,8 @@ import logging
 import re
 import traceback
 import unicodedata
+from collections.abc import Mapping, Sequence
+from typing import cast
 
 from google import genai
 from google.genai import types
@@ -15,6 +17,8 @@ CTRL_TOKEN_PATTERN = re.compile(r"<ctrl\d+>", re.IGNORECASE)
 MAX_TEXT_CHUNK_OVERLAP = 120
 MIN_TEXT_CHUNK_OVERLAP = 2
 SPACE_PREFIX_CHARS = frozenset(".!?,:;)]}\"”")
+MAX_HISTORY_TURNS = 24
+MAX_HISTORY_TEXT_LENGTH = 1200
 
 
 def _is_safe_live_text_char(char: str) -> bool:
@@ -98,6 +102,63 @@ def _build_error_event(message: str) -> dict[str, str]:
     }
 
 
+def build_live_history_turns(
+    messages: Sequence[Mapping[str, object]] | None,
+    *,
+    max_turns: int = MAX_HISTORY_TURNS,
+    max_text_length: int = MAX_HISTORY_TEXT_LENGTH,
+) -> list[types.Content]:
+    if (
+        not messages
+        or not isinstance(messages, Sequence)
+        or isinstance(messages, (str, bytes, bytearray))
+    ):
+        return []
+
+    turns: list[types.Content] = []
+    role_map = {
+        "user": "user",
+        "user_voice": "user",
+        "gemini": "model",
+        "gemini_voice": "model",
+    }
+
+    for message in messages:
+        role_value = message.get("role")
+        if not isinstance(role_value, str):
+            continue
+
+        role = role_map.get(role_value)
+        if role is None:
+            continue
+
+        if message.get("isToolResponse") is True:
+            continue
+
+        content_value = message.get("content")
+        if not isinstance(content_value, str):
+            continue
+
+        content = _sanitize_live_text(content_value).strip()
+        if not content:
+            continue
+
+        if len(content) > max_text_length:
+            content = content[-max_text_length:]
+
+        turns.append(
+            types.Content(
+                role=role,
+                parts=[types.Part(text=content)],
+            )
+        )
+
+    if max_turns <= 0:
+        return turns
+
+    return turns[-max_turns:]
+
+
 async def _call_maybe_async(func, *args, **kwargs):
     """Call a function, awaiting it if it's a coroutine function."""
     if inspect.iscoroutinefunction(func):
@@ -119,6 +180,7 @@ class GeminiLive:
         system_prompt=None,
         voice_name: str = "Puck",
         session_resumption_handle: str | None = None,
+        history_turns: list[types.Content] | None = None,
         auto_start: bool = False,
         max_tool_calls_per_turn: int | None = None,
     ):
@@ -128,6 +190,7 @@ class GeminiLive:
         self.system_prompt = system_prompt or "You are a helpful desktop assistant."
         self.voice_name = voice_name
         self.session_resumption_handle = session_resumption_handle
+        self.history_turns = history_turns or []
         self.auto_start = auto_start
         self.max_tool_calls_per_turn = max_tool_calls_per_turn
         self.client = genai.Client(
@@ -140,6 +203,7 @@ class GeminiLive:
         self._inflight_tool_call_ids: set[str] = set()
         self._completed_tool_call_ids: set[str] = set()
         self._tool_response_lock = asyncio.Lock()
+        self._tool_tasks: set[asyncio.Task] = set()
 
         self.tools: list[dict] = []
         self.tool_mapping: dict = {}
@@ -415,9 +479,18 @@ class GeminiLive:
             self._inflight_tool_call_ids.add(call_key)
             # Schedule tool calls as background tasks so they don't block
             # session.receive()
-            asyncio.create_task(
+            task = asyncio.create_task(
                 self._dispatch_tool_call(session, fc, event_queue, call_key)
             )
+            self._tool_tasks.add(task)
+            task.add_done_callback(self._tool_tasks.discard)
+
+    async def _wait_for_tool_tasks(self) -> None:
+        if not self._tool_tasks:
+            return
+
+        pending_tasks = tuple(self._tool_tasks)
+        await asyncio.gather(*pending_tasks, return_exceptions=True)
 
     async def _handle_receive_error(self, error, event_queue: asyncio.Queue):
         """Classify receive errors as fatal or recoverable."""
@@ -534,13 +607,13 @@ class GeminiLive:
         logger.info("Tools loaded: %s", tool_names)
         logger.info("Connecting to model %s...", self.model)
 
-        session_active = True
         try:
             async with self.client.aio.live.connect(
                 model=self.model, config=config
             ) as session:
                 logger.info("Session connected.")
                 self._reset_turn_state()
+                self._tool_tasks.clear()
                 audio_mime = f"audio/pcm;rate={self.input_sample_rate}"
                 event_queue: asyncio.Queue = asyncio.Queue()
 
@@ -575,6 +648,20 @@ class GeminiLive:
                     ),
                 ]
 
+                if self.history_turns and not self.session_resumption_handle:
+                    logger.info(
+                        "Loading %d historical turns into Gemini session",
+                        len(self.history_turns),
+                    )
+                    history_turns = cast(
+                        list[types.Content | types.ContentDict],
+                        list(self.history_turns),
+                    )
+                    await session.send_client_content(
+                        turns=history_turns,
+                        turn_complete=False,
+                    )
+
                 # Auto-start: send an initial user turn to trigger
                 # the model to speak first (used by Creative Spark)
                 if self.auto_start and not self._auto_start_sent:
@@ -593,64 +680,43 @@ class GeminiLive:
                         )
                         self._auto_start_sent = True
 
+                receive_task = asyncio.create_task(
+                    self._receive_loop(
+                        session,
+                        event_queue,
+                        audio_output_callback,
+                        audio_interrupt_callback,
+                    )
+                )
+
                 try:
-                    while session_active:
-                        receive_task = asyncio.create_task(
-                            self._receive_loop(
-                                session,
-                                event_queue,
-                                audio_output_callback,
-                                audio_interrupt_callback,
+                    while True:
+                        event = await event_queue.get()
+                        if event is None:
+                            await self._wait_for_tool_tasks()
+                            if not event_queue.empty():
+                                continue
+                            logger.info("Receive loop ended.")
+                            break
+
+                        if event.get("type") == "session_dead":
+                            logger.warning(
+                                "Session died: %s",
+                                event.get("error"),
                             )
-                        )
 
-                        while session_active:
-                            try:
-                                event = await event_queue.get()
-                            except TimeoutError:
-                                logger.debug("No events, waiting...")
-                                break
-
-                            if event is None:
-                                logger.info(
-                                    "Receive loop ended, waiting for more input..."
-                                )
-                                break
-
-                            event_type = event.get("type")
-
-                            if event_type == "turn_complete":
-                                logger.info(
-                                    "Turn complete, waiting for more user input..."
-                                )
-                                yield event
-                                break
-
-                            if event_type == "session_dead":
-                                logger.warning("Session died: %s", event.get("error"))
-                                session_active = False
-                                yield _build_error_event("Session connection lost")
-                                break
-
-                            yield event
-
-                        if not receive_task.done():
-                            receive_task.cancel()
-                            try:
-                                await receive_task
-                            except asyncio.CancelledError:
-                                pass
-
-                        if session_active:
-                            await asyncio.sleep(0.5)
+                        yield event
 
                 finally:
+                    await self._wait_for_tool_tasks()
                     for task in send_tasks:
                         task.cancel()
-                    try:
+                    if not receive_task.done():
                         receive_task.cancel()
-                    except Exception:
-                        pass
+                        try:
+                            await receive_task
+                        except asyncio.CancelledError:
+                            pass
 
         except Exception as e:
             logger.error("Failed to connect or session error: %s", e)

@@ -83,6 +83,58 @@ class TestWalkthroughToolConfiguration:
         assert gemini_client.voice_name == "Despina"
 
 
+@pytest.mark.asyncio
+async def test_walkthrough_session_config_sets_history_turns():
+    """Retrying a walkthrough can seed recent transcript context into Gemini."""
+    mock_settings = MagicMock()
+    mock_settings.GOOGLE_API_KEY = "test_key"
+
+    captured_instance = {"inst": None}
+
+    with (
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.settings",
+            mock_settings,
+        ),
+        patch(
+            "src.app.api.v1.endpoints.walkthrough.GeminiLive",
+        ) as MockGeminiLive,
+    ):
+        mock_gemini_instance = MagicMock()
+        mock_gemini_instance.history_turns = []
+
+        async def mock_start_session(*args, **kwargs):
+            await asyncio.sleep(1.0)
+            yield {"type": "turn_complete"}
+
+        mock_gemini_instance.start_session = mock_start_session
+
+        def capture_constructor(*a, **kw):
+            captured_instance["inst"] = mock_gemini_instance
+            return mock_gemini_instance
+
+        MockGeminiLive.side_effect = capture_constructor
+
+        client = TestClient(app)
+        with client.websocket_connect(
+            "/api/v1/live/walkthrough"
+        ) as websocket:
+            websocket.send_text(
+                json.dumps(
+                    {
+                        "type": "session_config",
+                        "conversation_history": [
+                            {"role": "user", "content": "How does audio work?"},
+                            {"role": "gemini", "content": "The browser streams PCM..."},
+                        ],
+                    }
+                )
+            )
+            time.sleep(2.5)
+
+    assert len(captured_instance["inst"].history_turns) == 2
+
+
 # ---------------------------------------------------------------------------
 # WebSocket connection and text input
 # ---------------------------------------------------------------------------

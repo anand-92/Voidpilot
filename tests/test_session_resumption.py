@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from google.genai import types
 
 from src.app.main import app
-from src.app.services.gemini_audio import GeminiLive
+from src.app.services.gemini_audio import GeminiLive, build_live_history_turns
 
 # ── BE-SR-01: GeminiLive accepts session_resumption_handle ───────
 
@@ -399,6 +399,61 @@ async def test_brainstorm_session_config_sets_handle():
 
 
 @pytest.mark.asyncio
+async def test_brainstorm_session_config_sets_history_and_disables_resume_autostart():
+    """Resumed brainstorm sessions seed recent transcript and skip Creative Spark warmup."""
+    mock_settings = MagicMock()
+    mock_settings.GOOGLE_API_KEY = "test_key"
+
+    captured_instance = {"inst": None}
+
+    with (
+        patch(
+            "src.app.api.v1.endpoints.brainstorm.settings",
+            mock_settings,
+        ),
+        patch(
+            "src.app.api.v1.endpoints.brainstorm.GeminiLive",
+        ) as MockGeminiLive,
+    ):
+        mock_gemini_instance = MagicMock()
+        mock_gemini_instance.history_turns = []
+        mock_gemini_instance.auto_start = True
+
+        async def mock_start_session(*args, **kwargs):
+            await asyncio.sleep(1.0)
+            yield {"type": "turn_complete"}
+
+        mock_gemini_instance.start_session = mock_start_session
+
+        def capture_constructor(*a, **kw):
+            captured_instance["inst"] = mock_gemini_instance
+            return mock_gemini_instance
+
+        MockGeminiLive.side_effect = capture_constructor
+
+        client = TestClient(app)
+        with client.websocket_connect(
+            "/api/v1/live/brainstorm"
+        ) as websocket:
+            websocket.send_text(
+                json.dumps(
+                    {
+                        "type": "session_config",
+                        "brainstorm_type": "creative_spark",
+                        "conversation_history": [
+                            {"role": "user_voice", "content": "Sketch a dragon"},
+                            {"role": "gemini_voice", "content": "Want it cinematic?"},
+                        ],
+                    }
+                )
+            )
+            time.sleep(2.5)
+
+    assert len(captured_instance["inst"].history_turns) == 2
+    assert captured_instance["inst"].auto_start is False
+
+
+@pytest.mark.asyncio
 async def test_brainstorm_forwards_resumption_events():
     """Brainstorm endpoint forwards session_resumption_update
     events to client via websocket."""
@@ -523,8 +578,114 @@ async def test_handle_receive_error_uses_content_field():
 
 
 @pytest.mark.asyncio
-async def test_session_dead_yields_error_content():
-    """Fatal receive errors produce websocket-friendly error payloads."""
+async def test_start_session_sends_history_turns_for_fresh_resume():
+    """Saved transcript history is injected only for fresh sessions."""
+    history_turns = build_live_history_turns(
+        [
+            {"role": "user_voice", "content": "Hello there"},
+            {"role": "gemini_voice", "content": "Hi!"},
+        ]
+    )
+    gl = GeminiLive(
+        api_key="test",
+        model="test-model",
+        input_sample_rate=16000,
+        history_turns=history_turns,
+    )
+
+    mock_session = AsyncMock()
+
+    async def mock_receive():
+        if False:
+            yield
+
+    mock_session.receive = mock_receive
+
+    class MockCtxManager:
+        async def __aenter__(self):
+            return mock_session
+
+        async def __aexit__(self, *args):
+            pass
+
+    mock_live = MagicMock()
+    mock_live.connect = lambda model, config: MockCtxManager()
+
+    mock_client = MagicMock()
+    mock_client.aio.live = mock_live
+    gl.client = mock_client
+
+    async with asyncio.timeout(5):
+        async for _ in gl.start_session(
+            audio_input_queue=asyncio.Queue(),
+            video_input_queue=asyncio.Queue(),
+            text_input_queue=asyncio.Queue(),
+            audio_output_callback=AsyncMock(),
+            audio_interrupt_callback=AsyncMock(),
+        ):
+            pass
+
+    mock_session.send_client_content.assert_awaited_once_with(
+        turns=history_turns,
+        turn_complete=False,
+    )
+
+
+@pytest.mark.asyncio
+async def test_start_session_skips_history_turns_when_resumption_handle_exists():
+    """Server-side resumption should not duplicate restored transcript turns."""
+    history_turns = build_live_history_turns(
+        [
+            {"role": "user_voice", "content": "Hello there"},
+            {"role": "gemini_voice", "content": "Hi!"},
+        ]
+    )
+    gl = GeminiLive(
+        api_key="test",
+        model="test-model",
+        input_sample_rate=16000,
+        session_resumption_handle="resume-handle",
+        history_turns=history_turns,
+    )
+
+    mock_session = AsyncMock()
+
+    async def mock_receive():
+        if False:
+            yield
+
+    mock_session.receive = mock_receive
+
+    class MockCtxManager:
+        async def __aenter__(self):
+            return mock_session
+
+        async def __aexit__(self, *args):
+            pass
+
+    mock_live = MagicMock()
+    mock_live.connect = lambda model, config: MockCtxManager()
+
+    mock_client = MagicMock()
+    mock_client.aio.live = mock_live
+    gl.client = mock_client
+
+    async with asyncio.timeout(5):
+        async for _ in gl.start_session(
+            audio_input_queue=asyncio.Queue(),
+            video_input_queue=asyncio.Queue(),
+            text_input_queue=asyncio.Queue(),
+            audio_output_callback=AsyncMock(),
+            audio_interrupt_callback=AsyncMock(),
+        ):
+            pass
+
+    mock_session.send_client_content.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_session_dead_yields_session_dead_event():
+    """Fatal receive errors surface a reconnect-friendly session_dead event."""
     gl = GeminiLive(
         api_key="test",
         model="test-model",
@@ -564,13 +725,13 @@ async def test_session_dead_yields_error_content():
                 audio_interrupt_callback=AsyncMock(),
             ):
                 events.append(event)
-                if event.get("type") == "error":
+                if event.get("type") == "session_dead":
                     break
     except (TimeoutError, Exception):
         pass
 
     assert events[0] == {
-        "type": "error",
-        "content": "Session connection lost",
-        "error": "Session connection lost",
+        "type": "session_dead",
+        "content": "1008 policy violation",
+        "error": "1008 policy violation",
     }

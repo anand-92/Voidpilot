@@ -215,6 +215,21 @@ function mergeUserTranscriptContent(existingContent: string, nextContent: string
   return existingContent + separator + suffix
 }
 
+function buildConversationHistory(messages: Message[]): Array<{
+  role: MessageRole
+  content: string
+  isToolResponse?: boolean
+}> {
+  return messages
+    .filter((message) => (isUserRole(message.role) || isGeminiRole(message.role)) && message.content.trim())
+    .slice(-24)
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+      isToolResponse: message.isToolResponse,
+    }))
+}
+
 function classifyToolResult(result: unknown): ToolActivityStatus {
   const text = typeof result === 'string'
     ? result
@@ -952,6 +967,7 @@ export function useGeminiBrainstorm() {
               voice_name: selectedVoice,
               enabled_tools: selectedTools,
               brainstorm_type: brainstormTypeRef.current,
+              conversation_history: buildConversationHistory(messagesRef.current),
             }),
           )
 
@@ -989,6 +1005,8 @@ export function useGeminiBrainstorm() {
               if (data.handle) {
                 sessionHandleRef.current = data.handle
               }
+              break
+            case 'go_away':
               break
             case 'interrupted':
               clearScheduledAudioPlayback()

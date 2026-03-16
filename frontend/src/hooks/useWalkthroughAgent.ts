@@ -78,6 +78,17 @@ function mergeTranscriptContent(existing: string, next: string): string {
   return existing + sep + suffix
 }
 
+function buildConversationHistory(transcript: WalkthroughTranscriptItem[]): Array<{
+  role: WalkthroughTranscriptRole
+  content: string
+}> {
+  return transcript
+    .filter((item): item is WalkthroughTranscriptTurn => item.role === 'user' || item.role === 'gemini')
+    .filter((item) => item.content.trim().length > 0)
+    .slice(-24)
+    .map((item) => ({ role: item.role, content: item.content }))
+}
+
 // ---------------------------------------------------------------------------
 // Tool result classification
 // ---------------------------------------------------------------------------
@@ -271,7 +282,15 @@ export function useWalkthroughAgent() {
   // Stop / cleanup
   // ---------------------------------------------------------------------------
 
-  const stop = useCallback(() => {
+  const stop = useCallback((options?: {
+    clearTranscript?: boolean
+    clearError?: boolean
+    resetConnectionStatus?: boolean
+  }) => {
+    const shouldClearTranscript = options?.clearTranscript ?? true
+    const shouldClearError = options?.clearError ?? true
+    const shouldResetConnectionStatus = options?.resetConnectionStatus ?? true
+
     if (wsRef.current) {
       wsRef.current.close()
       wsRef.current = null
@@ -285,11 +304,17 @@ export function useWalkthroughAgent() {
     clearScheduledAudioPlayback()
     audioContextRef.current?.close()
     audioContextRef.current = null
-    setConnectionStatus('disconnected')
+    if (shouldResetConnectionStatus) {
+      setConnectionStatus('disconnected')
+    }
     setToolActivity({ status: 'idle', toolName: null })
-    setErrorMessage(null)
-    setTranscript([])
-    transcriptRef.current = [] as WalkthroughTranscriptItem[]
+    if (shouldClearError) {
+      setErrorMessage(null)
+    }
+    if (shouldClearTranscript) {
+      setTranscript([])
+      transcriptRef.current = [] as WalkthroughTranscriptItem[]
+    }
     inputIntensityRef.current = 0
     outputIntensityRef.current = 0
     visualIntensityRef.current = 0
@@ -315,12 +340,13 @@ export function useWalkthroughAgent() {
   // ---------------------------------------------------------------------------
 
   const start = useCallback(async () => {
+    if (wsRef.current || streamRef.current) {
+      stop({ clearTranscript: false, clearError: false, resetConnectionStatus: false })
+    }
+
     setConnectionStatus('connecting')
     setErrorMessage(null)
     try {
-      if (wsRef.current || streamRef.current) {
-        stop()
-      }
 
       const ws = new WebSocket(`${API_BASE_URL}/api/v1/live/walkthrough`)
 
@@ -331,6 +357,7 @@ export function useWalkthroughAgent() {
           JSON.stringify({
             type: 'session_config',
             voice_name: selectedVoice,
+            conversation_history: buildConversationHistory(transcriptRef.current),
           }),
         )
       }
@@ -433,6 +460,9 @@ export function useWalkthroughAgent() {
           case 'session_resumption_update':
             // No-op for walkthrough (no resumption needed)
             break
+
+          case 'go_away':
+            break
         }
       }
 
@@ -444,6 +474,7 @@ export function useWalkthroughAgent() {
 
       ws.onclose = () => {
         console.log('Walkthrough WebSocket closed')
+        wsRef.current = null
         setConnectionStatus((prev) => {
           // Keep error state as-is (already has retry affordance)
           if (prev === 'error') return prev
@@ -506,7 +537,7 @@ export function useWalkthroughAgent() {
       console.error('Walkthrough start error:', error)
       setConnectionStatus('error')
       setErrorMessage(error instanceof Error ? error.message : String(error))
-      stop()
+      stop({ clearTranscript: false, clearError: false, resetConnectionStatus: false })
       throw error
     }
   }, [stop, addTranscriptTurn, addToolActivityEntry, updateLastToolActivityEntry, clearScheduledAudioPlayback, selectedVoice])

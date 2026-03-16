@@ -4,10 +4,11 @@ import traceback
 from functools import partial
 
 from fastapi import APIRouter, WebSocket
+from starlette.websockets import WebSocketState
 
 from src.app.core.config import settings
 from src.app.services.file_search_service import search_project_context
-from src.app.services.gemini_audio import GeminiLive
+from src.app.services.gemini_audio import GeminiLive, build_live_history_turns
 from src.app.services.tool_defs import SEARCH_PROJECT_CONTEXT_TOOL_DEF
 from src.app.services.ws_manager import WebSocketManager
 
@@ -16,7 +17,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
-MAX_RETRIES = 3
 DEFAULT_VOICE = "Despina"
 ALLOWED_VOICES = frozenset({
     "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
@@ -44,6 +44,12 @@ async def _handle_client_message(
     msg_type = payload.get("type")
     if msg_type == "session_config":
         _apply_requested_voice(gemini_client, payload)
+        handle = payload.get("handle")
+        if isinstance(handle, str) and handle:
+            gemini_client.session_resumption_handle = handle
+        gemini_client.history_turns = build_live_history_turns(
+            payload.get("conversation_history")
+        )
         return True
     if msg_type == "text":
         content = payload.get("content", "")
@@ -104,7 +110,8 @@ async def walkthrough_ws(websocket: WebSocket):
         system_prompt=SYSTEM_PROMPT,
     )
 
-    async def run_session() -> None:
+    async def run_session() -> bool:
+        should_reconnect = False
         try:
             logger.info("Starting walkthrough Gemini session...")
             async for event in gemini_client.start_session(
@@ -115,6 +122,14 @@ async def walkthrough_ws(websocket: WebSocket):
                 audio_interrupt_callback=manager.audio_interrupt_callback,
             ):
                 if event:
+                    if (
+                        event.get("type") == "session_resumption_update"
+                        and event.get("handle")
+                    ):
+                        gemini_client.session_resumption_handle = event["handle"]
+                    if event.get("type") == "session_dead":
+                        should_reconnect = True
+                        continue
                     logger.debug("Walkthrough event: %s", event["type"])
                     await manager.forward_gemini_event(event)
             logger.info("Walkthrough session ended normally")
@@ -122,6 +137,7 @@ async def walkthrough_ws(websocket: WebSocket):
             logger.error("Walkthrough session error: %s", e)
             logger.error(traceback.format_exc())
             await manager.send_to_client({"type": "error", "content": str(e)})
+        return should_reconnect
 
     receive_task = asyncio.create_task(
         manager.receive_from_client(
@@ -133,16 +149,12 @@ async def walkthrough_ws(websocket: WebSocket):
         )
     )
     try:
-        for attempt in range(MAX_RETRIES):
-            await run_session()
-            if attempt >= MAX_RETRIES - 1:
+        while websocket.client_state == WebSocketState.CONNECTED:
+            should_reconnect = await run_session()
+            if not should_reconnect:
                 break
-            logger.info(
-                "Walkthrough session retry (%d/%d)...",
-                attempt + 1,
-                MAX_RETRIES,
-            )
-            await asyncio.sleep(1)
+            logger.info("Walkthrough live session reconnecting...")
+            await asyncio.sleep(0.25)
     finally:
         logger.info("Cleaning up walkthrough WebSocket...")
         receive_task.cancel()

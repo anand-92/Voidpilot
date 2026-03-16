@@ -111,6 +111,12 @@ export interface WalkthroughResumptionEvent {
   resumable: boolean
 }
 
+/** Gemini Live connection will roll shortly. */
+export interface WalkthroughGoAwayEvent {
+  type: 'go_away'
+  time_left: string
+}
+
 export type WalkthroughServerEvent =
   | WalkthroughTextEvent
   | WalkthroughAudioEvent
@@ -121,3 +127,4 @@ export type WalkthroughServerEvent =
   | WalkthroughInterruptedEvent
   | WalkthroughErrorEvent
   | WalkthroughResumptionEvent
+  | WalkthroughGoAwayEvent
