@@ -38,8 +38,8 @@ export function CreativeSparkDesktopLayout({
   setSelectedVoice,
   handleConnect,
   stop,
-  isMicPaused,
-  toggleMicPause,
+  isMuted,
+  toggleMute,
   downloadArtifact,
   downloadAllArtifacts,
   onCreateShare,
@@ -238,10 +238,10 @@ export function CreativeSparkDesktopLayout({
                 sessionTitle={sessionTitle}
                 isConnected={isConnected}
                 isStarting={isStarting}
-                isMicPaused={isMicPaused}
+                isMuted={isMuted}
                 handleConnect={handleConnect}
                 stop={stop}
-                toggleMicPause={toggleMicPause}
+                toggleMute={toggleMute}
                 headerExtra={
                   <VoiceSelector
                     selectedVoice={selectedVoice}

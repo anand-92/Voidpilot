@@ -41,10 +41,12 @@ export function CreativeSparkMobileLayout({
   sessionTitle,
   selectedVoice,
   setSelectedVoice,
+  isMuted,
   setInputText,
   handleSend,
   handleConnect,
   stop,
+  toggleMute,
   downloadArtifact,
   downloadAllArtifacts,
   onCreateShare,
@@ -262,8 +264,10 @@ export function CreativeSparkMobileLayout({
                 sessionTitle={sessionTitle}
                 isConnected={isConnected}
                 isStarting={isStarting}
+                isMuted={isMuted}
                 handleConnect={handleConnect}
                 stop={stop}
+                toggleMute={toggleMute}
               />
             </div>
 
