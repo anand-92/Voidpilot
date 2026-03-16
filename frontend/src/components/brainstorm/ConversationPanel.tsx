@@ -9,7 +9,6 @@ import {
   Link as LinkIcon,
   Loader2,
   Mic,
-  MicOff,
   Share2,
   Sparkles,
   Volume2,
@@ -341,7 +340,6 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
                   'active:scale-95',
                 )}
               >
-                <MicOff className="size-4" />
                 End
               </button>
             </div>

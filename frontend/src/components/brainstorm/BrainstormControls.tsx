@@ -11,7 +11,6 @@ import {
   type BrainstormVoice,
 } from '../../hooks/useGeminiBrainstorm'
 import {
-  GeminiMicOff,
   GeminiMicOn,
   GeminiSend,
 } from '../icons/GeminiIcons'
@@ -166,7 +165,6 @@ function ConnectionButton({
           : "flex-1 py-3 text-sm bg-red-500/90"
       )}
     >
-      {layout === 'desktop' && <GeminiMicOff className="size-4" />}
       {isCompact ? 'End Session' : 'End Session'}
     </PulsatingButton>
   )

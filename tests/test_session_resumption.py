@@ -594,8 +594,13 @@ async def test_start_session_sends_history_turns_for_fresh_resume():
     )
 
     mock_session = AsyncMock()
+    receive_call_count = 0
 
     async def mock_receive():
+        nonlocal receive_call_count
+        receive_call_count += 1
+        if receive_call_count > 1:
+            raise Exception("Session ended")
         if False:
             yield
 
@@ -623,7 +628,7 @@ async def test_start_session_sends_history_turns_for_fresh_resume():
             audio_output_callback=AsyncMock(),
             audio_interrupt_callback=AsyncMock(),
         ):
-            pass
+            break
 
     mock_session.send_client_content.assert_awaited_once_with(
         turns=history_turns,
@@ -649,8 +654,13 @@ async def test_start_session_skips_history_turns_when_resumption_handle_exists()
     )
 
     mock_session = AsyncMock()
+    receive_call_count = 0
 
     async def mock_receive():
+        nonlocal receive_call_count
+        receive_call_count += 1
+        if receive_call_count > 1:
+            raise Exception("Session ended")
         if False:
             yield
 
@@ -678,9 +688,92 @@ async def test_start_session_skips_history_turns_when_resumption_handle_exists()
             audio_output_callback=AsyncMock(),
             audio_interrupt_callback=AsyncMock(),
         ):
-            pass
+            break
 
     mock_session.send_client_content.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_start_session_continues_across_multiple_receive_loops():
+    """A finished receive loop after turn_complete should not end the session."""
+    gl = GeminiLive(
+        api_key="test",
+        model="test-model",
+        input_sample_rate=16000,
+    )
+
+    mock_session = AsyncMock()
+    receive_call_count = 0
+
+    async def mock_receive():
+        nonlocal receive_call_count
+        receive_call_count += 1
+
+        if receive_call_count == 1:
+            yield MagicMock(
+                server_content=MagicMock(
+                    model_turn=None,
+                    generation_complete=False,
+                    turn_complete=True,
+                    interrupted=False,
+                    input_transcription=None,
+                    output_transcription=None,
+                ),
+                tool_call=None,
+                session_resumption_update=None,
+                go_away=None,
+            )
+            return
+
+        if receive_call_count == 2:
+            yield MagicMock(
+                server_content=MagicMock(
+                    model_turn=None,
+                    generation_complete=False,
+                    turn_complete=True,
+                    interrupted=False,
+                    input_transcription=None,
+                    output_transcription=None,
+                ),
+                tool_call=None,
+                session_resumption_update=None,
+                go_away=None,
+            )
+            return
+
+        raise Exception("Session ended")
+
+    mock_session.receive = mock_receive
+
+    class MockCtxManager:
+        async def __aenter__(self):
+            return mock_session
+
+        async def __aexit__(self, *args):
+            pass
+
+    mock_live = MagicMock()
+    mock_live.connect = lambda model, config: MockCtxManager()
+
+    mock_client = MagicMock()
+    mock_client.aio.live = mock_live
+    gl.client = mock_client
+
+    events = []
+    async with asyncio.timeout(5):
+        async for event in gl.start_session(
+            audio_input_queue=asyncio.Queue(),
+            video_input_queue=asyncio.Queue(),
+            text_input_queue=asyncio.Queue(),
+            audio_output_callback=AsyncMock(),
+            audio_interrupt_callback=AsyncMock(),
+        ):
+            events.append(event)
+            if len([e for e in events if e.get("type") == "turn_complete"]) == 2:
+                break
+
+    assert len([e for e in events if e.get("type") == "turn_complete"]) == 2
+    assert receive_call_count >= 2
 
 
 @pytest.mark.asyncio

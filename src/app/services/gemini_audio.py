@@ -102,6 +102,13 @@ def _build_error_event(message: str) -> dict[str, str]:
     }
 
 
+def _build_receive_loop_done_event(loop_id: int) -> dict[str, int | str]:
+    return {
+        "type": "_receive_loop_done",
+        "loop_id": loop_id,
+    }
+
+
 def build_live_history_turns(
     messages: Sequence[Mapping[str, object]] | None,
     *,
@@ -523,6 +530,7 @@ class GeminiLive:
         event_queue: asyncio.Queue,
         audio_output_callback,
         audio_interrupt_callback,
+        loop_id: int,
     ):
         try:
             async for response in session.receive():
@@ -561,12 +569,12 @@ class GeminiLive:
                         )
         except asyncio.CancelledError:
             logger.info("Receive loop cancelled")
-            await event_queue.put(None)
+            raise
         except Exception as e:
             await self._handle_receive_error(e, event_queue)
         finally:
             logger.info("Receive loop finished.")
-            await event_queue.put(None)
+            await event_queue.put(_build_receive_loop_done_event(loop_id))
 
     async def start_session(  # noqa: C901
         self,
@@ -680,38 +688,64 @@ class GeminiLive:
                         )
                         self._auto_start_sent = True
 
-                receive_task = asyncio.create_task(
-                    self._receive_loop(
-                        session,
-                        event_queue,
-                        audio_output_callback,
-                        audio_interrupt_callback,
-                    )
-                )
-
+                session_active = True
+                receive_loop_id = 0
+                receive_task: asyncio.Task | None = None
                 try:
-                    while True:
-                        event = await event_queue.get()
-                        if event is None:
-                            await self._wait_for_tool_tasks()
-                            if not event_queue.empty():
-                                continue
-                            logger.info("Receive loop ended.")
-                            break
-
-                        if event.get("type") == "session_dead":
-                            logger.warning(
-                                "Session died: %s",
-                                event.get("error"),
+                    while session_active:
+                        receive_loop_id += 1
+                        active_receive_loop_id = receive_loop_id
+                        receive_task = asyncio.create_task(
+                            self._receive_loop(
+                                session,
+                                event_queue,
+                                audio_output_callback,
+                                audio_interrupt_callback,
+                                loop_id=active_receive_loop_id,
                             )
+                        )
 
-                        yield event
+                        while session_active:
+                            event = await event_queue.get()
+
+                            if event.get("type") == "_receive_loop_done":
+                                if event.get("loop_id") != active_receive_loop_id:
+                                    continue
+                                logger.info(
+                                    "Receive loop ended, waiting for more input..."
+                                )
+                                break
+
+                            if event.get("type") == "session_dead":
+                                logger.warning(
+                                    "Session died: %s",
+                                    event.get("error"),
+                                )
+                                session_active = False
+
+                            yield event
+
+                            if event.get("type") == "turn_complete":
+                                logger.info(
+                                    "Turn complete, waiting for more user input..."
+                                )
+                                break
+
+                        if receive_task is not None and not receive_task.done():
+                            receive_task.cancel()
+                            try:
+                                await receive_task
+                            except asyncio.CancelledError:
+                                pass
+
+                        if session_active:
+                            await asyncio.sleep(0.5)
 
                 finally:
                     await self._wait_for_tool_tasks()
                     for task in send_tasks:
                         task.cancel()
-                    if not receive_task.done():
+                    if receive_task is not None and not receive_task.done():
                         receive_task.cancel()
                         try:
                             await receive_task
