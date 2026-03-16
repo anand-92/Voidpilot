@@ -4,7 +4,7 @@ export type RollerItem = {
 };
 
 export const voidpilotHeroItems: RollerItem[] = [
-  { text: "sees your screen.", className: "text-cyan-300" },
+  { text: "explores the project.", className: "text-cyan-300" },
   { text: "hears your voice.", className: "text-amber-300" },
   { text: "takes the wheel.", className: "text-sky-300" },
   { text: "guides your work.", className: "text-violet-300" },
