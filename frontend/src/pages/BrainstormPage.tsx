@@ -232,8 +232,21 @@ export default function BrainstormPage() {
     stop()
     clearAutoStartError()
     updateBrainstormType(null)
+    if (authStatus === 'signed_in' && hasSignedInWorkspaceAccess) {
+      setPendingNewSession(false)
+      setGrantedSignedInAuthChangeKey(null)
+      setShowModeSelection(false)
+      return
+    }
+
     setShowModeSelection(true)
-  }, [stop, clearAutoStartError, updateBrainstormType])
+  }, [
+    authStatus,
+    clearAutoStartError,
+    hasSignedInWorkspaceAccess,
+    stop,
+    updateBrainstormType,
+  ])
 
   const handleCreateShare = useCallback(async (): Promise<string | null> => {
     if (sessionMode !== 'persisted' || !activeSessionId) return null

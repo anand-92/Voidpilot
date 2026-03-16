@@ -120,7 +120,7 @@ DELEGATE_TOOL_DEF = {
             },
             "context": {
                 "type": "string",
-                "description": ("Context information for the task"),
+                "description": ("Optional context information for the task"),
             },
             "output_format": {
                 "type": "string",
@@ -132,7 +132,7 @@ DELEGATE_TOOL_DEF = {
                 "description": ("Desired output format (defaults to markdown_section)"),
             },
         },
-        "required": ["task", "context"],
+        "required": ["task"],
     },
 }
 

@@ -10,7 +10,6 @@ import {
 } from '@/hooks/useGeminiBrainstorm'
 import { SparkToolbar } from './SparkToolbar'
 import {
-  GeminiMicOff,
   GeminiMicOn,
   GeminiSend,
 } from '../icons/GeminiIcons'
@@ -133,7 +132,6 @@ export function CreativeSparkControls({
             duration="2s"
             className="flex shrink-0 items-center justify-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-md hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <GeminiMicOff className="size-4" />
             End
           </PulsatingButton>
         )}

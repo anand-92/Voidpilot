@@ -346,7 +346,7 @@ class FlashWorker:
     async def delegate_task(
         self,
         task: str,
-        context: str,
+        context: str = "",
         output_format: str = "markdown_section",
     ) -> str:
         """Send a general-purpose thinking task to Flash Lite."""

@@ -3,12 +3,12 @@ import { Download, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { MagicCard } from '@/components/ui/magic-card'
 import type { BrainstormArtifact } from '../../hooks/useGeminiBrainstorm'
 import { GeminiStar } from '../icons/GeminiIcons'
 import { ArtifactPreview } from './ArtifactPreview'
 import { ArtifactRow } from './ArtifactRow'
 import { ActivitySpinner } from './ActivitySpinner'
+import { MasonryGallery } from './MasonryGallery'
 import { formatFileSize } from './utils'
 
 type WorkspacePanelProps = {
@@ -153,50 +153,15 @@ export function WorkspacePanel({
       {artifactList.length > 0 && (
         <div className="flex h-full w-full gap-6">
           {/* List of artifacts */}
-          <div className="flex flex-col gap-4 w-[340px] shrink-0 transition-all duration-500">
-            {isGenerating && (
-              <div className="mx-2 mt-2">
-                <ActivitySpinner />
-              </div>
-            )}
-
-            <ScrollArea className="flex min-h-0 flex-1 flex-col pr-4">
-              <div className="flex flex-col gap-4 pb-4 w-full">
-                {artifactList.map(([filename, artifact]) => (
-                  <div key={filename} className="break-inside-avoid">
-                    <MagicCard
-                      className="rounded-2xl cursor-pointer shadow-lg"
-                      gradientColor="#1c1917"
-                      gradientFrom="#2563eb"
-                      gradientTo="#1e3a8a"
-                      gradientOpacity={0.4}
-                      gradientSize={150}
-                    >
-                      <ArtifactRow
-                        artifact={artifact}
-                        isSelected={selectedArtifact === filename}
-                        onSelect={() => selectArtifact(filename)}
-                        onDownload={() => void downloadArtifact(filename)}
-                        downloadButtonClassName="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-stone-400 transition-all hover:bg-white/[0.08] hover:text-white"
-                      />
-                    </MagicCard>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-
-            {!currentArtifact && (
-              <div className="shrink-0 pt-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <Button
-                  variant="outline"
-                  onClick={() => void downloadAllArtifacts()}
-                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-amber-500/20 bg-amber-500/[0.08] px-4 py-6 text-sm font-bold tracking-wide text-amber-400 transition-all hover:bg-amber-500/20 hover:scale-[1.01] active:scale-[0.98]"
-                >
-                  <Download className="size-5" />
-                  Download Archive ({artifactList.length} {artifactList.length === 1 ? 'file' : 'files'})
-                </Button>
-              </div>
-            )}
+          <div className="min-w-0 flex-1 transition-all duration-500">
+            <div className="h-full overflow-hidden rounded-[2rem] border border-white/[0.08] bg-black/40 shadow-2xl backdrop-blur-2xl">
+              <MasonryGallery
+                artifactList={artifactList}
+                isGenerating={isGenerating}
+                downloadArtifact={downloadArtifact}
+                downloadAllArtifacts={downloadAllArtifacts}
+              />
+            </div>
           </div>
 
           {/* Main Preview Area */}

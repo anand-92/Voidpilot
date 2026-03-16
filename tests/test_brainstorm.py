@@ -82,7 +82,7 @@ class TestToolDeclarations:
         assert set(params["required"]) == {"prompt", "label"}
 
     def test_delegate_tool_params(self):
-        """delegate_to_flash has task (required), context (required),
+        """delegate_to_flash has task (required), context (optional),
         output_format (optional with enum)."""
         params = DELEGATE_TOOL_DEF["parameters"]
         props = params["properties"]
@@ -96,7 +96,7 @@ class TestToolDeclarations:
             "json",
             "summary",
         ]
-        assert set(params["required"]) == {"task", "context"}
+        assert set(params["required"]) == {"task"}
 
     def test_brainstorm_tools_has_all_four(self):
         """BRAINSTORM_TOOLS contains the four brainstorm

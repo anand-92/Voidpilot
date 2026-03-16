@@ -391,7 +391,7 @@ def _make_tool_handlers(  # noqa: C901
 
     async def handle_delegate(
         task: str,
-        context: str,
+        context: str = "",
         output_format: str = "markdown_section",
     ) -> dict:
         """Delegate task to FlashWorker and push result."""
