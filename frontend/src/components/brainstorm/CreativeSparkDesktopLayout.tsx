@@ -236,7 +236,7 @@ export function CreativeSparkDesktopLayout({
             }}
           >
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="relative flex shrink-0 items-center justify-between bg-white/[0.03] px-3 py-2">
+              <div className="relative flex h-10 shrink-0 items-center justify-between bg-white/[0.03] px-3">
                 <div className="w-8" />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <span className="text-xs font-bold tracking-widest text-stone-400 uppercase font-mono">
@@ -272,7 +272,7 @@ export function CreativeSparkDesktopLayout({
             }}
           >
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="relative flex shrink-0 items-center justify-between bg-white/[0.03] px-3 py-2">
+              <div className="relative flex h-10 shrink-0 items-center justify-between bg-white/[0.03] px-3">
                 <div className="w-8" />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <span className="text-xs font-bold tracking-widest text-stone-400 uppercase font-mono">

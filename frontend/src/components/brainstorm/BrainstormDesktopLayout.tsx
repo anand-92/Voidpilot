@@ -247,7 +247,7 @@ export function BrainstormDesktopLayout({
             }}
           >
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="relative flex shrink-0 items-center justify-between bg-white/[0.03] px-3 py-2">
+              <div className="relative flex h-10 shrink-0 items-center justify-between bg-white/[0.03] px-3">
                 <div className="w-8" />
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                   <span className="font-mono text-xs font-bold uppercase tracking-widest text-stone-400">
@@ -285,7 +285,7 @@ export function BrainstormDesktopLayout({
             }}
           >
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="relative flex shrink-0 items-center justify-between bg-white/[0.03] px-3 py-2">
+              <div className="relative flex h-10 shrink-0 items-center justify-between bg-white/[0.03] px-3">
                 <div className="w-8" />
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                   <span className="font-mono text-xs font-bold uppercase tracking-widest text-stone-400">
