@@ -3,12 +3,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.app.services.flash_worker import (
+    DEFAULT_VIDEO_ASPECT_RATIO,
+    DEFAULT_VIDEO_DURATION_SECONDS,
     DEFAULT_FLASH_TEXT_MODEL_KEY,
     FLASH_IMAGE_MODEL,
     FLASH_LITE_CONFIG,
     FLASH_LITE_MODEL,
     FLASH_MODEL,
     FLASH_PRO_MODEL,
+    LOWEST_VIDEO_RESOLUTION,
+    VEO_VIDEO_MODEL,
     PLAIN_TEXT_CONFIG,
     FlashWorker,
     resolve_flash_text_model,
@@ -129,18 +133,23 @@ async def test_generate_image(mock_client):
 
     mock_response = MagicMock()
     mock_response.candidates = [mock_candidate]
-    mock_client["generate_content"].return_value = mock_response
+    mock_client["generate_content"].side_effect = [
+        MagicMock(text='{"enhanced_prompt":"an editorial portrait of a cat"}'),
+        mock_response,
+    ]
 
     worker = FlashWorker(api_key="test_key")
     result = await worker.generate_image(prompt="a cat")
 
     assert result == image_bytes
 
-    call_args = mock_client["generate_content"].call_args
-    assert call_args.kwargs["model"] == FLASH_IMAGE_MODEL
-    assert call_args.kwargs["contents"] == "a cat"
+    enhancement_call = mock_client["generate_content"].call_args_list[0]
+    image_call = mock_client["generate_content"].call_args_list[1]
+    assert enhancement_call.kwargs["model"] == FLASH_LITE_MODEL
+    assert image_call.kwargs["model"] == FLASH_IMAGE_MODEL
+    assert image_call.kwargs["contents"] == "an editorial portrait of a cat"
 
-    config = call_args.kwargs["config"]
+    config = image_call.kwargs["config"]
     assert config.response_modalities == ["Image"]
 
 
@@ -159,7 +168,10 @@ async def test_generate_image_no_image_data(mock_client):
 
     mock_response = MagicMock()
     mock_response.candidates = [mock_candidate]
-    mock_client["generate_content"].return_value = mock_response
+    mock_client["generate_content"].side_effect = [
+        MagicMock(text='{"enhanced_prompt":"something cinematic"}'),
+        mock_response,
+    ]
 
     worker = FlashWorker(api_key="test_key")
     with pytest.raises(
@@ -228,3 +240,75 @@ async def test_flash_worker_uses_correct_models(mock_client):
     assert FLASH_MODEL == 'gemini-flash-latest'
     assert FLASH_PRO_MODEL == 'gemini-3.1-pro-preview'
     assert FLASH_IMAGE_MODEL == 'gemini-3.1-flash-image-preview'
+
+
+@pytest.mark.asyncio
+async def test_enhance_image_prompt_falls_back_to_original_prompt(mock_client):
+    mock_client["generate_content"].return_value = MagicMock(text="not-json")
+
+    worker = FlashWorker(api_key="test_key")
+    result = await worker.enhance_image_prompt("a lighthouse at dusk")
+
+    assert result.enhanced_prompt == "a lighthouse at dusk"
+
+
+@pytest.mark.asyncio
+async def test_enhance_video_prompt_returns_validated_settings(mock_client):
+    mock_client["generate_content"].return_value = MagicMock(
+        text=(
+            '{"enhanced_prompt":"Wide tracking shot of a snowboarder carving '
+            'through powder at sunrise","aspect_ratio":"9:16",'
+            '"duration_seconds":6,"audio_guidance":"Wind rush and board carving."}'
+        )
+    )
+
+    worker = FlashWorker(api_key="test_key")
+    result = await worker.enhance_video_prompt("snowboarder on a mountain")
+
+    assert result.prompt.endswith("Audio guidance: Wind rush and board carving.")
+    assert result.aspect_ratio == "9:16"
+    assert result.duration_seconds == 6
+
+
+@pytest.mark.asyncio
+async def test_enhance_video_prompt_falls_back_to_original_defaults(mock_client):
+    mock_client["generate_content"].return_value = MagicMock(text="{bad json")
+
+    worker = FlashWorker(api_key="test_key")
+    result = await worker.enhance_video_prompt("spaceship landing")
+
+    assert result.prompt == "spaceship landing"
+    assert result.aspect_ratio == DEFAULT_VIDEO_ASPECT_RATIO
+    assert result.duration_seconds == DEFAULT_VIDEO_DURATION_SECONDS
+
+
+@pytest.mark.asyncio
+async def test_generate_video_uses_enhanced_prompt_and_validated_params(mock_client):
+    mock_client["generate_content"].return_value = MagicMock(
+        text=(
+            '{"enhanced_prompt":"Low-angle dolly shot of a mech emerging from fog",'
+            '"aspect_ratio":"9:16","duration_seconds":4,'
+            '"audio_guidance":"Heavy metallic footsteps and distant sirens."}'
+        )
+    )
+
+    mock_operation = MagicMock()
+    mock_operation.done = True
+    mock_video = MagicMock()
+    mock_video.video_bytes = b"video-bytes"
+    generated_video = MagicMock()
+    generated_video.video = mock_video
+    mock_operation.response = MagicMock(generated_videos=[generated_video])
+    mock_client["client_instance"].models.generate_videos.return_value = mock_operation
+
+    worker = FlashWorker(api_key="test_key")
+    result = await worker.generate_video(prompt="a mech in fog")
+
+    assert result == b"video-bytes"
+    generate_call = mock_client["client_instance"].models.generate_videos.call_args
+    assert generate_call.kwargs["model"] == VEO_VIDEO_MODEL
+    assert "Heavy metallic footsteps" in generate_call.kwargs["prompt"]
+    config = generate_call.kwargs["config"]
+    assert config.aspect_ratio == "9:16"
+    assert config.duration_seconds == 4
+    assert config.resolution == LOWEST_VIDEO_RESOLUTION

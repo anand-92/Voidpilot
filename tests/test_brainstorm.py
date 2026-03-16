@@ -14,6 +14,7 @@ from src.app.services.tool_defs import (
     DELEGATE_TOOL_DEF,
     IMAGE_TOOL_DEF,
     SAVE_ARTIFACT_TOOL_DEF,
+    VIDEO_TOOL_DEF,
 )
 from src.app.services.flash_worker import FLASH_MODEL
 from src.app.main import app
@@ -75,6 +76,14 @@ class TestToolDeclarations:
         behavior='NON_BLOCKING'."""
         assert DELEGATE_TOOL_DEF["behavior"] == "NON_BLOCKING"
         assert DELEGATE_TOOL_DEF["name"] == "delegate_to_flash"
+
+    def test_video_tool_params(self):
+        params = VIDEO_TOOL_DEF["parameters"]
+        props = params["properties"]
+        assert props["aspect_ratio"]["enum"] == ["16:9", "9:16"]
+        assert props["duration_seconds"]["enum"] == [4, 6, 8]
+        assert "audio_guidance" in props
+        assert set(params["required"]) == {"prompt", "label"}
 
     def test_delegate_tool_params(self):
         """delegate_to_flash has task (required), context (required),
@@ -199,6 +208,37 @@ async def test_image_handler_returns_silent():
 
     assert result["scheduling"] == "SILENT"
     assert "result" in result
+
+
+@pytest.mark.asyncio
+async def test_video_handler_passes_optional_generation_hints():
+    from src.app.api.v1.endpoints.brainstorm import _make_tool_handlers
+
+    mock_ws = AsyncMock()
+    from starlette.websockets import WebSocketState
+
+    mock_ws.client_state = WebSocketState.CONNECTED
+
+    with patch("src.app.api.v1.endpoints.brainstorm.FlashWorker") as MockFW:
+        mock_fw = AsyncMock()
+        mock_fw.generate_video.return_value = b"video-bytes"
+        MockFW.return_value = mock_fw
+
+        handlers = _make_tool_handlers(mock_ws, "test_key")
+        await handlers["generate_brainstorm_video"](
+            prompt="a noir detective scene",
+            label="Noir Scene",
+            aspect_ratio="9:16",
+            duration_seconds=6,
+            audio_guidance="Rain, footsteps, distant saxophone.",
+        )
+
+    mock_fw.generate_video.assert_awaited_once_with(
+        prompt="a noir detective scene",
+        aspect_ratio="9:16",
+        duration_seconds=6,
+        audio_guidance="Rain, footsteps, distant saxophone.",
+    )
 
 
 @pytest.mark.asyncio
