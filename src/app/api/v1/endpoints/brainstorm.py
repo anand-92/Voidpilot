@@ -371,9 +371,6 @@ def _make_tool_handlers(  # noqa: C901
     async def handle_generate_video(
         prompt: str,
         label: str,
-        aspect_ratio: str | None = None,
-        duration_seconds: int | None = None,
-        audio_guidance: str | None = None,
     ) -> dict:
         """Generate video via FlashWorker and push to client."""
         return await handle_generate_media(
@@ -383,9 +380,6 @@ def _make_tool_handlers(  # noqa: C901
             "brainstorm_video",
             "mp4",
             "SILENT",
-            aspect_ratio=aspect_ratio,
-            duration_seconds=duration_seconds,
-            audio_guidance=audio_guidance,
         )
 
     async def handle_delegate(

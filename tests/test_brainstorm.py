@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from src.app.api.v1.endpoints.brainstorm import (
     BRAINSTORM_SYSTEM_PROMPT,
 )
+from src.app.main import app
 from src.app.services.tool_defs import (
     BRAINSTORM_TOOLS,
     DELEGATE_TOOL_DEF,
@@ -16,9 +17,6 @@ from src.app.services.tool_defs import (
     SAVE_ARTIFACT_TOOL_DEF,
     VIDEO_TOOL_DEF,
 )
-from src.app.services.flash_worker import FLASH_MODEL
-from src.app.main import app
-
 
 # ── Tool declaration tests ───────────────────────────────────────
 
@@ -80,9 +78,7 @@ class TestToolDeclarations:
     def test_video_tool_params(self):
         params = VIDEO_TOOL_DEF["parameters"]
         props = params["properties"]
-        assert props["aspect_ratio"]["enum"] == ["16:9", "9:16"]
-        assert props["duration_seconds"]["enum"] == [4, 6, 8]
-        assert "audio_guidance" in props
+        assert set(props) == {"prompt", "label"}
         assert set(params["required"]) == {"prompt", "label"}
 
     def test_delegate_tool_params(self):
@@ -228,16 +224,10 @@ async def test_video_handler_passes_optional_generation_hints():
         await handlers["generate_brainstorm_video"](
             prompt="a noir detective scene",
             label="Noir Scene",
-            aspect_ratio="9:16",
-            duration_seconds=6,
-            audio_guidance="Rain, footsteps, distant saxophone.",
         )
 
     mock_fw.generate_video.assert_awaited_once_with(
         prompt="a noir detective scene",
-        aspect_ratio="9:16",
-        duration_seconds=6,
-        audio_guidance="Rain, footsteps, distant saxophone.",
     )
 
 
@@ -611,8 +601,6 @@ async def test_brainstorm_session_resumption_config():
     messages for resumption."""
     mock_settings = MagicMock()
     mock_settings.GOOGLE_API_KEY = "test_key"
-
-    config_received = {"handle": None}
 
     with (
         patch(

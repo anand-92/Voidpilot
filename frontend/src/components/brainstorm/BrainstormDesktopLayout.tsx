@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -115,6 +115,29 @@ export function BrainstormDesktopLayout({
     setWindows(getInitialWindows())
     setLayoutKey(k => k + 1)
   }
+
+  useEffect(() => {
+    let timeoutId: number | null = null
+
+    const handleResize = () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+
+      timeoutId = window.setTimeout(() => {
+        resetLayout()
+      }, 150)
+    }
+
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   const bringToFront = (id: WindowId) => {
     setMaxZ(prev => prev + 1)

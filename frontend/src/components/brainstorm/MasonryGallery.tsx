@@ -178,7 +178,7 @@ function GalleryStrip({
       >
         <DialogContent
           showCloseButton={false}
-          className="fixed inset-0 z-[220] flex h-screen w-screen max-w-none translate-x-0 translate-y-0 items-center justify-center rounded-none border-0 bg-black/95 p-4 ring-0 backdrop-blur-xl sm:p-6"
+          className="fixed inset-0 z-[220] flex h-screen w-screen max-w-none translate-x-0 translate-y-0 items-center justify-center rounded-none border-0 bg-black/95 p-4 ring-0 backdrop-blur-xl data-open:zoom-in-100 data-closed:zoom-out-95 sm:p-6"
         >
           <DialogTitle className="sr-only">Artifact Preview</DialogTitle>
 
@@ -198,7 +198,7 @@ function GalleryStrip({
                 previewArtifact[1].mimeType.startsWith('video/') ? (
                   <video
                     src={`data:video/mp4;base64,${previewArtifact[1].content}`}
-                    className="max-h-[92vh] w-auto max-w-[92vw] rounded-xl object-contain shadow-2xl"
+                    className="block max-h-[calc(100vh-4rem)] max-w-[calc(100vw-4rem)] rounded-xl object-contain shadow-2xl"
                     controls
                     autoPlay
                   />
@@ -206,7 +206,7 @@ function GalleryStrip({
                   <img
                     src={`data:image/png;base64,${previewArtifact[1].content}`}
                     alt={previewArtifact[1].label ?? previewArtifact[0]}
-                    className="max-h-[92vh] w-auto max-w-[92vw] rounded-xl object-contain shadow-2xl"
+                    className="block max-h-[calc(100vh-4rem)] max-w-[calc(100vw-4rem)] rounded-xl object-contain shadow-2xl"
                   />
                 )
               ) : (

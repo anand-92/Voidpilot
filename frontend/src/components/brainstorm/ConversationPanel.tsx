@@ -296,7 +296,7 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
       {/* Connection / mute / end controls */}
       {handleConnect && stop && (
         <div className="shrink-0 flex justify-center px-4 py-3 border-t border-white/[0.04] bg-black/40 backdrop-blur-xl">
-          {!isConnected ? (
+          {!mobile && !isConnected ? null : !isConnected ? (
             <button
               type="button"
               onClick={handleConnect}
