@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `tool_defs.py` module provides shared tool definitions for Gemini Live sessions. These are JSON-serializable tool schemas that define what tools are available to Gemini during conversations, particularly in brainstorm mode.
+The `tool_defs.py` module provides shared tool definitions for Gemini Live sessions. It contains both the walkthrough grounding tool and the brainstorm generation/delegation tools.
 
 ## Purpose
 
@@ -12,6 +12,26 @@ This module centralizes tool definitions so they can be:
 3. Easily modified without duplicating definitions
 
 ## Tool Definitions
+
+### `SEARCH_PROJECT_CONTEXT_TOOL_DEF`
+
+The walkthrough grounding tool declaration.
+
+| Property | Value |
+|----------|-------|
+| Name | `search_project_context` |
+| Shape | `function_declarations` wrapper |
+| Description | Instructs Gemini to search the Voidpilot project before answering any project question |
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | `string` | Yes | Specific project-focused search query |
+
+This tool is used only in walkthrough mode and is fulfilled by the backend through `file_search_service.search_project_context()`.
+
+---
 
 ### `SAVE_ARTIFACT_TOOL_DEF`
 
@@ -151,6 +171,7 @@ gemini = GeminiLive(
 Used by:
 - `src/app/services/gemini_audio.py` - To load tools into GeminiLive sessions
 - `src/app/api/v1/endpoints/brainstorm.py` - To define available tools in brainstorm mode
+- `src/app/api/v1/endpoints/walkthrough.py` - To define the walkthrough grounding tool
 
 ## Integration with Frontend
 

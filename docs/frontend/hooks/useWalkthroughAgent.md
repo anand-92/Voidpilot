@@ -2,145 +2,106 @@
 
 ## Overview
 
-The `useWalkthroughAgent` hook provides voice-guided exploration functionality, connecting to a customizable walkthrough mode with a custom system prompt. It features sophisticated audio intensity tracking for visual feedback during conversations.
+`useWalkthroughAgent` manages the full walkthrough client session: websocket connection, microphone capture, audio playback, transcript state, tool activity, typed input, and connection/error states.
 
 ## Connection to Backend
 
 - **WebSocket Endpoint**: `ws://<API_BASE_URL>/api/v1/live/walkthrough`
-- **Query Parameters**: Supports `system_prompt` via URL query string (configured in the component using this hook)
-- **Audio Format**: Same as useGeminiLive (PCM 16-bit, 16kHz input, 24kHz output)
+- **Session config**: sends a `session_config` message so the backend can apply the selected voice
+- **Audio Format**: PCM16, 16kHz input and 24kHz playback
+- **Typed input**: text questions are sent through the same walkthrough websocket session
 
-## Key Functions
+## Public API
 
-### `start()`
+### Session controls
 
-Initiates a walkthrough session by:
-1. Creating a WebSocket connection to the walkthrough endpoint
-2. Setting up audio context and microphone capture
-3. Configuring audio processing with intensity tracking
-4. Initializing visual intensity animation loop
+| Field | Type | Description |
+|------|------|-------------|
+| `start()` | `() => Promise<void>` | Opens the websocket, microphone, and audio playback pipeline |
+| `stop()` | `() => void` | Closes websocket/audio resources and resets session state |
+| `sendText()` | `(content: string) => boolean` | Sends typed text through the active walkthrough session |
 
-**Throws**: Error if connection fails or microphone access is denied
+### Session state
 
-### `stop()`
+| Field | Type | Description |
+|------|------|-------------|
+| `connectionStatus` | `WalkthroughConnectionStatus` | `disconnected`, `connecting`, `connected`, `error`, or `degraded` |
+| `errorMessage` | `string \| null` | Last surfaced error/degraded message |
+| `selectedVoice` | `BrainstormVoice` | Active walkthrough voice choice |
+| `setSelectedVoice` | setter | Updates the selected voice before or during a session |
+| `transcript` | `WalkthroughTranscriptItem[]` | Transcript list containing speech turns and inline tool activity |
+| `toolActivity` | `WalkthroughToolActivity` | Current grounding activity state |
 
-Gracefully terminates the session by:
-1. Closing the WebSocket connection
-2. Stopping all microphone tracks
-3. Disconnecting audio processor
-4. Closing audio context
-5. Resetting all intensity refs to zero
+### Audio refs
 
-## State Variables
+| Field | Type | Description |
+|------|------|-------------|
+| `inputIntensityRef` | `Ref<number>` | Smoothed microphone intensity |
+| `outputIntensityRef` | `Ref<number>` | Smoothed Gemini playback intensity |
 
-| Variable | Type | Description |
-|----------|------|-------------|
-| `isConnected` | `boolean` | Whether the WebSocket is connected |
-| `isStarting` | `boolean` | Whether a connection is in progress |
-| `inputIntensityRef` | `Ref<number>` | Current microphone input intensity |
-| `outputIntensityRef` | `Ref<number>` | Current audio output intensity |
-| `visualIntensityRef` | `Ref<number>` | Combined intensity for UI visualization |
+## Transcript Model
 
-## Intensity Tracking System
+The hook keeps a session-local transcript instead of a simple message list.
 
-The hook implements a sophisticated intensity smoothing system:
+- Consecutive text chunks are merged with overlap detection so partial transcripts do not duplicate content.
+- Turns are separated using server events like `turn_complete` and `interrupted`.
+- Inline `tool_activity` entries are inserted directly into the transcript when project grounding starts or finishes.
 
-### Input Intensity
-- Captured from microphone via `onaudioprocess` event
-- Smoothed with attack: 0.9, release: 0.22
-- Represents user's voice activity
+The transcript item union is defined in `frontend/src/types/walkthrough.ts`.
 
-### Output Intensity
-- Calculated from received audio data
-- Smoothed with attack: 0.82, release: 0.16
-- Represents Gemini's voice output
+## Tool Activity Handling
 
-### Visual Intensity
-- Combined max of input and output
-- Smoothed with attack: 0.78, release: 0.14
-- Used for UI visualizations (waveforms, indicators)
+Walkthrough grounding is visible in the UI through two coordinated states:
 
-## Audio Processing Pipeline
+1. `toolActivity` tracks the current global status (`idle`, `searching`, `complete`, `no_results`, `error`)
+2. Transcript entries capture the latest tool step inline so users can see when the walkthrough searched project docs
 
-1. **Microphone Capture**: Captures audio at device sample rate
-2. **Intensity Calculation**: Calculates RMS intensity from input buffer
-3. **Smoothing**: Applies attack/release smoothing for natural visualization
-4. **Resampling**: Converts to 16kHz for backend transmission
-5. **Encoding**: Converts to PCM 16-bit
-6. **Transmission**: Sends via WebSocket binary frame
+Tool results are classified heuristically from returned text so “no results” and errors render differently from successful searches.
 
-### Playback Tracking
-The hook maintains a `playbackSegmentsRef` array to track active audio playback:
-- Each segment stores: `{ startTime, endTime, intensity }`
-- Segments are filtered to keep only recent ones (ending > now - 0.08s)
-- Used to calculate active output level for visualization
+## Audio Pipeline
 
-## Message Handling
+1. Request microphone access
+2. Create an `AudioContext`
+3. Stream resampled 16kHz PCM16 microphone audio to the backend
+4. Decode and schedule returned 24kHz PCM16 playback
+5. Track playback windows to estimate live output intensity
+6. Smooth input/output levels for UI visualizers
 
-Unlike `useGeminiLive`, this hook does **not** maintain a messages state. It focuses purely on:
-- Audio streaming (input → backend)
-- Audio playback (backend → output speakers)
-- Visual intensity feedback
+## Connection Behavior
 
-System messages and errors are logged to console rather than displayed in UI.
+- Sends a `session_config` payload after connecting so the backend can apply the chosen voice
+- Handles degraded mode when microphone access fails but typed text can still work
+- Surfaces websocket/server errors into `connectionStatus` and `errorMessage`
+- Clears transcript/tool state when the session stops
 
-## Usage Example
+## Example Usage
 
 ```tsx
-import { useWalkthroughAgent } from '../hooks/useWalkthroughAgent'
-
-function WalkthroughModal() {
-  const {
-    isConnected,
-    isStarting,
-    inputIntensityRef,
-    outputIntensityRef,
-    visualIntensityRef,
-    start,
-    stop,
-  } = useWalkthroughAgent()
-
-  return (
-    <div>
-      <button onClick={start} disabled={isStarting}>
-        Start Walkthrough
-      </button>
-      <button onClick={stop} disabled={!isConnected}>
-        End Walkthrough
-      </button>
-      
-      {/* Visual intensity indicators */}
-      <div className="input-level">
-        You: {inputIntensityRef.current}
-      </div>
-      <div className="output-level">
-        Guide: {outputIntensityRef.current}
-      </div>
-      <div className="visual-level">
-        Combined: {visualIntensityRef.current}
-      </div>
-    </div>
-  )
-}
+const {
+  connectionStatus,
+  errorMessage,
+  transcript,
+  toolActivity,
+  start,
+  stop,
+  sendText,
+  selectedVoice,
+  setSelectedVoice,
+} = useWalkthroughAgent()
 ```
 
-## Custom System Prompt
-
-The walkthrough mode supports custom system prompts via query parameters. To use:
-1. Add `?system_prompt=your_prompt_here` to the walkthrough WebSocket URL in the component
-2. The backend will use this prompt for the Gemini session
+This hook is primarily consumed by `frontend/src/components/walkthrough/WalkthroughOverlay.tsx`.
 
 ## Dependencies
 
-This hook relies on audio utilities from `../utils/audio.ts`:
-- `API_BASE_URL` - Backend base URL
-- `AUDIO_BUFFER_SIZE` - Script processor buffer size
-- `MIC_TARGET_RATE` - Target microphone sample rate (16kHz)
-- `createAudioContext()` - Create AudioContext
-- `requestMicrophone()` - Request microphone access
-- `resampleAudio()` - Resample audio data
-- `float32ToPcm16()` / `pcm16ToFloat32()` - Format conversion
-- `decodeHexAudio()` - Decode hex string to audio
-- `scheduleAudioPlayback()` - Schedule audio playback
-- `calculateIntensity()` - Calculate audio intensity
-- `smoothIntensity()` - Apply attack/release smoothing
+Audio helpers come from `frontend/src/utils/audio.ts`, including:
+
+- `createAudioContext`
+- `requestMicrophone`
+- `resampleAudio`
+- `float32ToPcm16` / `pcm16ToFloat32`
+- `decodeHexAudio`
+- `scheduleAudioPlayback`
+- `stopScheduledAudioPlayback`
+- `calculateIntensity`
+- `smoothIntensity`

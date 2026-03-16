@@ -1,105 +1,101 @@
 # LandingPage
 
-The main landing page of the Voidpilot application, serving as the entry point for users. It features an immersive 3D background, animated sections, and navigation to different app modes.
+The main landing page of the Voidpilot application. It keeps the immersive 3D shell, section-based navigation, and the entry point into the walkthrough overlay.
 
 ## Overview
 
-LandingPage is the default route (`/`) of the application. It provides:
-- An immersive 3D animated background using Three.js
-- Section-based navigation with smooth scrolling
-- Access to the main voice assistant (Live mode)
-- Access to the Walkthrough mode for voice-guided exploration
-- Information about capabilities and hackathon features
+`LandingPage` is the default route (`/`). It provides:
+
+- A full-screen Three.js background with dot-pattern overlay
+- Section navigation between the index and hackathon views
+- Haptic feedback for navigation interactions
+- A launch point for the walkthrough overlay
+- A fixed header with back navigation outside the index view
 
 ## Route Structure
 
 | Route | Component | Description |
 |-------|-----------|-------------|
-| `/` | `LandingPage` | Main landing page (default route) |
+| `/` | `LandingPage` | Main landing page shell |
 
-The page uses internal state-based routing to switch between different sections:
-- `index` - Initial landing view with navigation options
-- `hero` - Main Live assistant launch section
-- `capabilities` - Features and capabilities showcase
-- `hackathon` - Hackathon-specific information
+The page currently switches between these internal sections:
+
+- `index` — landing cards and primary CTAs
+- `hackathon` — hackathon-focused content
 
 ## Main Components Used
 
 ### Core UI Components
-- **`ThreeBackground`** - 3D animated background using Three.js
-- **`CustomCursor`** - Custom cursor component (disabled when Walkthrough modal is open)
-- **`DotPattern`** - Decorative background pattern
-- **`Button`** - shadcn/ui button component
-- **`WalkthroughModal`** - Modal for voice-guided walkthrough mode
+
+- **`ThreeBackground`** — animated 3D scene behind the landing content
+- **`CustomCursor`** — hidden while the walkthrough overlay is open
+- **`DotPattern`** — subtle visual texture over the background
+- **`Button`** — header back button
+- **`WalkthroughOverlay`** — transcript-first walkthrough shell using a dialog overlay
 
 ### Icons
-- **`GeminiArrowLeft`** - Back navigation icon
-- **`GeminiLiveLogo`** - Application logo
+
+- **`GeminiArrowLeft`** — back navigation icon
+- **`GeminiLiveLogo`** — app branding in the header
 
 ### Landing Section Components
-- **`IndexView`** - Initial landing view with navigation buttons
-- **`HeroSection`** - Main hero section with Live assistant launch
-- **`CapabilitiesSection`** - Showcase of app capabilities
-- **`HackathonSection`** - Hackathon-specific features section
-- **`useAnimatedScroll`** - Hook for animated scroll behavior
+
+- **`IndexView`** — entry screen with mode cards
+- **`HackathonSection`** — hackathon showcase section
+- **`useAnimatedScroll`** — scroll controller for section transitions
 
 ## Key Features
 
 ### 1. Section Navigation
-The page uses `useAnimatedScroll` hook to provide smooth scrolling between sections. The `SECTION_SCROLL_MAP` constant defines scroll positions for each section.
+
+`useAnimatedScroll` drives transitions between section anchors defined in `SECTION_SCROLL_MAP`.
 
 ### 2. Haptic Feedback
-Uses `useWebHaptics` from `web-haptics/react` to provide tactile feedback on user interactions (selection, light, success).
 
-### 3. Walkthrough Mode
-Users can open the WalkthroughModal to access voice-guided exploration mode. When open:
-- Custom cursor is disabled
-- 3D background remains visible
-- Modal provides voice interaction interface
+`useWebHaptics` triggers tactile feedback for navigation and walkthrough launch interactions.
+
+### 3. Walkthrough Overlay
+
+Opening the walkthrough now renders `WalkthroughOverlay`, not the old modal component. The overlay:
+
+- Disables the custom cursor while open
+- Preserves the landing page background behind the dialog
+- Provides live transcript, typed input, tool activity, and explainer panels
+- Returns focus to the launcher element on close
 
 ### 4. Responsive Header
-- Fixed header with blur effect
-- Back button appears when not on index section
-- Logo always visible
+
+- Fixed translucent header with blur
+- Back button only when `activeSection !== 'index'`
+- Persistent branding
 
 ## State Management
 
-### Local State
 ```typescript
 const [activeSection, setActiveSection] = useState<SectionId>('index')
 const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false)
 ```
 
-### Scroll Progress
-The `useAnimatedScroll` hook provides scroll progress for the 3D background animation.
+`useAnimatedScroll` also exposes `progress` for the background animation and `scrollTo()` for section changes.
 
 ## Event Handlers
 
 | Handler | Description |
 |---------|-------------|
-| `navigateTo(section)` | Navigates to a specific section with haptic feedback |
-| `goBack()` | Returns to index section |
-| `openWalkthrough()` | Opens the WalkthroughModal |
-| `closeWalkthrough()` | Closes the WalkthroughModal |
-| `triggerSuccess()` | Triggers success haptic feedback |
+| `navigateTo(section)` | Scrolls to the mapped section and updates state |
+| `goBack()` | Returns to the index view |
+| `openWalkthrough()` | Opens `WalkthroughOverlay` |
+| `closeWalkthrough()` | Closes `WalkthroughOverlay` |
 | `triggerLight()` | Triggers light haptic feedback |
-
-## Styling
-
-- **Font**: Sans-serif with `stone-100` text color
-- **Background**: Black with 3D animated background
-- **Selection**: Amber color (`amber-500/30`)
-- **Header**: Semi-transparent with backdrop blur
-- **Animations**: Framer Motion for smooth transitions
 
 ## Dependencies
 
-- `framer-motion` - Animations
-- `web-haptics/react` - Haptic feedback
-- `react` - Core React library
-- `three` - 3D graphics (via ThreeBackground)
-- `@/components/ui` - shadcn/ui components
+- `react`
+- `framer-motion`
+- `web-haptics/react`
+- `three` via `ThreeBackground`
+- `@/components/ui/*`
 
 ## File Location
 
-`/Users/nikhilanand/gemini-live-3d-bridge/frontend/src/pages/LandingPage.tsx`
+`frontend/src/pages/LandingPage.tsx`

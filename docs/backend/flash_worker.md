@@ -4,6 +4,8 @@
 
 The `flash_worker.py` module provides the `FlashWorker` class, a background worker that wraps various Flash models for text generation, image generation, and video generation. It is primarily used in brainstorm mode to generate multimedia content and process ideas.
 
+Recent updates added prompt-enhancement middleware for media generation so rough brainstorm prompts are automatically rewritten into stronger image/video requests before the generation APIs are called.
+
 ## Key Classes
 
 ### `FlashWorker`
@@ -59,6 +61,8 @@ async def generate_image(self, prompt: str) -> bytes
 
 Generates an image using the Flash Image model.
 
+Before the image request is sent, the worker now calls `enhance_image_prompt()` using a structured JSON response from `gemini-3.1-flash-lite-preview`. If enhancement fails or returns invalid JSON, the original prompt is used as a safe fallback.
+
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `prompt` | `str` | Image generation prompt |
@@ -66,6 +70,22 @@ Generates an image using the Flash Image model.
 | Returns | Description |
 |---------|-------------|
 | `bytes` | Raw image bytes (JPEG format) |
+
+### `enhance_image_prompt`
+
+```python
+async def enhance_image_prompt(self, prompt: str) -> ImagePromptEnhancement
+```
+
+Converts a rough image intent into a stronger, more cinematic prompt using a dedicated system instruction and JSON schema.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `prompt` | `str` | Original user image prompt |
+
+| Returns | Description |
+|---------|-------------|
+| `ImagePromptEnhancement` | Structured model with `enhanced_prompt` |
 
 ### `delegate_task`
 
@@ -98,6 +118,8 @@ async def generate_video(self, prompt: str) -> bytes
 
 Generates a video using Veo 3.1.
 
+Before generation, the worker now calls `enhance_video_prompt()` to improve the prompt and normalize supported Veo parameters.
+
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `prompt` | `str` | Video generation prompt |
@@ -105,6 +127,31 @@ Generates a video using Veo 3.1.
 | Returns | Description |
 |---------|-------------|
 | `bytes` | Raw video bytes |
+
+### `enhance_video_prompt`
+
+```python
+async def enhance_video_prompt(
+    self,
+    prompt: str,
+    aspect_ratio: str | None = None,
+    duration_seconds: int | None = None,
+    audio_guidance: str | None = None,
+) -> VideoGenerationSettings
+```
+
+Builds a cinematic Veo-ready prompt and validates generation settings against supported API values.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `prompt` | `str` | Original user video prompt |
+| `aspect_ratio` | `str \| None` | Optional user hint; normalized to `16:9` or `9:16` |
+| `duration_seconds` | `int \| None` | Optional user hint; normalized to `4`, `6`, or `8` |
+| `audio_guidance` | `str \| None` | Optional dialogue / SFX / ambience guidance |
+
+| Returns | Description |
+|---------|-------------|
+| `VideoGenerationSettings` | Final prompt plus validated aspect ratio and duration |
 
 ## Model Options
 
@@ -122,8 +169,9 @@ Generates a video using Veo 3.1.
 ### Video Model
 
 - **Model**: `veo-3.1-fast-generate-preview`
-- **Aspect Ratio**: 16:9
-- **Duration**: 4 seconds
+- **Supported Aspect Ratios**: `16:9`, `9:16`
+- **Supported Durations**: `4`, `6`, `8` seconds
+- **Defaults**: `16:9`, `8` seconds
 
 ## Helper Functions
 
@@ -150,10 +198,11 @@ Internal method that handles text generation with fallback logic:
 ### Video Generation
 
 The video generation uses a synchronous operation in a thread pool:
-1. Initiates video generation via `generate_videos`
-2. Polls the operation every 10 seconds until complete
-3. Downloads the generated video
-4. Returns raw video bytes
+1. Normalize or enhance the input prompt and Veo settings
+2. Initiate video generation via `generate_videos`
+3. Poll the operation until complete
+4. Download the generated video
+5. Return raw video bytes
 
 ## System Interactions
 
@@ -186,5 +235,11 @@ Video Prompt → generate_video() → Video Bytes
 | `FLASH_MODEL` | `"gemini-flash-latest"` | Alternative text model |
 | `FLASH_PRO_MODEL` | `"gemini-3.1-pro-preview"` | Pro text model |
 | `FLASH_IMAGE_MODEL` | `"gemini-3.1-flash-image-preview"` | Image generation model |
-| `VEO_VIDEO_MODEL` | `"veo-3.1-generate-preview"` | Video generation model |
+| `VEO_VIDEO_MODEL` | `"veo-3.1-fast-generate-preview"` | Video generation model |
 | `DEFAULT_FLASH_TEXT_MODEL_KEY` | `"gemini-3.1-flash-lite"` | Default model key |
+
+## Prompt Enhancement Models
+
+- `IMAGE_PROMPT_ENHANCER_SYSTEM_PROMPT` instructs Flash Lite to return JSON with an `enhanced_prompt`
+- `VIDEO_PROMPT_ENHANCER_SYSTEM_PROMPT` instructs Flash Lite to return JSON with `enhanced_prompt`, `aspect_ratio`, `duration_seconds`, and optional `audio_guidance`
+- Both enhancement flows fall back gracefully when parsing or API calls fail

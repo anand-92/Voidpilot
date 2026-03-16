@@ -130,6 +130,8 @@ Generates a visual image to support the brainstorm using Veo.
 | `prompt` | string | Image generation prompt |
 | `label` | string | Short label describing what the image shows |
 
+The backend now enhances the image prompt before generation using a dedicated Flash Lite worker. This preserves the user's intent while improving composition, lighting, style, and other visual details.
+
 ### 3. generate_brainstorm_video
 
 Generates a video to support the brainstorm using Veo 3.1.
@@ -139,7 +141,10 @@ Generates a video to support the brainstorm using Veo 3.1.
   "name": "generate_brainstorm_video",
   "parameters": {
     "prompt": "Animated ideas transforming into reality",
-    "label": "Idea Transformation"
+    "label": "Idea Transformation",
+    "aspect_ratio": "16:9",
+    "duration_seconds": 8,
+    "audio_guidance": "Soft synth swell and subtle office ambience"
   }
 }
 ```
@@ -148,6 +153,11 @@ Generates a video to support the brainstorm using Veo 3.1.
 |-----------|------|-------------|
 | `prompt` | string | Video generation prompt describing the scene and motion |
 | `label` | string | Short label describing what the video shows |
+| `aspect_ratio` | string | Optional Veo aspect ratio hint: `16:9` or `9:16` |
+| `duration_seconds` | integer | Optional Veo duration hint: `4`, `6`, or `8` |
+| `audio_guidance` | string | Optional dialogue, sound-effects, or ambience guidance |
+
+The backend enhances the video prompt before generation, then normalizes any requested settings to supported Veo API values.
 
 ### 4. delegate_to_flash
 

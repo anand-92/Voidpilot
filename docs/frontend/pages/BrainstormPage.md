@@ -1,172 +1,146 @@
 # BrainstormPage
 
-A creative workspace for generating multimedia content using Gemini's brainstorming capabilities. Users can generate artifacts (markdown), images (Veo), and delegate tasks to Flash model.
+The main brainstorm workspace route. It coordinates auth/guest entry, mode selection, persistent session loading, and the responsive layouts for both Open Studio and Creative Spark.
 
 ## Overview
 
-BrainstormPage is the brainstorming workspace route (`/brainstorm`) of the application. It provides:
-- WebSocket connection to the brainstorm backend endpoint
-- Real-time messaging with Gemini
-- Artifact management (save, view, download)
-- Image generation via Veo
-- Flash model delegation
-- Responsive layout (desktop/mobile)
+`BrainstormPage` powers the `/brainstorm` route and provides:
+
+- Brainstorm entry/auth flow
+- Mode selection between Open Studio and Creative Spark
+- Guest and signed-in workspace access
+- Persistent session creation, reopening, restart, and deletion
+- Share-link creation for persisted sessions
+- Responsive desktop/mobile layouts matched to the active brainstorm mode
 
 ## Route Structure
 
 | Route | Component | Description |
 |-------|-----------|-------------|
-| `/brainstorm` | `BrainstormPage` | Creative workspace for brainstorming |
+| `/brainstorm` | `BrainstormPage` | Brainstorm workspace shell |
 
-The page connects to the WebSocket endpoint: `WS /api/v1/live/brainstorm`
+The page uses the websocket endpoint `WS /api/v1/live/brainstorm` plus REST helpers for persisted session and sharing flows.
 
-## Main Components Used
-
-### Layout Components
-- **`BrainstormDesktopLayout`** - Desktop-optimized layout with sidebar and workspace
-- **`BrainstormMobileLayout`** - Mobile-optimized layout with touch-friendly controls
-
-Both layouts share common props via `BrainstormLayoutProps` type.
+## Main Dependencies
 
 ### Hooks
-- **`useGeminiBrainstorm`** - Primary hook for brainstorm WebSocket transport and artifact management
 
-### Utilities
-- **`getArtifactSize`** - Calculates the total size of artifacts for storage tracking
+- `useGeminiBrainstorm` — live brainstorm transport, transcript, artifacts, voice, mute, and session workspace state
+- `useBrainstormEntryAuth` — brainstorm-specific auth state and sign-in helpers
+- `useBrainstormSessionLibrary` — persisted session library actions
 
-## Key Features
+### Components
 
-### 1. WebSocket Connection
-The page uses `useGeminiBrainstorm` hook to manage:
-- Connection state (`isConnected`, `isStarting`)
-- Messaging (`messages`, `sendText`)
-- Artifact management (`artifacts`, `selectedArtifact`)
-- Generation state (`isGenerating`)
+- `BrainstormEntryModal`
+- `ModeSelectionScreen`
+- `BrainstormDesktopLayout`
+- `BrainstormMobileLayout`
+- `CreativeSparkDesktopLayout`
+- `CreativeSparkMobileLayout`
 
-### 2. Responsive Layout
-Automatically detects mobile devices using:
-- Media query: `(max-width: 767px), (pointer: coarse) and (max-width: 1024px)`
-- Touch point detection
-- User agent detection (Android, iOS, etc.)
+### Utilities / APIs
 
-### 3. Artifact Management
-- List all artifacts with their sizes
-- Select artifacts to view details
-- Download artifacts
-- Track total storage used
+- `getArtifactSize`
+- `createBrainstormShare`
 
-### 4. Flash Model Selection
-- Select between different Flash models
-- Model selection persisted in state
+## Core Flow
 
-### 5. Tool Selection
-- Choose which tools are available:
-  - `save_brainstorm_artifact` - Save markdown artifacts
-  - `generate_brainstorm_image` - Generate images via Veo
-  - `delegate_to_flash` - Delegate to Flash model
+### 1. Entry and Access Control
 
-### 6. Session Persistence & Library
-- **Library View**: Browse previously saved brainstorm sessions (signed-in users only)
-- **Persistent Session Loading**: Restore transcript and artifact list from Firestore/Cloud Storage
-- **Automatic Turn Saving**: Conversations are saved after each interaction
-- **Sharing UI**: Generate and manage public read-only share links for sessions
+The page starts behind `BrainstormEntryModal` unless the user has either:
 
-### 7. Guest vs. Signed-in Mode
-- **Guest Mode**: Ephemeral sessions for unauthenticated users
-- **Signed-in Mode**: Persistent sessions with full library and sharing support
-- **Onboarding Flow**: Encourages signing in for persistent storage and sharing
+- guest access for an ephemeral session, or
+- signed-in workspace access tied to the current auth change key
+
+### 2. Mode Selection
+
+Before starting a new workspace, the user selects a `BrainstormType`:
+
+- `open_studio`
+- `creative_spark`
+
+For signed-in users, session creation is deferred until after this choice so the persisted record can be created with the correct mode.
+
+### 3. Persisted Session Resume / Restart
+
+When reopening a saved session, the page restores the stored `brainstormType` and bypasses mode selection. When switching modes inside a persisted session, it can restart the workspace while preserving the session identity.
+
+### 4. Layout Selection
+
+The page detects mobile layouts with media query, touch-point, and user-agent heuristics, then renders one of four layouts:
+
+- `BrainstormDesktopLayout`
+- `BrainstormMobileLayout`
+- `CreativeSparkDesktopLayout`
+- `CreativeSparkMobileLayout`
 
 ## State Management
 
-### Local State
-```typescript
-const [inputText, setInputText] = useState('')           // User input
-const [selectedArtifact, setSelectedArtifact] = useState<string | null>(null)  // Selected artifact ID
-const [isMobileLayout, setIsMobileLayout] = useState(false)  // Layout mode
-const [sessionTitle, setSessionTitle] = useState('New Brainstorm') // Session title
-const [isLibraryOpen, setIsLibraryOpen] = useState(false) // Library view toggle
-const messagesEndRef = useRef<HTMLDivElement>(null)      // Auto-scroll ref
-```
-
-### Hook State (useGeminiBrainstorm)
-```typescript
-{
-  isConnected: boolean           // WebSocket connection status
-  isStarting: boolean           // Connection in progress
-  messages: Message[]           // Chat messages
-  artifacts: Map<string, Artifact>  // Saved artifacts
-  isGenerating: boolean         // Generation in progress
-  intensityRef: React.RefObject // Animation intensity
-  selectedFlashModel: string    // Currently selected Flash model
-  selectedTools: string[]       // Enabled tools
-}
-```
-
-## Shared Props (BrainstormLayoutProps)
-
-The page constructs a shared props object passed to both desktop and mobile layouts:
+### Local Page State
 
 ```typescript
-const sharedProps: BrainstormLayoutProps = {
-  intensityRef,
-  isConnected,
-  isStarting,
-  messages,
-  artifacts,
-  artifactList,
-  totalSize,
-  isGenerating,
-  inputText,
-  selectedArtifact,
-  currentArtifact,
-  selectedFlashModel,
-  setSelectedFlashModel,
-  selectedTools,
-  setSelectedTools,
-  messagesEndRef,
-  setInputText,
-  setSelectedArtifact,
-  handleSend,
-  handleConnect,
-  stop,
-}
+const [inputText, setInputText] = useState('')
+const [selectedArtifact, setSelectedArtifact] = useState<string | null>(null)
+const [isMobileLayout, setIsMobileLayout] = useState(false)
+const [hasGuestAccess, setHasGuestAccess] = useState(false)
+const [grantedSignedInAuthChangeKey, setGrantedSignedInAuthChangeKey] = useState<number | null>(null)
+const [showModeSelection, setShowModeSelection] = useState(false)
+const [pendingNewSession, setPendingNewSession] = useState(false)
+const messagesEndRef = useRef<HTMLDivElement>(null)
 ```
 
-## Event Handlers
+### Hook-Provided State Highlights
+
+`useGeminiBrainstorm` exposes the active session and workspace state, including:
+
+- connection state
+- transcript/messages
+- `toolActivityEntries`
+- artifact map and lazy load state
+- `activeSessionId`, `sessionMode`, `sessionTitle`
+- `brainstormType`
+- selected Flash model, selected voice, selected tools
+- mute controls and auto-start error handling
+
+## Shared Layout Props
+
+The page builds a `BrainstormLayoutProps` object that includes both legacy workspace props and newer mode/session fields such as:
+
+- `brainstormType`
+- `toolActivityEntries`
+- `selectedArtifactLoadState`
+- `sessionTitle`
+- `selectedVoice`
+- `isMuted`
+- `toggleMute`
+- `onCreateShare`
+- `autoStartError`
+- `onGoBack`
+
+## Key Handlers
 
 | Handler | Description |
 |---------|-------------|
-| `handleSend()` | Sends user input text to the WebSocket |
-| `handleConnect()` | Initiates WebSocket connection |
-| `stop()` | Stops the current generation (from hook) |
+| `handleContinueAsGuest()` | Grants guest access and opens mode selection |
+| `handleCreateSession()` | Grants signed-in workspace access and defers session creation until mode pick |
+| `handleReopenSession(sessionId)` | Restores an existing persisted workspace |
+| `handleDeleteSession(sessionId)` | Deletes a stored brainstorm session |
+| `handleSelectMode(mode)` | Creates/restarts workspace in the selected mode |
+| `handleGoBackToModeSelection()` | Stops the current session and returns to the mode picker |
+| `handleCreateShare()` | Creates a public share link for the active persisted session |
+| `handleSend()` | Sends typed text into the brainstorm session |
+| `handleConnect()` | Starts the live brainstorm session |
 
-## Auto-Scroll Behavior
+## Auto-Scroll
 
-The chat automatically scrolls to the latest message using:
-```typescript
-useEffect(() => {
-  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-}, [messages])
-```
-
-## Styling
-
-- Uses component-specific styles from BrainstormLayouts
-- Responsive design adapts to viewport size
-- Mobile-first approach for touch devices
-
-## Dependencies
-
-- `react` - Core React library
-- `@/hooks/useGeminiBrainstorm` - Custom hook for brainstorm functionality
-- `@/components/brainstorm/*` - Brainstorm-specific components
-
-## File Location
-
-`/Users/nikhilanand/gemini-live-3d-bridge/frontend/src/pages/BrainstormPage.tsx`
+The transcript view scrolls to the latest message whenever `messages` changes.
 
 ## Related Files
 
-- `src/hooks/useGeminiBrainstorm.ts` - WebSocket and artifact management hook
-- `src/components/brainstorm/BrainstormLayouts.tsx` - Desktop and mobile layouts
-- `src/components/brainstorm/utils.ts` - Utility functions for artifact management
+- `frontend/src/pages/BrainstormPage.tsx`
+- `frontend/src/components/brainstorm/BrainstormLayouts.tsx`
+- `frontend/src/components/brainstorm/ModeSelectionScreen.tsx`
+- `frontend/src/components/brainstorm/BrainstormEntryModal.tsx`
+- `frontend/src/hooks/useGeminiBrainstorm.ts`
+- `frontend/src/hooks/useBrainstormSessionLibrary.ts`
+- `frontend/src/hooks/useBrainstormEntryAuth.ts`

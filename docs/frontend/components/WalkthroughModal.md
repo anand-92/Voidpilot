@@ -1,70 +1,65 @@
-# WalkthroughModal Component
+# Walkthrough UI Shell
 
 ## Overview
 
-`WalkthroughModal` is a full-screen modal component for the voice-guided walkthrough mode. It provides an immersive audio visualization experience.
+The old `WalkthroughModal` component has been replaced by a richer walkthrough UI built around `WalkthroughOverlay` and its sibling components in `frontend/src/components/walkthrough/`.
 
-## Location
+## Current Entry Point
 
-`/frontend/src/components/WalkthroughModal.tsx`
+`frontend/src/components/walkthrough/WalkthroughOverlay.tsx`
 
-## What It Does
+## What the Current Walkthrough UI Does
 
-- Displays a full-screen modal with animated audio visualizations
-- Shows connection status (Connecting, Live, Disconnected)
-- Renders real-time audio intensity meters for input/output
-- Provides visual feedback through animated rings and orbs
-- Handles escape key to close and cleanup on unmount
+- Renders a dialog-based overlay on top of the landing page
+- Shows connection status, mic state, and error/degraded states
+- Lets users start the walkthrough, select a voice, and stop/retry sessions
+- Displays a transcript-first conversation view
+- Supports typed follow-up questions in the same live session
+- Shows inline project-grounding activity for `search_project_context`
+- Includes a collapsible explainer describing the File Search-backed flow
 
-## Key Props
+## Main Walkthrough Components
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `isOpen` | `boolean` | Whether the modal is visible |
-| `onClose` | `() => void` | Callback to close the modal |
+| Component | Purpose |
+|-----------|---------|
+| `WalkthroughOverlay.tsx` | Main responsive overlay shell |
+| `WalkthroughTranscript.tsx` | Transcript list with speech turns and inline tool activity |
+| `WalkthroughComposer.tsx` | Typed input composer for walkthrough questions |
+| `WalkthroughStarterPrompts.tsx` | Suggested prompts before the session starts |
+| `WalkthroughExplainer.tsx` | Explains the backend-mediated Gemini Live + File Search flow |
 
-## Internal State
+## State + Data Flow
 
-- Uses `useWalkthroughAgent` hook for WebSocket connection management
-- Canvas ref for custom 2D audio visualization
-- Animation frame ref for render loop
+- `WalkthroughOverlay` consumes `useWalkthroughAgent`
+- `useWalkthroughAgent` manages websocket/audio state, transcript state, tool activity, and voice selection
+- The overlay returns focus to the triggering launcher when closed
 
-## How It Renders the UI
+## Visual Structure
 
-### Container
-- Fixed full-screen overlay with `bg-stone-950/95` and `backdrop-blur-2xl`
-- Uses `AnimatePresence` for entrance/exit animations (300ms fade)
-- Particles background with amber-colored particles
+### Header
 
-### Header Area
-- Close button (top-right) with X icon
-- Status indicator badge showing connection state
+- Close button
+- Live status badge
+- Voice selector
+- Start/stop controls
 
-### Main Visual (Canvas)
-- **Central orb**: Radial gradient that pulses based on `visualIntensityRef`
-- **Animated rings**: 5 concentric rings that pulse and breathe based on audio intensity
-- **Audio meters**: Two vertical bars showing input/output intensity
-  - Left meter: "You" - user's microphone input
-  - Right meter: "Gemini" - assistant's audio output
+### Main Content
 
-### Footer
-- Instructional text: "Speak naturally — left meter is you, right meter is Gemini"
+- Transcript panel for user/Gemini turns and tool activity
+- Mini audio visualizer driven by input/output intensity refs
+- Composer for typed follow-up questions
+- Starter prompts before the first session begins
 
-## Audio Visualization Details
+### Side / Secondary Panel
 
-The canvas renders at 60fps using `requestAnimationFrame`:
-- Orb radius: 30-70px based on intensity
-- Ring radii: 40-165px with alpha fade
-- Meter heights: Dynamic based on audio intensity
-- Smooth animations using sine waves for breathing effects
+- Collapsible `WalkthroughExplainer`
+- Helpful context about how project grounding works
 
-## Dependencies
+## Related Files
 
-- `react` - useCallback, useEffect, useRef
-- `framer-motion` - AnimatePresence, motion for animations
-- `lucide-react` - XIcon
-- `@/components/ui/button` - Close button
-- `@/components/ui/badge` - Status badges
-- `@/components/ui/shine-border` - Orb border effect
-- `@/components/ui/particles` - Background particles
-- `../hooks/useWalkthroughAgent` - WebSocket connection hook
+- `frontend/src/components/walkthrough/WalkthroughOverlay.tsx`
+- `frontend/src/components/walkthrough/WalkthroughTranscript.tsx`
+- `frontend/src/components/walkthrough/WalkthroughComposer.tsx`
+- `frontend/src/components/walkthrough/WalkthroughStarterPrompts.tsx`
+- `frontend/src/components/walkthrough/WalkthroughExplainer.tsx`
+- `frontend/src/hooks/useWalkthroughAgent.ts`

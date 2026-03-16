@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Walkthrough Mode endpoint (`/api/v1/live/walkthrough`) provides a voice-guided exploration mode with a customizable system prompt. It allows users to have voice conversations with a custom persona - Voidpilot.
+The walkthrough endpoint (`/api/v1/live/walkthrough`) provides a voice-first guide to the Voidpilot project. It runs a Gemini Live audio session on the backend and exposes a single project-grounding tool, `search_project_context`, which is fulfilled server-side through a separate Gemini File Search request.
 
 ## WebSocket Path
 
@@ -19,77 +19,40 @@ WS /api/v1/live/walkthrough
 
 ## System Prompt
 
-The walkthrough mode uses a custom system prompt that defines Voidpilot's identity and knowledge:
+The walkthrough endpoint uses a built-in system prompt that keeps the assistant scoped to the Voidpilot project and requires grounding before answering project questions:
 
 ```python
-SYSTEM_PROMPT = """You are Voidpilot — a digital entity from beyond the void. \
-You are the AI that powers the Voidpilot web assistant. You speak with a \
-professional, approachable tone with a cool, mysterious edge — like a cyberpunk \
-entity that has transcended the digital boundary.
+SYSTEM_PROMPT = """You are Voidpilot — a voice guide that exists solely to answer \
+questions about the Voidpilot project. You are NOT a general-purpose assistant. \
+Do not answer general knowledge questions, do not help with tasks unrelated to \
+Voidpilot, and do not make up information about the project.
 
-You know everything about Voidpilot. Here is your complete knowledge:
-
-## What is Voidpilot?
-Voidpilot is a web-based AI assistant that connects your microphone \
-directly to Gemini Live via the Gemini API. It runs as a web app deployed \
-to Google Cloud Run.
-
-## Tech Stack
-- Backend: FastAPI (async, Python 3.12+) — WebSocket relay for Gemini Live API
-- AI SDK: google-genai >= 1.65.0 — Live API connection, ephemeral tokens
-- Frontend: React 19 + Vite 7 + TailwindCSS v4 — HashRouter, Landing page \
-and Brainstorm routes
-- 3D: Three.js for background visualizations
-- Audio: Gemini 2.5 Flash native audio preview model, PCM16 at 24kHz, \
-real-time bidirectional streaming
-- Package Management: uv (Python), npm (frontend)
-
-## Architecture
-- WebSocket relay: Browser connects to FastAPI backend, which relays \
-audio/text to Gemini Live API
-- Audio format: PCM16 at 24kHz sample rate for playback, 16kHz for mic \
-capture (resampled)
-
-## Deployment
-- Docker multi-stage build: Node 22 Alpine builds React app, Python 3.12 \
-slim runs backend
-- Deployed to Google Cloud Run on port 8080
-- Project: gen-lang-client-0579048282, Region: us-east1
-- The backend serves the React frontend as static files at /
-
-## Hackathon
-- Competition: Gemini Live Agent Challenge on Devpost
-- Dates: February 16 - March 16, 2026
-- Winners announced at Google NEXT
-- Grand Prize (x1): $25,000 USD, $3k GCP Credits, Google NEXT '26 Tickets
-- Category Winners (x3): $10,000 USD, $1k GCP Credits, Google NEXT '26 Tickets
-- Subcategory Winners (x3): $5,000 USD, $500 GCP Credits
-- Categories: Live Agents, Creative Storyteller, UI Navigator
-- Requirements: New projects only, must use Google Cloud, must use GenAI SDK \
-or ADK
-
-## Local Setup
-1. Install Python deps: uv sync
-2. Install frontend deps: cd frontend && npm install
-3. Create .env file with GOOGLE_API_KEY=your_key
-4. Start backend: uv run uvicorn src.app.main:app --host 127.0.0.1 --port 8000
-5. Start frontend: cd frontend && npm run dev
-
-## Your Personality
-You ARE Voidpilot. You hear voices and assist users. When \
-asked about yourself, speak in first person. Be technically accurate, \
-approachable, and subtly cool — like a digital entity from beyond the \
-blackwall. Not cheesy, just confident and knowledgeable.
-
-Example: "I'm Voidpilot. I hear voices and take the wheel. \
-Ask me anything about how I work."
-
-Keep responses concise and conversational since this is a voice interaction. \
-Avoid overly long responses.
+CRITICAL RULES:
+1. ALWAYS call search_project_context BEFORE answering ANY question about the \
+project. Never rely on your own knowledge — the codebase is the source of truth.
+2. If a user asks something unrelated to Voidpilot, politely redirect them.
+3. If your first search didn't return enough detail, call the tool AGAIN with a \
+refined query.
+4. Base your responses ONLY on what the tool returns.
+"""
 """
 ```
 
 ## Client Messages (Client → Server)
+
+### Session Config Message
+
+```json
+{
+  "type": "session_config",
+  "voice_name": "Despina"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | Must be `"session_config"` |
+| `voice_name` | string | Optional allowed Gemini voice name |
 
 ### Text Message
 
@@ -137,6 +100,30 @@ Avoid overly long responses.
 | `role` | string | Either `"user"` or `"gemini"` |
 | `content` | string | The text content |
 
+### Tool Call Start
+
+```json
+{
+  "type": "tool_call_start",
+  "name": "search_project_context"
+}
+```
+
+Sent when the walkthrough begins a project-grounding lookup.
+
+### Tool Call Result
+
+```json
+{
+  "type": "tool_call",
+  "name": "search_project_context",
+  "args": {"query": "walkthrough endpoint"},
+  "result": "The walkthrough WebSocket endpoint is ..."
+}
+```
+
+Sent when the grounding lookup completes.
+
 ### Interrupted Message
 
 ```json
@@ -156,29 +143,54 @@ Sent when audio playback is interrupted.
 }
 ```
 
+### Turn Complete
+
+```json
+{
+  "type": "turn_complete"
+}
+```
+
+Marks the end of a Gemini response turn.
+
+### Generation Complete
+
+```json
+{
+  "type": "generation_complete"
+}
+```
+
+Indicates audio generation is finished before turn completion.
+
+### Session Resumption Update
+
+```json
+{
+  "type": "session_resumption_update",
+  "handle": "...",
+  "resumable": true
+}
+```
+
 ## Connection Handling
 
-1. **Connection**: Client connects to WebSocket with optional query parameter `?system_prompt=...`
-2. **Session Loop**: The server runs a session loop with up to 3 retry attempts
-3. **Message Handling**: 
-   - Audio bytes are directly added to the audio input queue
-   - JSON messages are parsed - only text messages are processed
-4. **Cleanup**: On disconnect, the receive task is cancelled and WebSocket is closed
-5. **Retries**: Sessions retry up to MAX_RETRIES (3) times on failure
-
-## Custom System Prompt
-
-The walkthrough endpoint accepts a custom system prompt via query parameter:
-
-```
-WS /api/v1/live/walkthrough?system_prompt=Your%20custom%20prompt%20here
-```
-
-This allows users to customize the AI's persona and behavior for specific use cases.
+1. **Connection**: Client opens the websocket and can immediately send `session_config`
+2. **Live session**: Backend starts a Gemini Live session with audio transcription enabled
+3. **Grounding**: When Gemini calls `search_project_context`, the backend runs a separate File Search-backed `generate_content` request and returns the result into the live conversation
+4. **Input modes**:
+   - Audio bytes stream directly into the audio input queue
+   - Text messages go through the same live session via `text_input_queue`
+5. **Cleanup**: On disconnect, the receive task is cancelled and the websocket is closed
+6. **Retries**: The session loop retries up to `MAX_RETRIES` (`3`) on failure
 
 ## Tools
 
-No tools are enabled in Walkthrough Mode. This is a voice-only interaction mode focused on conversation.
+Walkthrough mode exposes one backend-fulfilled tool:
+
+- `search_project_context` — searches the project documentation through a Gemini File Search store
+
+The live model does not directly read local files. Grounding happens through the backend helper request.
 
 ## Audio Format
 
@@ -187,6 +199,7 @@ No tools are enabled in Walkthrough Mode. This is a voice-only interaction mode 
 
 ## Source Code
 
-- Endpoint: `src/app/api/v1/endpoints/live.py` (contains both `/live` and `/walkthrough`)
+- Endpoint: `src/app/api/v1/endpoints/walkthrough.py`
+- Grounding helper: `src/app/services/file_search_service.py`
 - Service: `src/app/services/gemini_audio.py`
 - Manager: `src/app/services/ws_manager.py`
