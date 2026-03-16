@@ -80,7 +80,7 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
                 </Button>
                 <Button
                   variant="outline"
-                  render={<a href="https://github.com/AshishT558/gemini-live-3d-bridge" target="_blank" rel="noreferrer" />}
+                  render={<a href="https://github.com/anand-92/Voidpilot" target="_blank" rel="noreferrer" />}
                   className="h-auto gap-2 rounded-full border-stone-700 px-6 py-3 font-semibold text-stone-400 hover:bg-white/5 w-full md:w-auto"
                 >
                   View Source Code
@@ -151,12 +151,12 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
                   <p>
                     Public source repository:{' '}
                     <a
-                      href="https://github.com/AshishT558/gemini-live-3d-bridge"
+                      href="https://github.com/anand-92/Voidpilot"
                       target="_blank"
                       rel="noreferrer"
                       className="text-blue-400 hover:text-blue-300 underline underline-offset-4"
                     >
-                      github.com/AshishT558/gemini-live-3d-bridge
+                      github.com/anand-92/Voidpilot
                     </a>
                   </p>
                 </div>
