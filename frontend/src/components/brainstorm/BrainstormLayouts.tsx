@@ -32,8 +32,8 @@ export type BrainstormLayoutProps = {
   handleSend: () => void
   handleConnect: () => Promise<void>
   stop: () => void
-  isMicPaused: boolean
-  toggleMicPause: () => void
+  isMuted: boolean
+  toggleMute: () => void
   onCreateShare?: () => Promise<string | null>
   autoStartError?: string | null
   clearAutoStartError?: () => void

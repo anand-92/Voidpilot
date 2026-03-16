@@ -10,10 +10,10 @@ import {
   Loader2,
   Mic,
   MicOff,
-  Pause,
-  Play,
   Share2,
   Sparkles,
+  Volume2,
+  VolumeX,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -34,10 +34,10 @@ type ConversationPanelProps = {
   onCreateShare?: () => Promise<string | null>
   isConnected?: boolean
   isStarting?: boolean
-  isMicPaused?: boolean
+  isMuted?: boolean
   handleConnect?: () => Promise<void>
   stop?: () => void
-  toggleMicPause?: () => void
+  toggleMute?: () => void
   headerExtra?: ReactNode
 }
 
@@ -120,7 +120,7 @@ function InlineToolActivity({ entry }: { entry: ConversationToolActivityEntry })
   )
 }
 
-export function ConversationPanel({ messages, toolActivityEntries = [], messagesEndRef, mobile, sessionTitle, onCreateShare, isConnected, isStarting, isMicPaused, handleConnect, stop, toggleMicPause, headerExtra }: ConversationPanelProps) {
+export function ConversationPanel({ messages, toolActivityEntries = [], messagesEndRef, mobile, sessionTitle, onCreateShare, isConnected, isStarting, isMuted, handleConnect, stop, toggleMute, headerExtra }: ConversationPanelProps) {
   const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
 
   const transcriptItems = useMemo(() => {
@@ -288,7 +288,7 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
         )}
       </div>
 
-      {/* Connection / Pause / Resume button */}
+      {/* Connection / mute / end controls */}
       {handleConnect && stop && (
         <div className="shrink-0 flex justify-center px-4 py-3 border-t border-white/[0.04] bg-black/40 backdrop-blur-xl">
           {!isConnected ? (
@@ -312,17 +312,19 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={toggleMicPause}
+                onClick={toggleMute}
+                aria-label={isMuted ? 'Unmute mic and Gemini audio' : 'Mute mic and Gemini audio'}
+                title={isMuted ? 'Unmute mic and Gemini audio' : 'Mute mic and Gemini audio'}
                 className={cn(
                   'relative flex items-center gap-2.5 rounded-full px-6 py-3 text-sm font-bold transition-all',
-                  isMicPaused
+                  isMuted
                     ? 'bg-blue-600/20 border border-blue-500/40 text-blue-300 shadow-[0_0_30px_rgba(59,130,246,0.4)] hover:bg-blue-600/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.5)]'
                     : 'bg-amber-600/20 border border-amber-500/40 text-amber-300 shadow-[0_0_30px_rgba(59,130,246,0.4)] hover:bg-amber-600/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.5)]',
                   'active:scale-95',
                 )}
               >
-                {isMicPaused ? <Play className="size-4" /> : <Pause className="size-4" />}
-                {isMicPaused ? 'Resume' : 'Pause'}
+                {isMuted ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+                {isMuted ? 'Unmute' : 'Mute'}
               </button>
               <button
                 type="button"
