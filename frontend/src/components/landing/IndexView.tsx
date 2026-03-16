@@ -136,7 +136,7 @@ export function IndexView({ onNavigate, onWalkthroughOpen }: IndexViewProps) {
 
       <BlurFade delay={0.4}>
         <p className="mt-4 md:mt-8 max-w-2xl text-center text-sm sm:text-lg md:text-xl font-light leading-relaxed pointer-events-auto text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]">
-          Talk to Gemini, steer the scene, and let it drive your desktop — all in real time.
+          Talk to Gemini in real time, explore the project, and brainstorm images, videos, and docs as you go.
         </p>
       </BlurFade>
 
