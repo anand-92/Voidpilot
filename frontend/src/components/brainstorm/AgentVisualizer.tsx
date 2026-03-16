@@ -111,7 +111,15 @@ const LANDMARKS = {
   cat: { x: 780, y: 1000, stopRadius: 140 },
 } as const
 
-type IdleBehavior = 'none' | 'wandering' | 'nap_walk' | 'sleeping' | 'think_desk' | 'thinking' | 'visit_cat' | 'admiring_cat'
+type IdleBehavior =
+  | 'none'
+  | 'wandering'
+  | 'nap_walk'
+  | 'sleeping'
+  | 'think_desk'
+  | 'thinking'
+  | 'visit_cat'
+  | 'admiring_cat'
 
 interface ToastAgent {
   name: string
@@ -144,9 +152,19 @@ interface ToastAgent {
   stuckY: number
 }
 
-function createAgent(name: string, label: string, color: string, homeX: number, homeY: number, moveSpeed: number, napDelay: number): ToastAgent {
+function createAgent(
+  name: string,
+  label: string,
+  color: string,
+  homeX: number,
+  homeY: number,
+  moveSpeed: number,
+  napDelay: number,
+): ToastAgent {
   return {
-    name, label, color,
+    name,
+    label,
+    color,
     anim: 'idle', frame: 0, frameTimer: 0,
     x: homeX, y: homeY, targetX: homeX, targetY: homeY,
     facingRight: true,
@@ -308,7 +326,14 @@ function pickOppositeWalkable(
   return pickRandomWalkable(mask)
 }
 
-export function AgentVisualizer({ intensityRef, isGenerating, isConnected, className, style, onMonitorClick }: AgentVisualizerProps) {
+export function AgentVisualizer({
+  intensityRef,
+  isGenerating,
+  isConnected,
+  className,
+  style,
+  onMonitorClick,
+}: AgentVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const geminiRef = useRef(createAgent('Gemini', 'Voice', '#3b82f6', 600, 1200, 1.0, 30))
@@ -440,7 +465,12 @@ export function AgentVisualizer({ intensityRef, isGenerating, isConnected, class
     }
   }, [])
 
-  const updateAgent = useCallback((agent: ToastAgent, dt: number, shouldBeActive: boolean, otherAgent: ToastAgent) => {
+  const updateAgent = useCallback((
+    agent: ToastAgent,
+    dt: number,
+    shouldBeActive: boolean,
+    otherAgent: ToastAgent,
+  ) => {
     if (shouldBeActive && !agent.isActive) {
       agent.isActive = true
       agent.activeTimer = 0
