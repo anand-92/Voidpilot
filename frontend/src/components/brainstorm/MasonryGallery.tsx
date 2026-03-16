@@ -178,12 +178,12 @@ function GalleryStrip({
       >
         <DialogContent
           showCloseButton={false}
-          className="fixed inset-0 z-[220] flex h-screen w-screen max-w-none translate-x-0 translate-y-0 items-center justify-center rounded-none border-0 bg-black/95 p-4 ring-0 backdrop-blur-xl data-open:zoom-in-100 data-closed:zoom-out-95 sm:p-6"
+          className="fixed top-0 right-0 bottom-0 left-0 z-[220] flex max-h-none w-auto max-w-none translate-x-0 translate-y-0 items-center justify-center rounded-none border-0 bg-transparent p-0 ring-0 shadow-none sm:max-w-none"
         >
           <DialogTitle className="sr-only">Artifact Preview</DialogTitle>
 
           {previewArtifact !== null ? (
-            <>
+            <div className="relative flex h-full w-full items-center justify-center bg-black/95 p-4 backdrop-blur-xl sm:p-6">
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -198,7 +198,7 @@ function GalleryStrip({
                 previewArtifact[1].mimeType.startsWith('video/') ? (
                   <video
                     src={`data:video/mp4;base64,${previewArtifact[1].content}`}
-                    className="block max-h-[calc(100vh-4rem)] max-w-[calc(100vw-4rem)] rounded-xl object-contain shadow-2xl"
+                    className="block max-h-full max-w-full rounded-xl object-contain shadow-2xl"
                     controls
                     autoPlay
                   />
@@ -206,7 +206,7 @@ function GalleryStrip({
                   <img
                     src={`data:image/png;base64,${previewArtifact[1].content}`}
                     alt={previewArtifact[1].label ?? previewArtifact[0]}
-                    className="block max-h-[calc(100vh-4rem)] max-w-[calc(100vw-4rem)] rounded-xl object-contain shadow-2xl"
+                    className="block max-h-full max-w-full rounded-xl object-contain shadow-2xl"
                   />
                 )
               ) : (
@@ -214,7 +214,7 @@ function GalleryStrip({
                   <Loader2 className="size-10 animate-spin text-stone-500" />
                 </div>
               )}
-            </>
+            </div>
           ) : null}
         </DialogContent>
       </Dialog>

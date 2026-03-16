@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, ArrowLeft, RefreshCw, Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,10 @@ import { VoiceSelector } from './VoiceSelector'
 import { DropDownSign } from './DropDownSign'
 
 type WindowId = 'visualizer' | 'output' | 'conversation'
+
+const DESKTOP_WINDOW_PADDING = 24
+const DESKTOP_WINDOW_GAP = 16
+const DESKTOP_CONTROLS_RESERVE = 116
 
 interface WindowState {
   id: WindowId
@@ -53,15 +57,15 @@ export function CreativeSparkDesktopLayout({
   const [maxZ, setMaxZ] = useState(10)
   const [layoutKey, setLayoutKey] = useState(0)
 
-  const getInitialWindows = (): Record<WindowId, WindowState> => {
+  const getInitialWindows = useCallback((): Record<WindowId, WindowState> => {
     const isClient = typeof window !== 'undefined'
     const iw = isClient ? window.innerWidth : 1024
     const ih = isClient ? window.innerHeight : 768
 
-    const pad = 24
-    const gap = 16
+    const pad = DESKTOP_WINDOW_PADDING
+    const gap = DESKTOP_WINDOW_GAP
     const usableW = iw - pad * 2
-    const usableH = ih - pad * 2
+    const usableH = ih - pad * 2 - DESKTOP_CONTROLS_RESERVE
 
     // Left column ~48%, right column ~48%, gap in between
     const leftW = Math.round((usableW - gap) * 0.48)
@@ -101,15 +105,21 @@ export function CreativeSparkDesktopLayout({
         defaultState: { x: pad + leftW + gap, y: pad, w: rightW, h: usableH },
       },
     }
+  }, [])
+
+  const [windows, setWindows] = useState<Record<WindowId, WindowState>>(() => getInitialWindows())
+  const [showSign, setShowSign] = useState(true)
+  const windowBoundsInset = {
+    top: DESKTOP_WINDOW_PADDING,
+    right: DESKTOP_WINDOW_PADDING,
+    bottom: DESKTOP_WINDOW_PADDING + DESKTOP_CONTROLS_RESERVE,
+    left: DESKTOP_WINDOW_PADDING,
   }
 
-  const [windows, setWindows] = useState<Record<WindowId, WindowState>>(getInitialWindows)
-  const [showSign, setShowSign] = useState(true)
-
-  const resetLayout = () => {
+  const resetLayout = useCallback(() => {
     setWindows(getInitialWindows())
     setLayoutKey(k => k + 1)
-  }
+  }, [getInitialWindows])
 
   useEffect(() => {
     let timeoutId: number | null = null
@@ -132,7 +142,7 @@ export function CreativeSparkDesktopLayout({
       }
       window.removeEventListener('resize', handleResize)
     }
-  }, [])
+  }, [resetLayout])
 
   const bringToFront = (id: WindowId) => {
     setMaxZ(prev => prev + 1)
@@ -167,7 +177,7 @@ export function CreativeSparkDesktopLayout({
       <DropDownSign show={showSign} onComplete={() => setShowSign(false)} />
 
       {/* Minimized Dock */}
-      <div className="absolute bottom-24 left-4 z-[100] flex flex-col-reverse gap-2">
+      <div className="absolute bottom-32 left-4 z-[100] flex flex-col-reverse gap-2">
         <AnimatePresence>
           {minimizedWindows.map(w => (
             <motion.div
@@ -203,8 +213,9 @@ export function CreativeSparkDesktopLayout({
             onRestore={() => toggleMaximize('visualizer')}
             zIndex={windows.visualizer.zIndex}
             onFocus={() => bringToFront('visualizer')}
+            boundsInset={windowBoundsInset}
           >
-            <div className="w-full h-full overflow-hidden flex items-center justify-center bg-black/20 p-1">
+            <div className="flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden bg-black/20 p-1">
               <AgentVisualizer
                 intensityRef={intensityRef}
                 isGenerating={isGenerating}
@@ -214,50 +225,70 @@ export function CreativeSparkDesktopLayout({
             </div>
           </DraggableWindow>
 
-          <DraggableWindow
-            key={`output-${layoutKey}`}
-            title={windows.output.title}
-            defaultState={windows.output.defaultState}
-            isMinimized={windows.output.isMinimized}
-            isMaximized={windows.output.isMaximized}
-            onMinimize={() => toggleMinimize('output')}
-            onMaximize={() => toggleMaximize('output')}
-            onRestore={() => toggleMaximize('output')}
-            zIndex={windows.output.zIndex}
-            onFocus={() => bringToFront('output')}
+          <section
+            className="absolute flex overflow-hidden rounded-2xl border border-blue-600/40 bg-black/80 shadow-[0_0_20px_rgba(37,99,235,0.25)] backdrop-blur-2xl"
+            style={{
+              left: windows.output.defaultState.x,
+              top: windows.output.defaultState.y,
+              width: windows.output.defaultState.w,
+              height: windows.output.defaultState.h,
+              zIndex: windows.output.zIndex,
+            }}
           >
-            <div className="relative w-full h-full overflow-hidden flex flex-col bg-[#0a0a0a]">
-              <Particles className="absolute inset-0 z-0 opacity-40" quantity={120} ease={80} color="#3b82f6" refresh />
-              <DotPattern className="absolute inset-0 z-0 opacity-50" width={32} height={32} cx={16} cy={16} cr={1} />
-              <div className="relative z-10 flex-1 min-h-0">
-                <MasonryGallery
-                  artifactList={artifactList}
-                  isGenerating={isGenerating}
-                  downloadArtifact={downloadArtifact}
-                  downloadAllArtifacts={downloadAllArtifacts}
-                />
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="relative flex shrink-0 items-center justify-between bg-white/[0.03] px-3 py-2">
+                <div className="w-8" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-xs font-bold tracking-widest text-stone-400 uppercase font-mono">
+                    {windows.output.title}
+                  </span>
+                </div>
+                <div className="w-8" />
+              </div>
+
+              <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0a0a0a]">
+                <Particles className="absolute inset-0 z-0 opacity-40" quantity={120} ease={80} color="#3b82f6" refresh />
+                <DotPattern className="absolute inset-0 z-0 opacity-50" width={32} height={32} cx={16} cy={16} cr={1} />
+                <div className="relative z-10 flex-1 min-h-0">
+                  <MasonryGallery
+                    artifactList={artifactList}
+                    isGenerating={isGenerating}
+                    downloadArtifact={downloadArtifact}
+                    downloadAllArtifacts={downloadAllArtifacts}
+                  />
+                </div>
               </div>
             </div>
-          </DraggableWindow>
+          </section>
 
-          <DraggableWindow
-            key={`conversation-${layoutKey}`}
-            title={windows.conversation.title}
-            defaultState={windows.conversation.defaultState}
-            isMinimized={windows.conversation.isMinimized}
-            isMaximized={windows.conversation.isMaximized}
-            onMinimize={() => toggleMinimize('conversation')}
-            onMaximize={() => toggleMaximize('conversation')}
-            onRestore={() => toggleMaximize('conversation')}
-            zIndex={windows.conversation.zIndex}
-            onFocus={() => bringToFront('conversation')}
+          <section
+            className="absolute flex overflow-hidden rounded-2xl border border-blue-600/40 bg-black/80 shadow-[0_0_20px_rgba(37,99,235,0.25)] backdrop-blur-2xl"
+            style={{
+              left: windows.conversation.defaultState.x,
+              top: windows.conversation.defaultState.y,
+              width: windows.conversation.defaultState.w,
+              height: windows.conversation.defaultState.h,
+              zIndex: windows.conversation.zIndex,
+            }}
           >
-            <div className="w-full h-full overflow-hidden flex flex-col bg-black">
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="relative flex shrink-0 items-center justify-between bg-white/[0.03] px-3 py-2">
+                <div className="w-8" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-xs font-bold tracking-widest text-stone-400 uppercase font-mono">
+                    {windows.conversation.title}
+                  </span>
+                </div>
+                <div className="w-8" />
+              </div>
+
+              <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-black">
               <ConversationPanel
                 messages={messages}
                 toolActivityEntries={toolActivityEntries}
                 messagesEndRef={messagesEndRef}
                 mobile={false}
+                transcriptBottomInset={DESKTOP_CONTROLS_RESERVE}
                 sessionTitle={sessionTitle}
                 isConnected={isConnected}
                 isStarting={isStarting}
@@ -274,8 +305,9 @@ export function CreativeSparkDesktopLayout({
                   />
                 }
               />
+              </div>
             </div>
-          </DraggableWindow>
+          </section>
         </div>
       </div>
 

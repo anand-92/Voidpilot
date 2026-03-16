@@ -109,11 +109,6 @@ export default function BrainstormPage() {
     return () => mediaQuery.removeEventListener('change', updateLayoutMode)
   }, [])
 
-  // Auto-scroll chat
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
   useEffect(() => {
     if (!selectedArtifact) {
       return

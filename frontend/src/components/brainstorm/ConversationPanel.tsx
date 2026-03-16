@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react'
+import { useCallback, useMemo, useState, type ReactNode, type RefObject } from 'react'
 import {
   AlertCircle,
   Check,
@@ -38,6 +38,7 @@ type ConversationPanelProps = {
   toolActivityEntries?: ConversationToolActivityEntry[]
   messagesEndRef: RefObject<HTMLDivElement | null>
   mobile: boolean
+  transcriptBottomInset?: number
   sessionTitle?: string | null
   onCreateShare?: () => Promise<string | null>
   isConnected?: boolean
@@ -128,7 +129,7 @@ function InlineToolActivity({ entry }: { entry: ConversationToolActivityEntry })
   )
 }
 
-export function ConversationPanel({ messages, toolActivityEntries = [], messagesEndRef, mobile, sessionTitle, onCreateShare, isConnected, isStarting, isMuted, handleConnect, stop, toggleMute, headerExtra }: ConversationPanelProps) {
+export function ConversationPanel({ messages, toolActivityEntries = [], messagesEndRef, mobile, transcriptBottomInset = 0, sessionTitle, onCreateShare, isConnected, isStarting, isMuted, handleConnect, stop, toggleMute, headerExtra }: ConversationPanelProps) {
   const [shareState, setShareState] = useState<'idle' | 'loading' | 'copied'>('idle')
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
@@ -164,10 +165,6 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
     return items
   }, [messages, toolActivityEntries])
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messagesEndRef, transcriptItems])
-
   const handleShare = useCallback(async () => {
     if (!onCreateShare || shareState === 'loading') return
     setShareState('loading')
@@ -190,6 +187,7 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
 
   return (
     <>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div
         className={cn(
           'flex shrink-0 items-center gap-2 px-5 py-3',
@@ -234,16 +232,11 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
 
       {!mobile && <Separator className="bg-white/[0.04]" />}
 
-      <div
-        className={cn(
-          'min-h-0 flex-1 overflow-y-auto overscroll-contain',
-          mobile ? 'px-4 py-4' : 'px-5 py-4',
-        )}
-      >
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {transcriptItems.length === 0 ? (
           <div
             className={cn(
-              'relative flex flex-col items-center justify-center gap-4 text-center',
+              'relative flex min-h-full flex-col items-center justify-center gap-4 px-5 py-4 text-center',
               mobile ? 'h-full py-10' : 'h-full',
             )}
           >
@@ -265,7 +258,13 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
             </div>
           </div>
         ) : (
-          <div className="flex min-h-full flex-col gap-3">
+          <div
+            className={cn(
+              'flex min-h-full flex-col gap-3',
+              mobile ? 'px-4 py-4' : 'px-5 py-4',
+            )}
+            style={transcriptBottomInset > 0 ? { paddingBottom: transcriptBottomInset + 16 } : undefined}
+          >
             {transcriptItems.map((item, index) => {
               const isLatest = index === transcriptItems.length - 1
               return (
@@ -349,6 +348,7 @@ export function ConversationPanel({ messages, toolActivityEntries = [], messages
           )}
         </div>
       )}
+      </div>
       <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
         <DialogContent className="border-white/[0.08] bg-stone-950/95 text-white backdrop-blur-3xl sm:max-w-lg">
           <DialogHeader>

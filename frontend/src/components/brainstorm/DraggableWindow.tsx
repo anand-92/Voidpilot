@@ -17,6 +17,12 @@ export interface DraggableWindowProps {
   maxWidth?: number
   maxHeight?: number
   lockAspectRatio?: number | boolean
+  boundsInset?: {
+    top?: number
+    right?: number
+    bottom?: number
+    left?: number
+  }
 }
 
 const resizeHandleClasses = {
@@ -44,6 +50,7 @@ export function DraggableWindow({
   maxWidth,
   maxHeight,
   lockAspectRatio,
+  boundsInset,
 }: DraggableWindowProps) {
   const [pos, setPos] = useState({ x: defaultState.x, y: defaultState.y })
   const [size, setSize] = useState({ width: defaultState.w, height: defaultState.h })
@@ -69,19 +76,30 @@ export function DraggableWindow({
     return null
   }
 
+  const insetTop = boundsInset?.top ?? 0
+  const insetRight = boundsInset?.right ?? 0
+  const insetBottom = boundsInset?.bottom ?? 0
+  const insetLeft = boundsInset?.left ?? 0
+
   const clampPosition = (x: number, y: number, w: number, h: number) => {
     const vw = typeof window !== 'undefined' ? window.innerWidth : 9999
     const vh = typeof window !== 'undefined' ? window.innerHeight : 9999
     return {
-      x: Math.max(0, Math.min(x, vw - w)),
-      y: Math.max(0, Math.min(y, vh - h)),
+      x: Math.max(insetLeft, Math.min(x, vw - insetRight - w)),
+      y: Math.max(insetTop, Math.min(y, vh - insetBottom - h)),
     }
+  }
+
+  const maximizedSize = {
+    width: `calc(100vw - ${insetLeft + insetRight}px)`,
+    height: `calc(100vh - ${insetTop + insetBottom}px)`,
   }
 
   return (
     <Rnd
-      size={isMaximized ? { width: '100%', height: '100%' } : size}
-      position={isMaximized ? { x: 0, y: 0 } : pos}
+      bounds="window"
+      size={isMaximized ? maximizedSize : size}
+      position={isMaximized ? { x: insetLeft, y: insetTop } : pos}
       onDragStart={onFocus}
       onDrag={(_e, d) => {
         if (isMaximized) return
@@ -101,8 +119,16 @@ export function DraggableWindow({
       onResizeStart={onFocus}
       onResize={(_e, _direction, ref, _delta, position) => {
         if (!isMaximized) {
+          const clamped = clampPosition(position.x, position.y, ref.offsetWidth, ref.offsetHeight)
           setSize({ width: ref.style.width, height: ref.style.height })
-          setPos(position)
+          setPos(clamped)
+        }
+      }}
+      onResizeStop={(_e, _direction, ref, _delta, position) => {
+        if (!isMaximized) {
+          const clamped = clampPosition(position.x, position.y, ref.offsetWidth, ref.offsetHeight)
+          setSize({ width: ref.style.width, height: ref.style.height })
+          setPos(clamped)
         }
       }}
       disableDragging={isMaximized}
@@ -157,7 +183,7 @@ export function DraggableWindow({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto relative">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {children}
       </div>
     </Rnd>

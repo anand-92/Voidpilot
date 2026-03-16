@@ -212,7 +212,7 @@ export function BrainstormDesktopLayout({
             zIndex={windows.visualizer.zIndex}
             onFocus={() => bringToFront('visualizer')}
           >
-            <div className="w-full h-full overflow-hidden flex items-center justify-center bg-black/20 p-1">
+            <div className="flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden bg-black/20 p-1">
               <AgentVisualizer
                 intensityRef={intensityRef}
                 isGenerating={isGenerating}
@@ -235,7 +235,7 @@ export function BrainstormDesktopLayout({
             zIndex={windows.workspace.zIndex}
             onFocus={() => bringToFront('workspace')}
           >
-            <div className="w-full h-full overflow-hidden flex flex-col bg-black/40">
+            <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-black/40">
               <WorkspacePanel
                 artifactList={artifactList}
                 totalSize={totalSize}
@@ -264,7 +264,7 @@ export function BrainstormDesktopLayout({
             zIndex={windows.conversation.zIndex}
             onFocus={() => bringToFront('conversation')}
           >
-            <div className="w-full h-full overflow-hidden flex flex-col bg-black">
+            <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-black">
               <ConversationPanel
                 messages={messages}
                 toolActivityEntries={toolActivityEntries}
