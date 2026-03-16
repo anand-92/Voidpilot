@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Download, Sparkles, Video, Loader2, Image as ImageIcon, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import type { BrainstormArtifact } from '../../hooks/useGeminiBrainstorm'
 
@@ -176,41 +176,47 @@ function GalleryStrip({
           }
         }}
       >
-        <DialogTitle className="sr-only">Artifact Preview</DialogTitle>
-        {previewArtifact !== null ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 backdrop-blur-xl sm:p-6">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setPreviewFilename(null)}
-              aria-label="Close artifact preview"
-              className="absolute right-4 top-4 z-10 rounded-full bg-black/60 text-white hover:bg-black/80 hover:text-white"
-            >
-              <X className="size-4" />
-            </Button>
+        <DialogContent
+          showCloseButton={false}
+          className="fixed inset-0 z-[220] flex h-screen w-screen max-w-none translate-x-0 translate-y-0 items-center justify-center rounded-none border-0 bg-black/95 p-4 ring-0 backdrop-blur-xl sm:p-6"
+        >
+          <DialogTitle className="sr-only">Artifact Preview</DialogTitle>
 
-            {previewArtifact[1].content !== null ? (
-              previewArtifact[1].mimeType.startsWith('video/') ? (
-                <video
-                  src={`data:video/mp4;base64,${previewArtifact[1].content}`}
-                  className="max-h-[92vh] w-auto max-w-[92vw] rounded-xl object-contain shadow-2xl"
-                  controls
-                  autoPlay
-                />
+          {previewArtifact !== null ? (
+            <>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setPreviewFilename(null)}
+                aria-label="Close artifact preview"
+                className="absolute right-4 top-4 z-10 rounded-full bg-black/60 text-white hover:bg-black/80 hover:text-white"
+              >
+                <X className="size-4" />
+              </Button>
+
+              {previewArtifact[1].content !== null ? (
+                previewArtifact[1].mimeType.startsWith('video/') ? (
+                  <video
+                    src={`data:video/mp4;base64,${previewArtifact[1].content}`}
+                    className="max-h-[92vh] w-auto max-w-[92vw] rounded-xl object-contain shadow-2xl"
+                    controls
+                    autoPlay
+                  />
+                ) : (
+                  <img
+                    src={`data:image/png;base64,${previewArtifact[1].content}`}
+                    alt={previewArtifact[1].label ?? previewArtifact[0]}
+                    className="max-h-[92vh] w-auto max-w-[92vw] rounded-xl object-contain shadow-2xl"
+                  />
+                )
               ) : (
-                <img
-                  src={`data:image/png;base64,${previewArtifact[1].content}`}
-                  alt={previewArtifact[1].label ?? previewArtifact[0]}
-                  className="max-h-[92vh] w-auto max-w-[92vw] rounded-xl object-contain shadow-2xl"
-                />
-              )
-            ) : (
-              <div className="flex h-full w-full items-center justify-center">
-                <Loader2 className="size-10 animate-spin text-stone-500" />
-              </div>
-            )}
-          </div>
-        ) : null}
+                <div className="flex h-full w-full items-center justify-center">
+                  <Loader2 className="size-10 animate-spin text-stone-500" />
+                </div>
+              )}
+            </>
+          ) : null}
+        </DialogContent>
       </Dialog>
     </div>
   )
