@@ -12,28 +12,27 @@ import { cn } from '@/lib/utils';
 import {
   IconLiveAgent,
   IconStoryteller,
-  IconUINavigator,
   CustomIconCode,
   CustomIconTrophy,
 } from '../icons/CustomIcons';
 
 const hackathonCards = [
   {
-    title: 'Live Agents',
-    description: 'Real-time Audio/Vision interaction. Build natural conversational agents hosted on Google Cloud.',
+    title: 'Realtime Gemini Live',
+    description: 'Voidpilot uses the Google GenAI SDK with Gemini Live for bidirectional audio conversation, live transcription, session resumption, and context window compression.',
     icon: IconLiveAgent,
     color: 'amber' as const,
   },
   {
-    title: 'Creative Storyteller',
-    description: 'Multimodal storytelling with interleaved text, images, audio, and video streams natively.',
+    title: 'Grounded Walkthroughs',
+    description: 'Walkthrough mode uses a server-side search_project_context tool backed by Gemini File Search so project answers come from retrieved project context.',
     icon: IconStoryteller,
     color: 'orange' as const,
   },
   {
-    title: 'UI Navigator',
-    description: 'Visual UI understanding. Agent acts as the user\'s hands, interpreting visuals and performing actions.',
-    icon: IconUINavigator,
+    title: 'Creative Generation',
+    description: 'Brainstorm flows use Gemini 3.1 Flash Image for images, Gemini 3.1 Flash Lite and Pro options for delegated text work, and Veo 3.1 for video generation.',
+    icon: CustomIconCode,
     color: 'yellow' as const,
   },
 ];
@@ -64,24 +63,24 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
                   variant="outline"
                   className="mb-4 h-auto gap-2 rounded-full border-blue-500/20 bg-blue-500/10 px-4 py-1.5 text-sm font-semibold text-blue-300"
                 >
-                  <CustomIconTrophy className="size-4" /> Global Challenge
+                  <CustomIconTrophy className="size-4" /> Contest Submission
                 </Badge>
                 <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Gemini Live Agent Challenge</h2>
                 <p className="mt-4 text-xl text-stone-400 max-w-2xl leading-relaxed">
-                  Redefining Interaction: From Static Chatbots to Immersive Experiences using Google's Live API.
+                  Voidpilot is a voice-first multimodal web app built around Gemini, with realtime conversation, grounded retrieval, and live creative generation at the center of the experience.
                 </p>
               </div>
               <div className="flex flex-col gap-3">
                 <Button
                   variant="outline"
-                  render={<a href="https://geminiliveagentchallenge.devpost.com" target="_blank" rel="noreferrer" />}
+                  render={<a href="https://hackathon.remembr-ai.com" target="_blank" rel="noreferrer" />}
                   className="h-auto gap-2 rounded-full border-blue-500/20 bg-blue-500/10 px-6 py-3 font-semibold text-blue-400 hover:text-blue-300 w-full md:w-auto"
                 >
-                  Register on Devpost <GeminiArrowRight className="size-4" />
+                  Open Live Demo <GeminiArrowRight className="size-4" />
                 </Button>
                 <Button
                   variant="outline"
-                  render={<a href="https://github.com/anand-92/gemini-live-3d-bridge" target="_blank" rel="noreferrer" />}
+                  render={<a href="https://github.com/AshishT558/gemini-live-3d-bridge" target="_blank" rel="noreferrer" />}
                   className="h-auto gap-2 rounded-full border-stone-700 px-6 py-3 font-semibold text-stone-400 hover:bg-white/5 w-full md:w-auto"
                 >
                   View Source Code
@@ -121,28 +120,46 @@ export function HackathonSection({ onCardTap }: { onCardTap: () => void }) {
             <BlurFade delay={0.4}>
               <div className="rounded-xl bg-stone-900/60 p-6 border border-white/[0.04]">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <CustomIconCode className="text-blue-400 h-5 w-5" /> Submission Requirements
+                  <CustomIconCode className="text-blue-400 h-5 w-5" /> Gemini Integration
                 </h3>
-                <ul className="list-inside list-disc space-y-2 text-sm text-stone-400">
-                  <li><strong className="text-stone-200">New Projects Only:</strong> Must be newly created during the contest period.</li>
-                  <li><strong className="text-stone-200">Google Cloud Native:</strong> Must use at least one Google Cloud service.</li>
-                  <li><strong className="text-stone-200">GenAI SDK:</strong> Agents must be built using Google GenAI SDK or Agent Development Kit.</li>
-                  <li><strong className="text-stone-200">Code & Demo:</strong> Include a public code repository with step-by-step spin-up instructions, visual architecture, and a 4min demo video.</li>
-                </ul>
+                <p className="text-sm leading-7 text-stone-400">
+                  Voidpilot is a voice-first multimodal web app built around Gemini. Its core interaction uses the Google GenAI SDK with the Gemini Live API model <span className="text-stone-200">gemini-2.5-flash-native-audio-preview-12-2025</span>, which powers realtime audio conversation over WebSockets. The backend enables both input and output audio transcription, session resumption, and context window compression, making live voice interaction central to the product. Brainstorm workflows also use Gemini-family generation models: <span className="text-stone-200">gemini-3.1-flash-image-preview</span> for images, <span className="text-stone-200">gemini-3.1-flash-lite-preview</span>, <span className="text-stone-200">gemini-flash-latest</span>, and <span className="text-stone-200">gemini-3.1-pro-preview</span> for delegated text work and prompt enhancement, plus <span className="text-stone-200">veo-3.1-fast-generate-preview</span> for video generation. In Walkthrough mode, the app uses a server-side <span className="text-stone-200">search_project_context</span> tool backed by Gemini File Search so project explanations stay grounded in retrieved project context.
+                </p>
               </div>
             </BlurFade>
 
             <BlurFade delay={0.5}>
               <div className="rounded-xl bg-stone-900/60 p-6 border border-white/[0.04]">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <CustomIconTrophy className="text-blue-400 h-5 w-5" /> Prizes & Dates
+                  <CustomIconTrophy className="text-blue-400 h-5 w-5" /> Public Project Link
                 </h3>
-                <ul className="list-inside list-disc space-y-3 text-sm text-stone-400">
-                  <li><strong className="text-stone-200">Dates:</strong> Feb 16 - Mar 16, 2026. Winners announced at Google NEXT.</li>
-                  <li><strong className="text-stone-200">Grand Prize (x1):</strong> $25,000 USD, $3k GCP Credits, Next '26 Tickets.</li>
-                  <li><strong className="text-stone-200">Category Winners (x3):</strong> $10,000 USD, $1k GCP Credits, Next '26 Tickets.</li>
-                  <li><strong className="text-stone-200">Subcategory (x3):</strong> $5,000 USD, $500 GCP Credits.</li>
-                </ul>
+                <div className="space-y-4 text-sm text-stone-400">
+                  <p>
+                    Working product / interactive demo:{' '}
+                    <a
+                      href="https://hackathon.remembr-ai.com"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline underline-offset-4"
+                    >
+                      https://hackathon.remembr-ai.com
+                    </a>
+                  </p>
+                  <p>
+                    The demo is publicly accessible, and the brainstorm entry flow includes an <span className="text-stone-200">Ephemeral Mode</span> option to continue as a guest.
+                  </p>
+                  <p>
+                    Public source repository:{' '}
+                    <a
+                      href="https://github.com/AshishT558/gemini-live-3d-bridge"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline underline-offset-4"
+                    >
+                      github.com/AshishT558/gemini-live-3d-bridge
+                    </a>
+                  </p>
+                </div>
               </div>
             </BlurFade>
           </div>
